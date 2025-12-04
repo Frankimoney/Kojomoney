@@ -1,0 +1,122 @@
+[
+    {
+        "question": "Which African country is known as the 'Giant of Africa'?",
+        "options": [
+            "Nigeria",
+            "South Africa",
+            "Egypt",
+            "Kenya"
+        ],
+        "correctAnswer": "Nigeria",
+        "category": "Geography",
+        "difficulty": "easy"
+    },
+    {
+        "question": "What is the longest river in Africa?",
+        "options": [
+            "Nile River",
+            "Congo River",
+            "Niger River",
+            "Zambezi River"
+        ],
+        "correctAnswer": "Nile River",
+        "category": "Geography",
+        "difficulty": "medium"
+    },
+    {
+        "question": "Which mountain is the highest peak in Africa?",
+        "options": [
+            "Mount Kilimanjaro",
+            "Mount Kenya",
+            "Mount Stanley",
+            "Ras Dashen"
+        ],
+        "correctAnswer": "Mount Kilimanjaro",
+        "category": "Geography",
+        "difficulty": "medium"
+    },
+    {
+        "question": "Who was the first President of South Africa elected in a fully representative democratic election?",
+        "options": [
+            "Nelson Mandela",
+            "Thabo Mbeki",
+            "Desmond Tutu",
+            "Jacob Zuma"
+        ],
+        "correctAnswer": "Nelson Mandela",
+        "category": "History",
+        "difficulty": "easy"
+    },
+    {
+        "question": "Which African country was formerly known as Abyssinia?",
+        "options": [
+            "Ethiopia",
+            "Eritrea",
+            "Somalia",
+            "Sudan"
+        ],
+        "correctAnswer": "Ethiopia",
+        "category": "History",
+        "difficulty": "hard"
+    },
+    {
+        "question": "What is the capital city of Ghana?",
+        "options": [
+            "Accra",
+            "Kumasi",
+            "Lagos",
+            "Abuja"
+        ],
+        "correctAnswer": "Accra",
+        "category": "Geography",
+        "difficulty": "easy"
+    },
+    {
+        "question": "Which large waterfall is located on the border between Zambia and Zimbabwe?",
+        "options": [
+            "Victoria Falls",
+            "Niagara Falls",
+            "Angel Falls",
+            "Iguazu Falls"
+        ],
+        "correctAnswer": "Victoria Falls",
+        "category": "Geography",
+        "difficulty": "medium"
+    },
+    {
+        "question": "In which country can you find the Pyramids of Giza?",
+        "options": [
+            "Egypt",
+            "Sudan",
+            "Libya",
+            "Algeria"
+        ],
+        "correctAnswer": "Egypt",
+        "category": "History",
+        "difficulty": "easy"
+    },
+    {
+        "question": "Which African country has the largest population?",
+        "options": [
+            "Nigeria",
+            "Ethiopia",
+            "Egypt",
+            "DR Congo"
+        ],
+        "correctAnswer": "Nigeria",
+        "category": "Demographics",
+        "difficulty": "medium"
+    },
+    {
+        "question": "What is the currency of Kenya?",
+        "options": [
+            "Kenyan Shilling",
+            "Naira",
+            "Rand",
+            "Cedi"
+        ],
+        "correctAnswer": "Kenyan Shilling",
+        "category": "Economy",
+        "difficulty": "medium"
+    }
+]

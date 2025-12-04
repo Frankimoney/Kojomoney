@@ -1,0 +1,1017 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
+import { Home, Coins, Wallet, User, Play, BookOpen, Brain, Clock, TrendingUp, Gift, Settings, Share2, Bell, Moon, LogOut } from 'lucide-react'
+import dynamic from 'next/dynamic'
+import { useTheme } from 'next-themes'
+import { ThemeProvider } from 'next-themes'
+import { SessionProvider } from 'next-auth/react'
+import { Toaster } from '@/components/ui/toaster'
+
+// Dynamically import components to prevent SSR issues
+const NewsReadingSystem = dynamic(() => import('./NewsReadingSystem'), {
+    ssr: false,
+    loading: () => <div>Loading news...</div>
+})
+
+const DailyTrivia = dynamic(() => import('./DailyTrivia'), {
+    ssr: false,
+    loading: () => <div>Loading trivia...</div>
+})
+
+import AuthSystem from './AuthSystem'
+import { PushNotifications } from '@capacitor/push-notifications'
+import { FirebaseAnalytics } from '@capacitor-firebase/analytics'
+import { FirebaseMessaging } from '@capacitor-firebase/messaging'
+
+interface User {
+    id: string
+    email: string
+    name?: string
+    phone?: string
+    referralCode?: string
+    totalPoints: number
+    adPoints: number
+    newsPoints: number
+    triviaPoints: number
+    dailyStreak: number
+    lastActiveDate?: string
+    referralRewards?: any[]
+    todayProgress?: {
+        adsWatched: number
+        storiesRead: number
+        triviaCompleted: boolean
+    }
+}
+
+interface EarnTabProps {
+    user: User
+    userPoints: number
+    setUserPoints: (updater: (prev: number) => number) => void
+}
+
+function EarnTab({ user, userPoints, setUserPoints }: EarnTabProps) {
+    const [adCooldown, setAdCooldown] = useState(0)
+
+    return (
+        <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center space-x-2">
+                            <Play className="h-5 w-5 text-blue-500" />
+                            <span>Ad View Tasks</span>
+                        </CardTitle>
+                        <CardDescription>Watch ads to earn points</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <span>Standard Ad</span>
+                            <Badge variant="secondary">5 pts</Badge>
+                        </div>
+                        <Button
+                            className="w-full"
+                            disabled={adCooldown > 0}
+                            onClick={async () => {
+                                if (!user?.id) return
+                                try {
+                                    const start = await fetch('/api/ads', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ userId: user.id })
+                                    })
+                                    const startData = await start.json()
+                                    if (!start.ok || !startData?.adViewId) {
+                                        alert(startData?.error || 'Unable to start ad view. Please try again.')
+                                        return
+                                    }
+
+                                    const adViewId = startData.adViewId
+
+                                    const isNative = typeof window !== 'undefined' && (
+                                        ((window as any)?.Capacitor?.isNativePlatform?.() === true) ||
+                                        (((window as any)?.Capacitor?.getPlatform?.() && (window as any).Capacitor.getPlatform() !== 'web'))
+                                    )
+                                    if (isNative) {
+                                        try {
+                                            const admob: any = await import('@capacitor-community/admob')
+                                            await admob.AdMob.initialize({ requestTrackingAuthorization: true, initializeForTesting: true })
+                                            // Test rewarded ad unit. Replace with your real ad unit in production.
+                                            await admob.AdMob.showRewardedAd({ adId: 'ca-app-pub-3940256099942544/5224354917' })
+                                            await fetch('/api/ads', {
+                                                method: 'PATCH',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ adViewId, userId: user.id })
+                                            })
+                                            setAdCooldown(30)
+                                            const timer = setInterval(() => {
+                                                setAdCooldown(prev => {
+                                                    if (prev <= 1) {
+                                                        clearInterval(timer)
+                                                        return 0
+                                                    }
+                                                    return prev - 1
+                                                })
+                                            }, 1000)
+                                            if (typeof window !== 'undefined') {
+                                                window.dispatchEvent(new Event('kojo:user:update'))
+                                            }
+                                        } catch (e) {
+                                            alert('Ad failed to load. Please try again.')
+                                        }
+                                    } else {
+                                        alert('To earn ad points, please use the Kojomoney mobile app.')
+                                    }
+                                } catch (err) {
+                                    alert('Network error starting ad.')
+                                }
+                            }}
+                        >
+                            {adCooldown > 0 ? `Cooldown: ${adCooldown}s` : 'Watch Ad'}
+                        </Button>
+                        <p className="text-xs text-muted-foreground">
+                            30-60 second cooldown between ads
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center space-x-2">
+                            <BookOpen className="h-5 w-5 text-green-500" />
+                            <span>News Tasks</span>
+                        </CardTitle>
+                        <CardDescription>Read stories and answer quizzes</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <span>Daily News</span>
+                            <Badge variant="secondary">10 pts</Badge>
+                        </div>
+                        <Button className="w-full" variant="outline">
+                            Read Stories
+                        </Button>
+                        <p className="text-xs text-muted-foreground">
+                            10 new stories available today
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center space-x-2">
+                            <Brain className="h-5 w-5 text-purple-500" />
+                            <span>Trivia Tasks</span>
+                        </CardTitle>
+                        <CardDescription>Test your knowledge</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <span>Daily Trivia</span>
+                            <Badge variant="secondary">50 pts</Badge>
+                        </div>
+                        <Button className="w-full" variant="outline">
+                            Play Trivia
+                        </Button>
+                        <p className="text-xs text-muted-foreground">
+                            5-10 questions with bonus rewards
+                        </p>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <div className="space-y-8">
+                <div>
+                    <h3 className="text-xl font-semibold mb-4 flex items-center space-x-2">
+                        <BookOpen className="h-5 w-5 text-green-500" />
+                        <span>Read Today's Stories</span>
+                    </h3>
+                    <NewsReadingSystem userId={user?.id} />
+                </div>
+
+                <div>
+                    <h3 className="text-xl font-semibold mb-4 flex items-center space-x-2">
+                        <Brain className="h-5 w-5 text-purple-500" />
+                        <span>Daily Trivia Challenge</span>
+                    </h3>
+                    <DailyTrivia userId={user?.id} dailyStreak={user.dailyStreak} />
+                </div>
+            </div>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                        <Gift className="h-5 w-5 text-orange-500" />
+                        <span>Special Offers</span>
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="p-4 border rounded-lg">
+                            <h4 className="font-semibold">Streak Bonus</h4>
+                            <p className="text-sm text-muted-foreground">
+                                {user.dailyStreak >= 7
+                                    ? '🎉 7 day streak achieved! Keep it up!'
+                                    : `${user.dailyStreak}/7 days - 100 bonus points at 7 days`}
+                            </p>
+                            <Progress value={(user.dailyStreak / 7) * 100} className="mt-2 h-2" />
+                        </div>
+                        <div className="p-4 border rounded-lg">
+                            <h4 className="font-semibold">Referral Reward</h4>
+                            <p className="text-sm text-muted-foreground">Invite friends = 100 points each</p>
+                            <Button
+                                size="sm"
+                                className="mt-2"
+                                variant="outline"
+                                onClick={async () => {
+                                    if (!user?.referralCode) {
+                                        alert('Referral code not available yet.')
+                                        return
+                                    }
+                                    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+                                    const link = `${origin}/?ref=${encodeURIComponent(user.referralCode)}`
+                                    try {
+                                        if (navigator.share) {
+                                            await navigator.share({ title: 'Join Kojomoney', text: 'Sign up and earn with my referral!', url: link })
+                                        } else {
+                                            await navigator.clipboard.writeText(link)
+                                            alert('Referral link copied to clipboard!')
+                                        }
+                                    } catch (_) {
+                                        try {
+                                            await navigator.clipboard.writeText(link)
+                                            alert('Referral link copied to clipboard!')
+                                        } catch (e) {
+                                            alert(`Referral link: ${link}`)
+                                        }
+                                    }
+                                }}
+                            >
+                                <Share2 className="h-4 w-4 mr-2" />
+                                Share Referral Link
+                            </Button>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    )
+}
+
+interface HomeTabProps {
+    user: User
+    userPoints: number
+    setActiveTab: (val: string) => void
+}
+
+function HomeTab({ user, userPoints, setActiveTab }: HomeTabProps) {
+    return (
+        <div className="space-y-6">
+            <Card className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
+                <CardHeader>
+                    <CardTitle className="text-2xl">Welcome back, {user.name || user.email}!</CardTitle>
+                    <CardDescription className="text-purple-100">
+                        Ready to earn more points today?
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-3xl font-bold">{userPoints.toLocaleString()}</p>
+                            <p className="text-purple-100">Total Points</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-xl font-semibold">{user.dailyStreak} days</p>
+                            <p className="text-purple-100">Daily Streak</p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setActiveTab('earn')}>
+                    <CardHeader className="pb-3">
+                        <div className="flex items-center space-x-2">
+                            <Play className="h-6 w-6 text-blue-500" />
+                            <CardTitle className="text-lg">Watch an Ad</CardTitle>
+                        </div>
+                        <CardDescription>Earn 5 points per ad</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Button className="w-full" variant="outline">
+                            Start Watching
+                        </Button>
+                    </CardContent>
+                </Card>
+
+                <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setActiveTab('earn')}>
+                    <CardHeader className="pb-3">
+                        <div className="flex items-center space-x-2">
+                            <BookOpen className="h-6 w-6 text-green-500" />
+                            <CardTitle className="text-lg">Read Today's Stories</CardTitle>
+                        </div>
+                        <CardDescription>Earn 10 points per story</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Button className="w-full" variant="outline">
+                            Read Stories
+                        </Button>
+                    </CardContent>
+                </Card>
+
+                <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setActiveTab('earn')}>
+                    <CardHeader className="pb-3">
+                        <div className="flex items-center space-x-2">
+                            <Brain className="h-6 w-6 text-purple-500" />
+                            <CardTitle className="text-lg">Play Daily Trivia</CardTitle>
+                        </div>
+                        <CardDescription>Earn 50 points bonus</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Button className="w-full" variant="outline">
+                            Play Now
+                        </Button>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                        <TrendingUp className="h-5 w-5" />
+                        <span>Daily Progress</span>
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                            <span>Ads Watched</span>
+                            <span>{user.todayProgress?.adsWatched || 0}/10</span>
+                        </div>
+                        <Progress value={Math.min(((user.todayProgress?.adsWatched || 0) / 10) * 100, 100)} className="h-2" />
+                    </div>
+                    <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                            <span>Stories Read</span>
+                            <span>{user.todayProgress?.storiesRead || 0}/5</span>
+                        </div>
+                        <Progress value={Math.min(((user.todayProgress?.storiesRead || 0) / 5) * 100, 100)} className="h-2" />
+                    </div>
+                    <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                            <span>Daily Trivia</span>
+                            <span>{user.todayProgress?.triviaCompleted ? 'Completed' : 'Not completed'}</span>
+                        </div>
+                        <Progress value={user.todayProgress?.triviaCompleted ? 100 : 0} className="h-2" />
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    )
+}
+
+interface WalletTabProps {
+    user: User
+    userPoints: number
+    syncUserFromServer: () => Promise<void>
+}
+
+function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
+    const [transactions, setTransactions] = useState<any[]>([])
+    const [withdrawalForm, setWithdrawalForm] = useState({
+        amount: '',
+        bankName: '',
+        accountNumber: '',
+        accountName: ''
+    })
+    const [isLoadingWithdrawal, setIsLoadingWithdrawal] = useState(false)
+
+    const fetchTransactions = async () => {
+        try {
+            const response = await fetch(`/api/withdrawal?userId=${user?.id}`)
+            if (response.ok) {
+                const data = await response.json()
+                setTransactions(data.withdrawals || [])
+            }
+        } catch (error) {
+        }
+    }
+
+    const handleWithdrawal = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setIsLoadingWithdrawal(true)
+
+        try {
+            const response = await fetch('/api/withdrawal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: user?.id,
+                    amount: parseInt(withdrawalForm.amount),
+                    bankName: withdrawalForm.bankName,
+                    accountNumber: withdrawalForm.accountNumber,
+                    accountName: withdrawalForm.accountName
+                })
+            })
+
+            const data = await response.json()
+            if (data.success) {
+                setWithdrawalForm({ amount: '', bankName: '', accountNumber: '', accountName: '' })
+                fetchTransactions()
+                syncUserFromServer()
+            }
+        } catch (error) {
+        } finally {
+            setIsLoadingWithdrawal(false)
+        }
+    }
+
+    useEffect(() => {
+        fetchTransactions()
+        syncUserFromServer()
+    }, [])
+
+    return (
+        <div className="space-y-6">
+            <Card className="bg-gradient-to-r from-green-500 to-emerald-500 text-white">
+                <CardHeader>
+                    <CardTitle className="text-2xl">Total Balance</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-4xl font-bold mb-4">{userPoints.toLocaleString()} Points</p>
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                        <div>
+                            <p className="text-2xl font-semibold">{user?.adPoints || 0}</p>
+                            <p className="text-green-100">From Ads</p>
+                        </div>
+                        <div>
+                            <p className="text-2xl font-semibold">{user?.newsPoints || 0}</p>
+                            <p className="text-green-100">From News</p>
+                        </div>
+                        <div>
+                            <p className="text-2xl font-semibold">{user?.triviaPoints || 0}</p>
+                            <p className="text-green-100">From Trivia</p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Withdraw Points</CardTitle>
+                    <CardDescription>
+                        Minimum withdrawal: ₦1,000 (1,000 points)
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <form onSubmit={handleWithdrawal} className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-sm font-medium">Amount (₦)</label>
+                                <input
+                                    type="number"
+                                    className="w-full mt-1 px-3 py-2 border rounded-md"
+                                    placeholder="Enter amount"
+                                    min="1000"
+                                    step="100"
+                                    value={withdrawalForm.amount}
+                                    onChange={(e) => setWithdrawalForm(prev => ({ ...prev, amount: e.target.value }))}
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium">Bank Name</label>
+                                <select className="w-full mt-1 px-3 py-2 border rounded-md"
+                                    value={withdrawalForm.bankName}
+                                    onChange={(e) => setWithdrawalForm(prev => ({ ...prev, bankName: e.target.value }))}
+                                    required>
+                                    <option value="">Select Bank</option>
+                                    <option value="Access Bank">Access Bank</option>
+                                    <option value="GTBank">GTBank</option>
+                                    <option value="First Bank">First Bank</option>
+                                    <option value="UBA">UBA</option>
+                                    <option value="Zenith Bank">Zenith Bank</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium">Account Number</label>
+                            <input
+                                type="text"
+                                className="w-full mt-1 px-3 py-2 border rounded-md"
+                                placeholder="Enter account number"
+                                value={withdrawalForm.accountNumber}
+                                onChange={(e) => setWithdrawalForm(prev => ({ ...prev, accountNumber: e.target.value }))}
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium">Account Name</label>
+                            <input
+                                type="text"
+                                className="w-full mt-1 px-3 py-2 border rounded-md"
+                                placeholder="Enter account name"
+                                value={withdrawalForm.accountName}
+                                onChange={(e) => setWithdrawalForm(prev => ({ ...prev, accountName: e.target.value }))}
+                                required
+                            />
+                        </div>
+                        <Button type="submit" className="w-full" disabled={isLoadingWithdrawal || userPoints < 1000}>
+                            {isLoadingWithdrawal ? 'Processing...' : 'Request Withdrawal'}
+                        </Button>
+                        <p className="text-xs text-muted-foreground">
+                            One withdrawal per week. Processing takes 24-48 hours.
+                        </p>
+                    </form>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Withdrawal History</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-3">
+                        {transactions.length > 0 ? (
+                            transactions.map((transaction, index) => (
+                                <div key={index} className="flex items-center justify-between p-3 border rounded">
+                                    <div>
+                                        <p className="font-medium">Withdrawal</p>
+                                        <p className="text-sm text-muted-foreground">
+                                            {new Date(transaction.createdAt).toLocaleDateString()}
+                                        </p>
+                                    </div>
+                                    <Badge variant={
+                                        transaction.status === 'approved' ? 'default' :
+                                            transaction.status === 'rejected' ? 'destructive' : 'secondary'
+                                    }>
+                                        ₦{transaction.amount}
+                                    </Badge>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-center text-muted-foreground py-8">
+                                No withdrawals yet
+                            </p>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    )
+}
+
+interface ProfileTabProps {
+    user: User
+    setUser: (u: User) => void
+    resolvedTheme: string | undefined
+    setTheme: (theme: string) => void
+    onLogout: () => void
+}
+
+function ProfileTab({ user, setUser, resolvedTheme, setTheme, onLogout }: ProfileTabProps) {
+    const [profileForm, setProfileForm] = useState({
+        name: user?.name || '',
+        phone: user?.phone || '',
+        email: user?.email || ''
+    })
+    const [isEditing, setIsEditing] = useState(false)
+    const [referralStats, setReferralStats] = useState({
+        totalReferrals: 0,
+        pointsEarned: 0
+    })
+
+    const handleProfileUpdate = async () => {
+        try {
+            const response = await fetch('/api/user', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: user?.id,
+                    ...profileForm
+                })
+            })
+
+            if (response.ok) {
+                const data = await response.json()
+                setUser(data.user)
+                setIsEditing(false)
+                if (typeof window !== 'undefined') {
+                    localStorage.setItem('kojomoneyUser', JSON.stringify(data.user))
+                }
+            }
+        } catch (error) {
+        }
+    }
+
+    const copyReferralCode = () => {
+        if (user?.referralCode) {
+            navigator.clipboard.writeText(user.referralCode)
+            alert('Referral code copied to clipboard!')
+        }
+    }
+
+    const fetchReferralStats = async () => {
+        try {
+            const response = await fetch(`/api/user?userId=${user?.id}`)
+            if (response.ok) {
+                const data = await response.json()
+                const referralPoints = data.user.referralRewards?.reduce((sum: number, reward: any) => sum + reward.points, 0) || 0
+                const referralCount = data.user.referralRewards?.length || 0
+
+                setReferralStats({
+                    totalReferrals: referralCount,
+                    pointsEarned: referralPoints
+                })
+            }
+        } catch (error) {
+        }
+    }
+
+    useEffect(() => {
+        fetchReferralStats()
+    }, [user?.id])
+
+    return (
+        <div className="space-y-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                        <User className="h-5 w-5" />
+                        <span>Profile Information</span>
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-sm font-medium">Full Name</label>
+                            <input
+                                type="text"
+                                className="w-full mt-1 px-3 py-2 border rounded-md"
+                                placeholder="Enter your name"
+                                value={profileForm.name}
+                                onChange={(e) => setProfileForm(prev => ({ ...prev, name: e.target.value }))}
+                                disabled={!isEditing}
+                            />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium">Phone Number</label>
+                            <input
+                                type="tel"
+                                className="w-full mt-1 px-3 py-2 border rounded-md"
+                                placeholder="+234..."
+                                value={profileForm.phone}
+                                onChange={(e) => setProfileForm(prev => ({ ...prev, phone: e.target.value }))}
+                                disabled={!isEditing}
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium">Email</label>
+                        <input
+                            type="email"
+                            className="w-full mt-1 px-3 py-2 border rounded-md"
+                            placeholder="Enter your email"
+                            value={profileForm.email}
+                            onChange={(e) => setProfileForm(prev => ({ ...prev, email: e.target.value }))}
+                            disabled={!isEditing}
+                        />
+                    </div>
+                    <div className="flex space-x-2">
+                        {isEditing ? (
+                            <>
+                                <Button onClick={handleProfileUpdate}>Save Changes</Button>
+                                <Button variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
+                            </>
+                        ) : (
+                            <Button onClick={() => setIsEditing(true)}>Edit Profile</Button>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                        <Share2 className="h-5 w-5" />
+                        <span>Referral Program</span>
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="p-4 bg-muted rounded-lg">
+                        <p className="text-sm font-medium mb-2">Your Referral Code</p>
+                        <div className="flex items-center space-x-2">
+                            <code className="flex-1 px-3 py-2 bg-background border rounded">{user?.referralCode || 'N/A'}</code>
+                            <Button variant="outline" size="sm" onClick={copyReferralCode}>Copy</Button>
+                        </div>
+                    </div>
+                    <div className="p-4 bg-muted rounded-lg">
+                        <p className="text-sm font-medium mb-2">Share Referral Link</p>
+                        <div className="flex items-center space-x-2">
+                            <code className="flex-1 px-3 py-2 bg-background border rounded">
+                                {typeof window !== 'undefined' && user?.referralCode ? `${window.location.origin}/?ref=${user.referralCode}` : 'N/A'}
+                            </code>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={async () => {
+                                    if (!user?.referralCode) return
+                                    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+                                    const link = `${origin}/?ref=${encodeURIComponent(user.referralCode)}`
+                                    try {
+                                        if (navigator.share) {
+                                            await navigator.share({ title: 'Join Kojomoney', text: 'Sign up and earn with my referral!', url: link })
+                                        } else {
+                                            await navigator.clipboard.writeText(link)
+                                            alert('Referral link copied to clipboard!')
+                                        }
+                                    } catch (_) {
+                                        try {
+                                            await navigator.clipboard.writeText(link)
+                                            alert('Referral link copied to clipboard!')
+                                        } catch (e) {
+                                            alert(`Referral link: ${link}`)
+                                        }
+                                    }
+                                }}
+                            >
+                                Share
+                            </Button>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 text-center">
+                        <div>
+                            <p className="text-2xl font-bold">{referralStats.totalReferrals}</p>
+                            <p className="text-sm text-muted-foreground">Total Referrals</p>
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold">{referralStats.pointsEarned}</p>
+                            <p className="text-sm text-muted-foreground">Points Earned</p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                        <Settings className="h-5 w-5" />
+                        <span>Settings</span>
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                            <Bell className="h-4 w-4" />
+                            <span>Push Notifications</span>
+                        </div>
+                        <button className="relative inline-flex h-6 w-11 items-center rounded-full bg-primary">
+                            <span className="inline-block h-4 w-4 transform rounded-full bg-background transition translate-x-6"></span>
+                        </button>
+                    </div>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                            <Moon className="h-4 w-4" />
+                            <span>Dark Mode</span>
+                        </div>
+                        <button
+                            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${resolvedTheme === 'dark' ? 'bg-primary' : 'bg-muted'}`}
+                        >
+                            <span
+                                className={`inline-block h-4 w-4 transform rounded-full bg-background transition ${resolvedTheme === 'dark' ? 'translate-x-6' : 'translate-x-1'}`}
+                            ></span>
+                        </button>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Button variant="destructive" className="w-full" onClick={onLogout}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+            </Button>
+        </div>
+    )
+}
+
+export default function EarnApp() {
+    const [activeTab, setActiveTab] = useState('home')
+    const [user, setUser] = useState<User | null>(null)
+    const [userPoints, setUserPoints] = useState(0)
+    const [isClient, setIsClient] = useState(false)
+    const { resolvedTheme, setTheme } = useTheme()
+
+    useEffect(() => {
+        setIsClient(true)
+        // Check for existing user session only on client
+        if (typeof window !== 'undefined') {
+            const savedUser = localStorage.getItem('kojomoneyUser') || localStorage.getItem('earnAppUser')
+            if (savedUser) {
+                try {
+                    const parsedUser = JSON.parse(savedUser)
+                    setUser(parsedUser)
+                    setUserPoints(parsedUser.totalPoints)
+                } catch (error) {
+                    localStorage.removeItem('kojomoneyUser')
+                }
+            }
+        }
+    }, [])
+
+    const syncUserFromServer = async () => {
+        try {
+            // Always try to get the latest ID from localStorage if state is stale
+            const savedUser = typeof window !== 'undefined' ? localStorage.getItem('kojomoneyUser') : null
+            const id = user?.id || (savedUser ? JSON.parse(savedUser).id : null)
+
+            if (!id) return
+
+            const res = await fetch(`/api/user?userId=${encodeURIComponent(id)}`)
+            const data = await res.json()
+            if (data?.user) {
+                setUser(data.user)
+                setUserPoints(Number(data.user.totalPoints || 0))
+                localStorage.setItem('kojomoneyUser', JSON.stringify(data.user))
+            }
+        } catch (e) { }
+    }
+
+    useEffect(() => {
+        const handler = () => {
+            // Fetch fresh data from server when notified of updates
+            // Add a small delay to ensure backend consistency
+            setTimeout(() => {
+                syncUserFromServer()
+            }, 500)
+        }
+
+        window.addEventListener('kojo:user:update', handler)
+        window.addEventListener('kojo:points:earned', handler)
+
+        return () => {
+            window.removeEventListener('kojo:user:update', handler)
+            window.removeEventListener('kojo:points:earned', handler)
+        }
+    }, [])
+
+    useEffect(() => {
+        // Sync whenever tab changes to ensure fresh data
+        syncUserFromServer()
+    }, [activeTab])
+
+    // Push notifications setup (must be before conditional returns)
+    useEffect(() => {
+        const isNative = typeof window !== 'undefined' && (
+            ((window as any)?.Capacitor?.isNativePlatform?.() === true) ||
+            (((window as any)?.Capacitor?.getPlatform?.() && (window as any).Capacitor.getPlatform() !== 'web'))
+        )
+        if (!isNative || !user?.id) return
+        const setupPush = async () => {
+            try {
+                const perm = await PushNotifications.requestPermissions()
+                if (perm.receive !== 'granted') return
+                await PushNotifications.register()
+                const tok = await FirebaseMessaging.getToken()
+                if ((tok as any)?.token) {
+                    await fetch('/api/push', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ userId: user.id, token: (tok as any).token, platform: (window as any).Capacitor.getPlatform?.() })
+                    })
+                }
+            } catch (_) { }
+        }
+        setupPush()
+    }, [user?.id])
+
+    // Analytics screen tracking (must be before conditional returns)
+    useEffect(() => {
+        const isNative = typeof window !== 'undefined' && (
+            ((window as any)?.Capacitor?.isNativePlatform?.() === true) ||
+            (((window as any)?.Capacitor?.getPlatform?.() && (window as any).Capacitor.getPlatform() !== 'web'))
+        )
+        if (!isNative) return
+        const screen = activeTab
+        try {
+            FirebaseAnalytics.logEvent({ name: 'screen_view', params: { screen_name: screen } })
+        } catch (error) {
+            // Firebase not initialized in browser - this is expected
+        }
+    }, [activeTab])
+
+    const handleAuthSuccess = (userData: User) => {
+        setUser(userData)
+        setUserPoints(userData.totalPoints)
+        // Update localStorage only on client
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('kojomoneyUser', JSON.stringify(userData))
+        }
+    }
+
+    const handleLogout = () => {
+        setUser(null)
+        setUserPoints(0)
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem('kojomoneyUser')
+        }
+        setActiveTab('home')
+    }
+
+    // Don't render anything until client-side hydration is complete
+    if (!isClient) {
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <div className="text-lg">Loading...</div>
+            </div>
+        )
+    }
+
+    // If not authenticated, show auth system
+    if (!user) {
+        return (
+            <SessionProvider>
+                <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+                    <AuthSystem onAuthSuccess={handleAuthSuccess} />
+                    <Toaster />
+                </ThemeProvider>
+            </SessionProvider>
+        )
+    }
+
+
+
+
+
+
+
+
+
+    return (
+        <SessionProvider>
+            <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+                <div className="min-h-screen bg-background">
+                    <div className="container mx-auto px-4 py-6 max-w-6xl">
+                        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                            <div className="flex items-center justify-between mb-6">
+                                <div className="flex items-center space-x-2">
+                                    <Coins className="h-8 w-8 text-primary" />
+                                    <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-600">
+                                        KojoMoney
+                                    </h1>
+                                </div>
+                            </div>
+
+                            <TabsList className="grid w-full grid-cols-4 mb-8">
+                                <TabsTrigger value="home" className="space-x-2">
+                                    <Home className="h-4 w-4" />
+                                    <span className="hidden md:inline">Home</span>
+                                </TabsTrigger>
+                                <TabsTrigger value="earn" className="space-x-2">
+                                    <Play className="h-4 w-4" />
+                                    <span className="hidden md:inline">Earn</span>
+                                </TabsTrigger>
+                                <TabsTrigger value="wallet" className="space-x-2">
+                                    <Wallet className="h-4 w-4" />
+                                    <span className="hidden md:inline">Wallet</span>
+                                </TabsTrigger>
+                                <TabsTrigger value="profile" className="space-x-2">
+                                    <User className="h-4 w-4" />
+                                    <span className="hidden md:inline">Profile</span>
+                                </TabsTrigger>
+                            </TabsList>
+
+                            <TabsContent value="home" className="space-y-4">
+                                {user && (
+                                    <HomeTab user={user} userPoints={userPoints} setActiveTab={setActiveTab} />
+                                )}
+                            </TabsContent>
+
+                            <TabsContent value="earn" className="space-y-4">
+                                {user && (
+                                    <EarnTab user={user} userPoints={userPoints} setUserPoints={setUserPoints} />
+                                )}
+                            </TabsContent>
+
+                            <TabsContent value="wallet" className="space-y-4">
+                                {user && (
+                                    <WalletTab user={user} userPoints={userPoints} syncUserFromServer={syncUserFromServer} />
+                                )}
+                            </TabsContent>
+
+                            <TabsContent value="profile" className="space-y-4">
+                                {user && (
+                                    <ProfileTab user={user} setUser={setUser} resolvedTheme={resolvedTheme} setTheme={setTheme} onLogout={handleLogout} />
+                                )}
+                            </TabsContent>
+                        </Tabs>
+                    </div>
+                </div>
+            </ThemeProvider>
+        </SessionProvider>
+    )
+}

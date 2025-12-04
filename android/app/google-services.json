@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "603833636954",
+    "project_id": "kojomoney-6e131",
+    "storage_bucket": "kojomoney-6e131.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:603833636954:android:8aab23b00e61265eaea063",
+        "android_client_info": {
+          "package_name": "com.kojomoney.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCsV3qIN4Ophu2fcZ8dEshFwkuMEbwLZIM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
