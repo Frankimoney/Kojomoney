@@ -5,7 +5,6 @@ const config: CapacitorConfig = {
   appName: 'Kojomoney',
   webDir: 'out',
   server: {
-    url: 'https://kojomoney-api.onrender.com',
     androidScheme: 'https',
   }
 }
