@@ -5,10 +5,8 @@ const config: CapacitorConfig = {
   appName: 'Kojomoney',
   webDir: 'out',
   server: {
+    url: 'https://kojomoney-api.onrender.com',
     androidScheme: 'https',
-    // For production: https://kojomoney-6e131.web.app (Firebase Hosting)
-    // Mobile app will call API routes from the same domain
-    // Note: API routes require a backend server (Cloud Functions on Blaze plan or external server)
   }
 }
 
