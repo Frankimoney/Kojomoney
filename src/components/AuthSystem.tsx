@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { UserPlus, LogIn, Gift, Shield } from 'lucide-react'
+import { apiCall } from '@/lib/api-client'
 
 interface AuthSystemProps {
     onAuthSuccess: (user: any) => void
@@ -78,9 +79,8 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
         setIsLoading(true)
 
         try {
-            const response = await fetch('/api/auth/register', {
+            const response = await apiCall('/api/auth/register', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(registerForm)
             })
 
@@ -95,9 +95,8 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
                 try {
                     const anonId = localStorage.getItem('kojomoneyAnonId')
                     if (anonId) {
-                        await fetch('/api/users/merge-anon', {
+                        await apiCall('/api/users/merge-anon', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ anonId })
                         })
                     }
@@ -117,9 +116,8 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
         setIsLoading(true)
 
         try {
-            const response = await fetch('/api/auth/login', {
+            const response = await apiCall('/api/auth/login', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(loginForm)
             })
 
@@ -134,9 +132,8 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
                 try {
                     const anonId = localStorage.getItem('kojomoneyAnonId')
                     if (anonId) {
-                        await fetch('/api/users/merge-anon', {
+                        await apiCall('/api/users/merge-anon', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ anonId })
                         })
                     }

@@ -1,5 +1,7 @@
 'use client'
 
+import { apiCall } from '@/lib/api-client'
+
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -96,7 +98,7 @@ const AdminDashboard = () => {
         try {
             setIngestLoading(true)
             setError(null)
-            const res = await fetch('/api/news?action=ingest&source=rss&limit=20&points=5', {
+            const res = await apiCall('/api/news?action=ingest&source=rss&limit=20&points=5', {
                 method: 'POST',
                 headers: { 'Authorization': 'Bearer admin-earnapp-2024' }
             })

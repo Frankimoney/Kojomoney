@@ -12,6 +12,7 @@ import { useTheme } from 'next-themes'
 import { ThemeProvider } from 'next-themes'
 import { SessionProvider } from 'next-auth/react'
 import { Toaster } from '@/components/ui/toaster'
+import { apiCall } from '@/lib/api-client'
 
 // Dynamically import components to prevent SSR issues
 const NewsReadingSystem = dynamic(() => import('./NewsReadingSystem'), {
@@ -80,9 +81,8 @@ function EarnTab({ user, userPoints, setUserPoints }: EarnTabProps) {
                             onClick={async () => {
                                 if (!user?.id) return
                                 try {
-                                    const start = await fetch('/api/ads', {
+                                    const start = await apiCall('/api/ads', {
                                         method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({ userId: user.id })
                                     })
                                     const startData = await start.json()
@@ -103,9 +103,8 @@ function EarnTab({ user, userPoints, setUserPoints }: EarnTabProps) {
                                             await admob.AdMob.initialize({ requestTrackingAuthorization: true, initializeForTesting: true })
                                             // Test rewarded ad unit. Replace with your real ad unit in production.
                                             await admob.AdMob.showRewardedAd({ adId: 'ca-app-pub-3940256099942544/5224354917' })
-                                            await fetch('/api/ads', {
+                                            await apiCall('/api/ads', {
                                                 method: 'PATCH',
-                                                headers: { 'Content-Type': 'application/json' },
                                                 body: JSON.stringify({ adViewId, userId: user.id })
                                             })
                                             setAdCooldown(30)
@@ -407,9 +406,8 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
         setIsLoadingWithdrawal(true)
 
         try {
-            const response = await fetch('/api/withdrawal', {
+            const response = await apiCall('/api/withdrawal', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     userId: user?.id,
                     amount: parseInt(withdrawalForm.amount),
@@ -588,9 +586,8 @@ function ProfileTab({ user, setUser, resolvedTheme, setTheme, onLogout }: Profil
 
     const handleProfileUpdate = async () => {
         try {
-            const response = await fetch('/api/user', {
+            const response = await apiCall('/api/user', {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     userId: user?.id,
                     ...profileForm
@@ -878,9 +875,8 @@ export default function EarnApp() {
                 await PushNotifications.register()
                 const tok = await FirebaseMessaging.getToken()
                 if ((tok as any)?.token) {
-                    await fetch('/api/push', {
+                    await apiCall('/api/push', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ userId: user.id, token: (tok as any).token, platform: (window as any).Capacitor.getPlatform?.() })
                     })
                 }

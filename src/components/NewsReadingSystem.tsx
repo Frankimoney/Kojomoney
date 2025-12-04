@@ -1,5 +1,7 @@
 'use client'
 
+import { apiCall } from '@/lib/api-client'
+
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -105,19 +107,19 @@ const NewsReadingSystem = ({ userId }: NewsReadingSystemProps) => {
 
     const fetchNewsStories = async () => {
         try {
-            let response = await fetch(`/api/news?reads=1&points=10${userId ? `&userId=${encodeURIComponent(userId)}` : ''}`)
+            let response = await apiCall(`/api/news?reads=1&points=10${userId ? `&userId=${encodeURIComponent(userId)}` : ''}`)
             let data = await response.json()
 
             if (data?.error || !Array.isArray(data?.stories) || data.stories.length === 0) {
                 try {
-                    response = await fetch('/api/news?source=rss&limit=10&points=10')
+                    response = await apiCall('/api/news?source=rss&limit=10&points=10')
                     data = await response.json()
                 } catch (e) { }
             }
 
             if (data?.error || !Array.isArray(data?.stories) || data.stories.length === 0) {
                 try {
-                    response = await fetch('/api/news?url=https://guardian.ng/feed/&limit=10&points=10')
+                    response = await apiCall('/api/news?url=https://guardian.ng/feed/&limit=10&points=10')
                     data = await response.json()
                 } catch (e) { }
             }
@@ -174,9 +176,8 @@ const NewsReadingSystem = ({ userId }: NewsReadingSystemProps) => {
         if (readingState.selectedAnswer === null || !readingState.currentStory) return
 
         try {
-            const response = await fetch('/api/news', {
+            const response = await apiCall('/api/news', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     storyId: readingState.currentStory.id,
                     quizAnswer: readingState.selectedAnswer,

@@ -1,5 +1,7 @@
 'use client'
 
+import { apiCall } from '@/lib/api-client'
+
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -161,9 +163,8 @@ const DailyTrivia = ({ userId, dailyStreak }: DailyTriviaProps) => {
             if (!triviaState.triviaId || !userId) {
                 console.warn('Missing triviaId or userId for submission')
             } else {
-                const response = await fetch('/api/trivia', {
+                const response = await apiCall('/api/trivia', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         triviaId: triviaState.triviaId,
                         userId,
