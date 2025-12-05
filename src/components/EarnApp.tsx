@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { Home, Coins, Wallet, User, Play, BookOpen, Brain, Clock, TrendingUp, Gift, Settings, Share2, Bell, Moon, LogOut } from 'lucide-react'
+import { Home, Coins, Wallet, User, Play, BookOpen, Brain, Clock, TrendingUp, Gift, Settings, Share2, Bell, Moon, LogOut, Users, Trophy, Medal } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { useTheme } from 'next-themes'
 import { ThemeProvider } from 'next-themes'
@@ -56,12 +56,212 @@ interface EarnTabProps {
     setUserPoints: (updater: (prev: number) => number) => void
 }
 
+// Dynamically import OfferwallSystem
+// Dynamically import OfferwallSystem
+const OfferwallSystem = dynamic(() => import('./OfferwallSystem'), {
+    ssr: false,
+    loading: () => <div>Loading offerwall...</div>
+})
+
+// Dynamically import SurveySystem
+const SurveySystem = dynamic(() => import('./SurveySystem'), {
+    ssr: false,
+    loading: () => <div>Loading surveys...</div>
+})
+
+// Dynamically import MissionSystem
+const MissionSystem = dynamic(() => import('./MissionSystem'), {
+    ssr: false,
+    loading: () => <div>Loading missions...</div>
+})
+
+// Dynamically import ReferralSystem
+const ReferralSystem = dynamic(() => import('./ReferralSystem'), {
+    ssr: false,
+    loading: () => <div>Loading referrals...</div>
+})
+
+// Dynamically import DailyChallengeSystem
+const DailyChallengeSystem = dynamic(() => import('./DailyChallengeSystem'), {
+    ssr: false,
+    loading: () => <div>Loading challenges...</div>
+})
+
+// Dynamically import TournamentSystem
+const TournamentSystem = dynamic(() => import('./TournamentSystem'), {
+    ssr: false,
+    loading: () => <div>Loading tournament...</div>
+})
+
+interface EarnTabProps {
+    user: User
+    userPoints: number
+    setUserPoints: (updater: (prev: number) => number) => void
+}
+
 function EarnTab({ user, userPoints, setUserPoints }: EarnTabProps) {
     const [adCooldown, setAdCooldown] = useState(0)
+    const [view, setView] = useState<'list' | 'offerwall' | 'surveys' | 'missions' | 'referrals' | 'challenges' | 'tournament'>('list')
+
+    if (view === 'offerwall') {
+        return <OfferwallSystem userId={user?.id} onClose={() => setView('list')} />
+    }
+
+    if (view === 'surveys') {
+        return <SurveySystem userId={user?.id} onClose={() => setView('list')} />
+    }
+
+    if (view === 'missions') {
+        return <MissionSystem userId={user?.id} onClose={() => setView('list')} />
+    }
+
+    if (view === 'referrals') {
+        return <ReferralSystem user={user} onClose={() => setView('list')} />
+    }
+
+    if (view === 'challenges') {
+        return <DailyChallengeSystem userId={user?.id} onClose={() => setView('list')} />
+    }
+
+    if (view === 'tournament') {
+        return <TournamentSystem userId={user?.id} onClose={() => setView('list')} />
+    }
 
     return (
         <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <Card className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white border-none shadow-lg transform transition-all hover:scale-[1.02] cursor-pointer" onClick={() => setView('offerwall')}>
+                    <CardHeader>
+                        <CardTitle className="flex items-center space-x-2">
+                            <TrendingUp className="h-5 w-5 text-yellow-300" />
+                            <span>Offerwall Tasks</span>
+                        </CardTitle>
+                        <CardDescription className="text-indigo-100">Earn up to 5000+ pts</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <span>High Rewards</span>
+                            <Badge variant="secondary" className="bg-white/20 hover:bg-white/30 text-white border-0">Hot</Badge>
+                        </div>
+                        <Button className="w-full bg-white text-indigo-600 hover:bg-white/90">
+                            View Offers
+                        </Button>
+                        <p className="text-xs text-indigo-100">
+                            Apps, games & surveys
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-teal-500 to-emerald-600 text-white border-none shadow-lg transform transition-all hover:scale-[1.02] cursor-pointer" onClick={() => setView('surveys')}>
+                    <CardHeader>
+                        <CardTitle className="flex items-center space-x-2">
+                            <Brain className="h-5 w-5 text-yellow-300" />
+                            <span>Take Surveys</span>
+                        </CardTitle>
+                        <CardDescription className="text-teal-100">Earn 500-2000 pts</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <span>Available</span>
+                            <Badge variant="secondary" className="bg-white/20 hover:bg-white/30 text-white border-0">5 New</Badge>
+                        </div>
+                        <Button className="w-full bg-white text-teal-600 hover:bg-white/90">
+                            Start Survey
+                        </Button>
+                        <p className="text-xs text-teal-100">
+                            5-15 mins average time
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-orange-500 to-red-600 text-white border-none shadow-lg transform transition-all hover:scale-[1.02] cursor-pointer" onClick={() => setView('missions')}>
+                    <CardHeader>
+                        <CardTitle className="flex items-center space-x-2">
+                            <Gift className="h-5 w-5 text-yellow-300" />
+                            <span>Quick Missions</span>
+                        </CardTitle>
+                        <CardDescription className="text-orange-100">Simple tasks, instant pay</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <span>Easy Tasks</span>
+                            <Badge variant="secondary" className="bg-white/20 hover:bg-white/30 text-white border-0">Daily</Badge>
+                        </div>
+                        <Button className="w-full bg-white text-orange-600 hover:bg-white/90">
+                            Start Mission
+                        </Button>
+                        <p className="text-xs text-orange-100">
+                            Social, Review & Install
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white border-none shadow-lg transform transition-all hover:scale-[1.02] cursor-pointer" onClick={() => setView('referrals')}>
+                    <CardHeader>
+                        <CardTitle className="flex items-center space-x-2">
+                            <Users className="h-5 w-5 text-yellow-300" />
+                            <span>Refer & Earn</span>
+                        </CardTitle>
+                        <CardDescription className="text-violet-100">10% commission forever</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <span>Lifetime Rewards</span>
+                            <Badge variant="secondary" className="bg-white/20 hover:bg-white/30 text-white border-0">Passive</Badge>
+                        </div>
+                        <Button className="w-full bg-white text-violet-600 hover:bg-white/90">
+                            Invite Friends
+                        </Button>
+                        <p className="text-xs text-violet-100">
+                            Earn ₦1,000 for every 10 invites
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-yellow-500 to-orange-600 text-white border-none shadow-lg transform transition-all hover:scale-[1.02] cursor-pointer" onClick={() => setView('challenges')}>
+                    <CardHeader>
+                        <CardTitle className="flex items-center space-x-2">
+                            <Trophy className="h-5 w-5 text-white/90" />
+                            <span>Daily Daily Challenges</span>
+                        </CardTitle>
+                        <CardDescription className="text-yellow-100">Claim your rewards</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <span>Checklist</span>
+                            <Badge variant="secondary" className="bg-white/20 hover:bg-white/30 text-white border-0">Reset 24h</Badge>
+                        </div>
+                        <Button className="w-full bg-white text-orange-600 hover:bg-white/90">
+                            View Streak
+                        </Button>
+                        <p className="text-xs text-yellow-100">
+                            Bonus Chest Available!
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-blue-600 to-indigo-600 text-white border-none shadow-lg transform transition-all hover:scale-[1.02] cursor-pointer" onClick={() => setView('tournament')}>
+                    <CardHeader>
+                        <CardTitle className="flex items-center space-x-2">
+                            <Medal className="h-5 w-5 text-yellow-300" />
+                            <span>Weekly Cup</span>
+                        </CardTitle>
+                        <CardDescription className="text-blue-100">Compete for ₦100k</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <span>Top 100 Win</span>
+                            <Badge variant="secondary" className="bg-white/20 hover:bg-white/30 text-white border-0">Live</Badge>
+                        </div>
+                        <Button className="w-full bg-white text-blue-600 hover:bg-white/90">
+                            See Rankings
+                        </Button>
+                        <p className="text-xs text-blue-100">
+                            Ends in 2 days
+                        </p>
+                    </CardContent>
+                </Card>
+
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center space-x-2">
@@ -258,9 +458,10 @@ function EarnTab({ user, userPoints, setUserPoints }: EarnTabProps) {
                     </div>
                 </CardContent>
             </Card>
-        </div>
+        </div >
     )
 }
+
 
 interface HomeTabProps {
     user: User

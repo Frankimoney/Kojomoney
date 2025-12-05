@@ -35,13 +35,10 @@ ios/*.xcworkspace/
 .capacitor/
 
 # Render/deployment
-render.yaml
 
 # misc
 .DS_Store
 *.pem
-.firebase/
-.firebaserc
 tsconfig.tsbuildinfo
 
 # debug
