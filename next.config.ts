@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-    output: process.env.NEXT_OUTPUT_MODE === "export" ? "export" : "standalone",
+    // Use standalone for production/render, export for static hosting
+    output: process.env.NODE_ENV === "production" || !process.env.NEXT_PUBLIC_API_URL?.includes("localhost") ? "standalone" : "export",
     images: {
         unoptimized: true,
     },
