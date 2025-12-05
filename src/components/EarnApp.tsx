@@ -50,13 +50,6 @@ interface User {
     }
 }
 
-interface EarnTabProps {
-    user: User
-    userPoints: number
-    setUserPoints: (updater: (prev: number) => number) => void
-}
-
-// Dynamically import OfferwallSystem
 // Dynamically import OfferwallSystem
 const OfferwallSystem = dynamic(() => import('./OfferwallSystem'), {
     ssr: false,

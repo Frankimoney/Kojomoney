@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Trophy, Medal, Crown, Timer, Info, ArrowUp, ArrowDown, ChevronRight, Zap, Target, Star, Gift, ArrowLeft } from 'lucide-react'
+import { Trophy, Medal, Crown, Timer, Info, ArrowUp, ArrowDown, ChevronRight, Zap, Target, Star, Gift, ArrowLeft, Users, Flame, Clock } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { apiCall } from '@/lib/api-client'
 
 interface Player {
     id: string
@@ -15,7 +16,7 @@ interface Player {
     name: string
     avatar?: string
     points: number
-    change: number // +2, -1, 0
+    change: number
     tier: 'Platinum' | 'Gold' | 'Silver' | 'Bronze'
     isMe?: boolean
 }
