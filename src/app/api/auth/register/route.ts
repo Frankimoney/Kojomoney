@@ -2,14 +2,66 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { detectFraud } from '@/lib/anti-fraud'
 import { Timestamp, FieldValue } from 'firebase-admin/firestore'
+import { hashPassword, validateUsername, validateEmail, validatePassword } from '@/lib/security'
 
 export async function POST(request: NextRequest) {
     try {
-        const { email, name, phone, referralCode } = await request.json()
+        const { username, email, password, passwordConfirm, name, phone, referralCode, verificationId } = await request.json()
 
-        // Basic validation
+        // Validate required fields
+        if (!username) {
+            return NextResponse.json({ error: 'Username is required' }, { status: 400 })
+        }
         if (!email) {
             return NextResponse.json({ error: 'Email is required' }, { status: 400 })
+        }
+        if (!password) {
+            return NextResponse.json({ error: 'Password is required' }, { status: 400 })
+        }
+        if (!verificationId) {
+            return NextResponse.json({ error: 'Email verification required' }, { status: 400 })
+        }
+
+        // Validate username format
+        if (!validateUsername(username)) {
+            return NextResponse.json({
+                error: 'Username must be 3-20 characters long and contain only letters, numbers, underscores, and hyphens'
+            }, { status: 400 })
+        }
+
+        // Validate email format
+        if (!validateEmail(email)) {
+            return NextResponse.json({ error: 'Invalid email format' }, { status: 400 })
+        }
+
+        // Validate passwords match
+        if (password !== passwordConfirm) {
+            return NextResponse.json({ error: 'Passwords do not match' }, { status: 400 })
+        }
+
+        // Validate password strength
+        const passwordValidation = validatePassword(password)
+        if (!passwordValidation.valid) {
+            return NextResponse.json({
+                error: 'Password does not meet security requirements',
+                details: passwordValidation.errors
+            }, { status: 400 })
+        }
+
+        // Verify the email verification code was used
+        const verificationRef = db.collection('verification_codes').doc(verificationId)
+        const verificationSnap = await verificationRef.get()
+
+        if (!verificationSnap.exists) {
+            return NextResponse.json({ error: 'Invalid verification record' }, { status: 400 })
+        }
+
+        const verificationData = verificationSnap.data() as any
+        if (!verificationData.isUsed) {
+            return NextResponse.json({ error: 'Email must be verified first' }, { status: 400 })
+        }
+        if (verificationData.email !== email || verificationData.type !== 'register') {
+            return NextResponse.json({ error: 'Verification does not match email' }, { status: 400 })
         }
 
         // Anti-fraud checks
@@ -21,12 +73,20 @@ export async function POST(request: NextRequest) {
             }, { status: 403 })
         }
 
-        // Check if user already exists
-        const existingUserSnap = await db.collection('users').where('email', '==', email).limit(1).get()
-
-        if (!existingUserSnap.empty) {
-            return NextResponse.json({ error: 'User already exists' }, { status: 409 })
+        // Check if user already exists by email
+        const existingEmailSnap = await db.collection('users').where('email', '==', email.toLowerCase()).limit(1).get()
+        if (!existingEmailSnap.empty) {
+            return NextResponse.json({ error: 'Email already registered' }, { status: 409 })
         }
+
+        // Check if username is already taken
+        const existingUsernameSnap = await db.collection('users').where('username', '==', username.toLowerCase()).limit(1).get()
+        if (!existingUsernameSnap.empty) {
+            return NextResponse.json({ error: 'Username is already taken' }, { status: 409 })
+        }
+
+        // Hash password
+        const passwordHash = await hashPassword(password)
 
         // Generate unique user ID and referral code
         const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
@@ -41,16 +101,20 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // Create new user
+        // Create new user with enhanced security
         const usersRef = db.collection('users')
         const userDocRef = usersRef.doc(userId)
         await userDocRef.set({
-            email,
+            username: username.toLowerCase(),
+            email: email.toLowerCase(),
+            passwordHash,
             name: name || null,
             phone: phone || null,
             referralCode: userReferralCode,
             referredBy,
             deviceId: generateDeviceId(request),
+            isEmailVerified: true,
+            isPhoneVerified: !!phone,
             totalPoints: referredBy ? 100 : 0,
             adPoints: 0,
             newsPoints: 0,
@@ -91,11 +155,21 @@ export async function POST(request: NextRequest) {
             updatedAt: Timestamp.now(),
         })
 
+        // Create login activity log
+        await db.collection('login_logs').add({
+            userId,
+            ip: (request as any).ip || 'unknown',
+            userAgent: request.headers.get('user-agent') || 'unknown',
+            type: 'registration',
+            timestamp: Timestamp.now(),
+        })
+
         return NextResponse.json({
             success: true,
             user: {
                 id: userId,
-                email,
+                username,
+                email: email.toLowerCase(),
                 name: name || null,
                 phone: phone || null,
                 referralCode: userReferralCode,
@@ -106,7 +180,7 @@ export async function POST(request: NextRequest) {
                 dailyStreak: 0,
                 createdAt: Timestamp.now()
             },
-            message: 'Account created successfully!'
+            message: 'Account created successfully! Welcome to Kojomoney!'
         })
 
     } catch (error) {
