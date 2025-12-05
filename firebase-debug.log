@@ -1,0 +1,27 @@
+[debug] [2025-12-05T20:12:03.872Z] ----------------------------------------------------------------------
+[debug] [2025-12-05T20:12:03.882Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\NWAJI\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only hosting
+[debug] [2025-12-05T20:12:03.883Z] CLI Version:   14.27.0
+[debug] [2025-12-05T20:12:03.884Z] Platform:      win32
+[debug] [2025-12-05T20:12:03.884Z] Node Version:  v22.14.0
+[debug] [2025-12-05T20:12:03.885Z] Time:          Fri Dec 05 2025 21:12:03 GMT+0100 (West Africa Standard Time)
+[debug] [2025-12-05T20:12:03.885Z] ----------------------------------------------------------------------
+[debug] 
+[error] 
+[error] Error: No currently active project.
+To run this command, you need to specify a project. You have two options:
+- Run this command with --project <alias_or_project_id>.
+- Set an active project by running firebase use --add, then rerun this command.
+To list all the Firebase projects to which you have access, run firebase projects:list.
+To learn about active projects for the CLI, visit https://firebase.google.com/docs/cli#project_aliases
+
+
+[debug] [2025-12-05T20:12:07.261Z] Error: EBUSY: resource busy or locked, unlink 'C:\Users\NWAJI\Desktop\kojomoney\firebase-debug.log'
+    at Object.unlinkSync (node:fs:1953:11)
+    at process.<anonymous> (C:\Users\NWAJI\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\cli.js:44:16)
+    at process.emit (node:events:530:35)
+    at process.exit (node:internal/process/per_thread:184:15)
+    at Timeout._onTimeout (C:\Users\NWAJI\AppData\Roaming\npm\node_modules\firebase-tools\lib\errorOut.js:20:17)
+    at listOnTimeout (node:internal/timers:594:17)
+    at process.processTimers (node:internal/timers:529:7)
+[error] 
+[error] Error: An unexpected error has occurred.

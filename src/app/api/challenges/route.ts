@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, getTimestamp } from '@/lib/firebase-admin'
 
+export const dynamic = 'force-dynamic'
+
 // Mock config - usually database driven
 const DAILY_CONFIG = {
     c1: { title: 'Daily Logger', target: 1, reward: 10, type: 'login' },

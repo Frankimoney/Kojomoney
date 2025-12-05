@@ -4,6 +4,8 @@ import { Timestamp, FieldValue } from 'firebase-admin/firestore'
 import { fetchAfricaTrivia, fetchGlobalTrivia, shuffleArray } from '@/services/triviaService'
 import { createHash } from 'crypto'
 
+ export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url)

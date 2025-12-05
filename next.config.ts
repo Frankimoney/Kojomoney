@@ -14,6 +14,10 @@ const nextConfig: NextConfig = {
     eslint: {
         ignoreDuringBuilds: true,
     },
+    experimental: {
+        // Skip collecting page data for API routes during build
+        isrFlushToDisk: false,
+    },
 };
 
 export default nextConfig;

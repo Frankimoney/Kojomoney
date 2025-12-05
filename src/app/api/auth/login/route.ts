@@ -4,6 +4,8 @@ import { detectFraud } from '@/lib/anti-fraud'
 import { Timestamp } from 'firebase-admin/firestore'
 import { verifyPassword, validateEmail } from '@/lib/security'
 
+ export const dynamic = 'force-dynamic'
+
 export async function POST(request: NextRequest) {
     try {
         const { usernameOrEmail, password, verificationId } = await request.json()

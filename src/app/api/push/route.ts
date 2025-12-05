@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { Timestamp, FieldValue } from 'firebase-admin/firestore'
 
+ export const dynamic = 'force-dynamic'
+
 export async function POST(request: NextRequest) {
   try {
     const { userId, token, platform } = await request.json()
