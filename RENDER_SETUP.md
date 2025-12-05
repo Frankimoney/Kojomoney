@@ -20,7 +20,7 @@ Fill in these details:
 
 - **Name**: `kojomoney-api` (or any name)
 - **Environment**: `Node`
-- **Build Command**: `npm install`
+- **Build Command**: `NEXT_OUTPUT_MODE=standalone npm install && npm run build`
 - **Start Command**: `NODE_ENV=production node .next/standalone/server.js`
 - **Plan**: Select `Free`
 
