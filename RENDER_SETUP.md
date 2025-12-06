@@ -20,8 +20,8 @@ Fill in these details:
 
 - **Name**: `kojomoney-api` (or any name)
 - **Environment**: `Node`
-- **Build Command**: `NEXT_OUTPUT_MODE=standalone npm install && npm run build`
-- **Start Command**: `NODE_ENV=production node .next/standalone/server.js`
+- **Build Command**: `npm install && npm run build`
+- **Start Command**: `node .next/standalone/server.js`
 - **Plan**: Select `Free`
 
 ## Step 4: Add Environment Variables

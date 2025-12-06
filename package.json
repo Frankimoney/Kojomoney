@@ -4,8 +4,8 @@
     "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
-    "build": "cross-env NEXT_TELEMETRY_DISABLED=1 NODE_OPTIONS=--max_old_space_size=4096 next build",
-    "start": "cross-env NODE_ENV=production node .next/standalone/server.js",
+    "build": "next build",
+    "start": "node .next/standalone/server.js",
     "lint": "next lint",
     "rss:ingest": "tsx scripts/ingest-rss.ts"
   },
@@ -100,8 +100,7 @@
         "vaul": "^1.1.2",
         "z-ai-web-dev-sdk": "^0.0.10",
         "zod": "^4.0.2",
-        "zustand": "^5.0.6",
-    "cross-env": "^7.0.3"
+        "zustand": "^5.0.6"
     },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
