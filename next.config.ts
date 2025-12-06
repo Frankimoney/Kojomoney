@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-    // Use export mode for static Firebase Hosting deployment
-    output: "export",
+    // Use standalone mode for server-side rendering with API routes
+    output: "standalone",
     images: {
         unoptimized: true,
     },
