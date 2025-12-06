@@ -2,13 +2,13 @@
     "name": "kojomoney",
     "version": "0.1.0",
     "private": true,
-  "scripts": {
-    "dev": "next dev -p 3000",
-    "build": "next build",
-    "start": "node .next/standalone/server.js",
-    "lint": "next lint",
-    "rss:ingest": "tsx scripts/ingest-rss.ts"
-  },
+    "scripts": {
+        "dev": "next dev -p 3000",
+        "build": "next build",
+        "start": "node .next/standalone/server.js",
+        "lint": "next lint",
+        "rss:ingest": "tsx scripts/ingest-rss.ts"
+    },
     "dependencies": {
         "@capacitor-community/admob": "^7.2.0",
         "@capacitor-firebase/analytics": "^7.4.0",
@@ -58,9 +58,11 @@
         "@tailwindcss/postcss": "^4",
         "@tanstack/react-query": "^5.82.0",
         "@tanstack/react-table": "^8.21.3",
+        "@types/bcryptjs": "^2.4.6",
         "@types/canvas-confetti": "^1.9.0",
         "@types/nodemailer": "^7.0.4",
         "axios": "^1.10.0",
+        "bcryptjs": "^3.0.3",
         "canvas-confetti": "^1.9.4",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
@@ -102,15 +104,15 @@
         "zod": "^4.0.2",
         "zustand": "^5.0.6"
     },
-  "devDependencies": {
-    "@eslint/eslintrc": "^3",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "autoprefixer": "^10",
-    "eslint": "^9",
-    "eslint-config-next": "15.3.5",
-    "cross-env": "^7.0.3",
-    "typescript": "^5"
-  }
+    "devDependencies": {
+        "@eslint/eslintrc": "^3",
+        "@types/node": "^20",
+        "@types/react": "^19",
+        "@types/react-dom": "^19",
+        "autoprefixer": "^10",
+        "cross-env": "^7.0.3",
+        "eslint": "^9",
+        "eslint-config-next": "15.3.5",
+        "typescript": "^5"
+    }
 }

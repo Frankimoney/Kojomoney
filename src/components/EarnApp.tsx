@@ -9,8 +9,6 @@ import { Progress } from '@/components/ui/progress'
 import { Home, Coins, Wallet, User, Play, BookOpen, Brain, Clock, TrendingUp, Gift, Settings, Share2, Bell, Moon, LogOut, Users, Trophy, Medal } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { useTheme } from 'next-themes'
-import { ThemeProvider } from 'next-themes'
-import { SessionProvider } from 'next-auth/react'
 import { Toaster } from '@/components/ui/toaster'
 import { apiCall } from '@/lib/api-client'
 
@@ -995,11 +993,9 @@ export default function EarnApp() {
     const [activeTab, setActiveTab] = useState('home')
     const [user, setUser] = useState<User | null>(null)
     const [userPoints, setUserPoints] = useState(0)
-    const [isClient, setIsClient] = useState(false)
     const { resolvedTheme, setTheme } = useTheme()
 
     useEffect(() => {
-        setIsClient(true)
         // Check for existing user session only on client
         if (typeof window !== 'undefined') {
             const savedUser = localStorage.getItem('kojomoneyUser') || localStorage.getItem('earnAppUser')
@@ -1069,12 +1065,12 @@ export default function EarnApp() {
                 // if (perm.receive !== 'granted') return
                 // await PushNotifications.register()
                 // const tok = await FirebaseMessaging.getToken()
-                if ((tok as any)?.token) {
-                    await apiCall('/api/push', {
-                        method: 'POST',
-                        body: JSON.stringify({ userId: user.id, token: (tok as any).token, platform: (window as any).Capacitor.getPlatform?.() })
-                    })
-                }
+                // if ((tok as any)?.token) {
+                //     await apiCall('/api/push', {
+                //         method: 'POST',
+                //         body: JSON.stringify({ userId: user.id, token: (tok as any).token, platform: (window as any).Capacitor.getPlatform?.() })
+                //     })
+                // }
             } catch (_) { }
         }
         setupPush()
@@ -1113,24 +1109,15 @@ export default function EarnApp() {
         setActiveTab('home')
     }
 
-    // Don't render anything until client-side hydration is complete
-    if (!isClient) {
-        return (
-            <div className="min-h-screen bg-background flex items-center justify-center">
-                <div className="text-lg">Loading...</div>
-            </div>
-        )
-    }
+
 
     // If not authenticated, show auth system
     if (!user) {
         return (
-            <SessionProvider>
-                <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-                    <AuthSystem onAuthSuccess={handleAuthSuccess} />
-                    <Toaster />
-                </ThemeProvider>
-            </SessionProvider>
+            <>
+                <AuthSystem onAuthSuccess={handleAuthSuccess} />
+                <Toaster />
+            </>
         )
     }
 
@@ -1143,66 +1130,62 @@ export default function EarnApp() {
 
 
     return (
-        <SessionProvider>
-            <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-                <div className="min-h-screen bg-background">
-                    <div className="container mx-auto px-4 py-6 max-w-6xl">
-                        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                            <div className="flex items-center justify-between mb-6">
-                                <div className="flex items-center space-x-2">
-                                    <Coins className="h-8 w-8 text-primary" />
-                                    <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-600">
-                                        KojoMoney
-                                    </h1>
-                                </div>
-                            </div>
-
-                            <TabsList className="grid w-full grid-cols-4 mb-8">
-                                <TabsTrigger value="home" className="space-x-2">
-                                    <Home className="h-4 w-4" />
-                                    <span className="hidden md:inline">Home</span>
-                                </TabsTrigger>
-                                <TabsTrigger value="earn" className="space-x-2">
-                                    <Play className="h-4 w-4" />
-                                    <span className="hidden md:inline">Earn</span>
-                                </TabsTrigger>
-                                <TabsTrigger value="wallet" className="space-x-2">
-                                    <Wallet className="h-4 w-4" />
-                                    <span className="hidden md:inline">Wallet</span>
-                                </TabsTrigger>
-                                <TabsTrigger value="profile" className="space-x-2">
-                                    <User className="h-4 w-4" />
-                                    <span className="hidden md:inline">Profile</span>
-                                </TabsTrigger>
-                            </TabsList>
-
-                            <TabsContent value="home" className="space-y-4">
-                                {user && (
-                                    <HomeTab user={user} userPoints={userPoints} setActiveTab={setActiveTab} />
-                                )}
-                            </TabsContent>
-
-                            <TabsContent value="earn" className="space-y-4">
-                                {user && (
-                                    <EarnTab user={user} userPoints={userPoints} setUserPoints={setUserPoints} />
-                                )}
-                            </TabsContent>
-
-                            <TabsContent value="wallet" className="space-y-4">
-                                {user && (
-                                    <WalletTab user={user} userPoints={userPoints} syncUserFromServer={syncUserFromServer} />
-                                )}
-                            </TabsContent>
-
-                            <TabsContent value="profile" className="space-y-4">
-                                {user && (
-                                    <ProfileTab user={user} setUser={setUser} resolvedTheme={resolvedTheme} setTheme={setTheme} onLogout={handleLogout} />
-                                )}
-                            </TabsContent>
-                        </Tabs>
+        <div className="min-h-screen bg-background">
+            <div className="container mx-auto px-4 py-6 max-w-6xl">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center space-x-2">
+                            <Coins className="h-8 w-8 text-primary" />
+                            <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-600">
+                                KojoMoney
+                            </h1>
+                        </div>
                     </div>
-                </div>
-            </ThemeProvider>
-        </SessionProvider>
+
+                    <TabsList className="grid w-full grid-cols-4 mb-8">
+                        <TabsTrigger value="home" className="space-x-2">
+                            <Home className="h-4 w-4" />
+                            <span className="hidden md:inline">Home</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="earn" className="space-x-2">
+                            <Play className="h-4 w-4" />
+                            <span className="hidden md:inline">Earn</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="wallet" className="space-x-2">
+                            <Wallet className="h-4 w-4" />
+                            <span className="hidden md:inline">Wallet</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="profile" className="space-x-2">
+                            <User className="h-4 w-4" />
+                            <span className="hidden md:inline">Profile</span>
+                        </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="home" className="space-y-4">
+                        {user && (
+                            <HomeTab user={user} userPoints={userPoints} setActiveTab={setActiveTab} />
+                        )}
+                    </TabsContent>
+
+                    <TabsContent value="earn" className="space-y-4">
+                        {user && (
+                            <EarnTab user={user} userPoints={userPoints} setUserPoints={setUserPoints} />
+                        )}
+                    </TabsContent>
+
+                    <TabsContent value="wallet" className="space-y-4">
+                        {user && (
+                            <WalletTab user={user} userPoints={userPoints} syncUserFromServer={syncUserFromServer} />
+                        )}
+                    </TabsContent>
+
+                    <TabsContent value="profile" className="space-y-4">
+                        {user && (
+                            <ProfileTab user={user} setUser={setUser} resolvedTheme={resolvedTheme} setTheme={setTheme} onLogout={handleLogout} />
+                        )}
+                    </TabsContent>
+                </Tabs>
+            </div>
+        </div>
     )
 }

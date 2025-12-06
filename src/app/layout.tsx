@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { RootProviders } from "@/components/providers";
 
 export const metadata: Metadata = {
     title: "KojoMoney",
@@ -34,7 +35,9 @@ export default function RootLayout({
                 suppressHydrationWarning
                 className={`antialiased bg-background text-foreground`}
             >
-                {children}
+                <RootProviders>
+                    {children}
+                </RootProviders>
             </body>
         </html>
     );
