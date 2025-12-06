@@ -2,6 +2,7 @@ services:
   - type: web
     name: kojomoney-web
     runtime: docker
+    dockerfilePath: ./Dockerfile
     plan: free
     healthCheckPath: /
     envVars:
