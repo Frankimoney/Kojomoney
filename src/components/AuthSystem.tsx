@@ -95,7 +95,10 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
         }
         init()
         return () => {
-            try { remove && remove.remove && remove.remove() } catch (_) {}
+            try { 
+                // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+                remove && remove.remove && remove.remove()
+            } catch (_) {}
         }
     }, [])
 
