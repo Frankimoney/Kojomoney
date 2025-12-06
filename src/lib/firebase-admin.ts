@@ -15,18 +15,23 @@ if (!admin.apps.length) {
             console.log('Firebase Admin initialized successfully')
         } catch (error) {
             console.error('Firebase Admin initialization error:', error)
-            // Initialize with minimal config as fallback
-            admin.initializeApp()
         }
-    } else {
-        console.warn('FIREBASE_ADMIN: Missing credentials, initializing with default app')
-        // Initialize default app to prevent errors
-        admin.initializeApp()
     }
 }
 
-export const db = admin.database()
-export const adminAuth = admin.auth()
+export const db = admin.apps.length > 0 ? admin.database() : null
+export const adminAuth = admin.apps.length > 0 ? admin.auth() : null
 
 // Helper to get a timestamp
-export const getTimestamp = () => admin.database.ServerValue.TIMESTAMP
+export const getTimestamp = () => {
+    try {
+        if (admin.apps.length > 0 && admin.database && (admin as any).database().ServerValue) {
+            return (admin as any).database().ServerValue.TIMESTAMP
+        }
+    } catch (e) {
+        // If firebase admin isn't initialized or ServerValue isn't available,
+        // return a conservative placeholder that calling code can handle.
+        console.warn('getTimestamp: Firebase Admin not initialized, returning fallback timestamp placeholder')
+    }
+    return { '.sv': 'timestamp' }
+}

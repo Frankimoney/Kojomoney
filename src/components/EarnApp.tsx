@@ -26,9 +26,10 @@ const DailyTrivia = dynamic(() => import('./DailyTrivia'), {
 })
 
 import AuthSystem from './AuthSystem'
-import { PushNotifications } from '@capacitor/push-notifications'
-import { FirebaseAnalytics } from '@capacitor-firebase/analytics'
-import { FirebaseMessaging } from '@capacitor-firebase/messaging'
+// Capacitor plugins - only available on mobile, lazy loaded
+// import { PushNotifications } from '@capacitor/push-notifications'
+// import { FirebaseAnalytics } from '@capacitor-firebase/analytics'
+// import { FirebaseMessaging } from '@capacitor-firebase/messaging'
 
 interface User {
     id: string
@@ -1064,10 +1065,10 @@ export default function EarnApp() {
         if (!isNative || !user?.id) return
         const setupPush = async () => {
             try {
-                const perm = await PushNotifications.requestPermissions()
-                if (perm.receive !== 'granted') return
-                await PushNotifications.register()
-                const tok = await FirebaseMessaging.getToken()
+                // const perm = await PushNotifications.requestPermissions()
+                // if (perm.receive !== 'granted') return
+                // await PushNotifications.register()
+                // const tok = await FirebaseMessaging.getToken()
                 if ((tok as any)?.token) {
                     await apiCall('/api/push', {
                         method: 'POST',
@@ -1088,7 +1089,7 @@ export default function EarnApp() {
         if (!isNative) return
         const screen = activeTab
         try {
-            FirebaseAnalytics.logEvent({ name: 'screen_view', params: { screen_name: screen } })
+            // FirebaseAnalytics.logEvent({ name: 'screen_view', params: { screen_name: screen } })
         } catch (error) {
             // Firebase not initialized in browser - this is expected
         }

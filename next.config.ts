@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-    // Use standalone for production
+    // Use export mode for static Firebase Hosting deployment
+    // API routes will be skipped automatically
     output: "standalone",
     images: {
         unoptimized: true,
@@ -13,10 +14,6 @@ const nextConfig: NextConfig = {
     reactStrictMode: false,
     eslint: {
         ignoreDuringBuilds: true,
-    },
-    experimental: {
-        // Skip collecting page data for API routes during build
-        isrFlushToDisk: false,
     },
 };
 
