@@ -3,13 +3,34 @@
 // Start the Next.js standalone server
 const path = require('path');
 const { spawn } = require('child_process');
+const fs = require('fs');
 
-const serverPath = path.join(__dirname, '.next', 'standalone', 'server.js');
+// Determine the project root
+let projectRoot = __dirname;
+if (projectRoot.endsWith('/src') || projectRoot.endsWith('\\src')) {
+  projectRoot = path.dirname(projectRoot);
+}
 
+const serverPath = path.join(projectRoot, '.next', 'standalone', 'server.js');
+
+console.log('Project root:', projectRoot);
 console.log('Starting Next.js server from:', serverPath);
 
+// Verify the server file exists
+if (!fs.existsSync(serverPath)) {
+  console.error('ERROR: Server file not found at:', serverPath);
+  console.error('Directory contents:');
+  const nextDir = path.join(projectRoot, '.next');
+  if (fs.existsSync(nextDir)) {
+    console.error(fs.readdirSync(nextDir));
+  } else {
+    console.error('.next directory does not exist');
+  }
+  process.exit(1);
+}
+
 const server = spawn('node', [serverPath], {
-  cwd: __dirname,
+  cwd: projectRoot,
   stdio: 'inherit',
   env: {
     ...process.env,
