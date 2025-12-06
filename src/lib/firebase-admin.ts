@@ -4,18 +4,25 @@ if (!admin.apps.length) {
     // Only initialize if we have proper credentials
     if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
         try {
+            // Use custom database URL if provided, otherwise construct default
+            const databaseURL = process.env.FIREBASE_DATABASE_URL ||
+                `https://${process.env.FIREBASE_PROJECT_ID}-default-rtdb.firebaseio.com`
+
             admin.initializeApp({
                 credential: admin.credential.cert({
                     projectId: process.env.FIREBASE_PROJECT_ID,
                     clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
                     privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
                 }),
-                databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}-default-rtdb.firebaseio.com`
+                databaseURL
             })
             console.log('Firebase Admin initialized successfully')
+            console.log('Database URL:', databaseURL)
         } catch (error) {
             console.error('Firebase Admin initialization error:', error)
         }
+    } else {
+        console.warn('Firebase credentials not found in environment variables')
     }
 }
 
@@ -35,3 +42,4 @@ export const getTimestamp = () => {
     }
     return { '.sv': 'timestamp' }
 }
+

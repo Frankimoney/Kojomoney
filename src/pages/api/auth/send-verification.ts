@@ -5,16 +5,26 @@ import nodemailer from 'nodemailer'
 
 export const dynamic = 'force-dynamic'
 
-// Create email transporter
+// Create email transporter with timeout
 const createTransporter = () => {
+    // Use port 465 (SSL) by default as it's more reliable
+    const port = parseInt(process.env.EMAIL_PORT || '465')
+    const secure = process.env.EMAIL_SECURE !== 'false' // Default to true for port 465
+
+    console.log('[EMAIL] Creating transporter - host:', process.env.EMAIL_HOST || 'smtp.gmail.com', 'port:', port, 'secure:', secure)
+
     return nodemailer.createTransport({
         host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-        port: parseInt(process.env.EMAIL_PORT || '587'),
-        secure: process.env.EMAIL_SECURE === 'true',
+        port,
+        secure,
         auth: {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASS,
         },
+        // Add timeouts to prevent hanging
+        connectionTimeout: 15000,
+        greetingTimeout: 15000,
+        socketTimeout: 15000,
     })
 }
 

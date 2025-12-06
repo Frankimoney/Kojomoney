@@ -111,6 +111,7 @@
         "@types/react-dom": "^19",
         "autoprefixer": "^10",
         "cross-env": "^7.0.3",
+        "dotenv": "^17.2.3",
         "eslint": "^9",
         "eslint-config-next": "15.3.5",
         "typescript": "^5"
