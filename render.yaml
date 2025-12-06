@@ -1,16 +1,12 @@
 services:
   - type: web
     name: kojomoney-web
-    env: node
+    runtime: docker
     plan: free
-    buildCommand: npm install && npm run build
-    startCommand: node server.js
     healthCheckPath: /
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 3000
       - key: FIREBASE_PROJECT_ID
         sync: false
       - key: FIREBASE_CLIENT_EMAIL
