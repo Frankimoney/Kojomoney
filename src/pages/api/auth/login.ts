@@ -22,25 +22,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         const loginValue = usernameOrEmail.toLowerCase().trim()
-        const usersRef = db.ref('users')
+        const usersRef = db.collection('users')
 
         // Try to find user by email or username
-        let userData = null
-        let userId = null
+        let userData: any = null
+        let userId: string | null = null
 
         // Check by email
-        const emailQuery = await usersRef.orderByChild('email').equalTo(loginValue).once('value')
-        if (emailQuery.exists()) {
-            const data = emailQuery.val()
-            userId = Object.keys(data)[0]
-            userData = data[userId]
+        const emailQuery = await usersRef.where('email', '==', loginValue).get()
+        if (!emailQuery.empty) {
+            const doc = emailQuery.docs[0]
+            userId = doc.id
+            userData = doc.data()
         } else {
             // Check by username
-            const usernameQuery = await usersRef.orderByChild('username').equalTo(loginValue).once('value')
-            if (usernameQuery.exists()) {
-                const data = usernameQuery.val()
-                userId = Object.keys(data)[0]
-                userData = data[userId]
+            const usernameQuery = await usersRef.where('username', '==', loginValue).get()
+            if (!usernameQuery.empty) {
+                const doc = usernameQuery.docs[0]
+                userId = doc.id
+                userData = doc.data()
             }
         }
 
@@ -55,7 +55,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         // Update last active date
-        await db.ref(`users/${userId}`).update({
+        await usersRef.doc(userId!).update({
             lastActiveDate: new Date().toISOString().split('T')[0],
             updatedAt: Date.now()
         })

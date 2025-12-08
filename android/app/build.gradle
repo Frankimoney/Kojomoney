@@ -48,6 +48,19 @@ dependencies {
     implementation 'com.google.firebase:firebase-messaging'
     implementation 'com.google.firebase:firebase-analytics'
     implementation 'com.google.firebase:firebase-crashlytics'
+    
+    // AdMob Mediation Adapters
+    // Meta Audience Network (Facebook) - High eCPM for social apps
+    implementation 'com.google.ads.mediation:facebook:6.17.0.0'
+    
+    // Unity Ads - Good for gaming-style apps
+    implementation 'com.google.ads.mediation:unity:4.9.3.0'
+    
+    // AppLovin - High fill rates globally
+    implementation 'com.google.ads.mediation:applovin:12.4.2.0'
+    
+    // Pangle (TikTok/ByteDance) - Good for emerging markets
+    implementation 'com.google.ads.mediation:pangle:5.9.0.6.0'
 }
 
 apply plugin: 'com.google.gms.google-services'

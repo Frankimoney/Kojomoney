@@ -27,6 +27,19 @@ target 'App' do
   pod 'Firebase/Analytics'
   pod 'Firebase/Messaging'
   pod 'Firebase/Crashlytics'
+  
+  # AdMob Mediation Adapters for iOS
+  # Meta Audience Network (Facebook) - High eCPM for social apps
+  pod 'GoogleMobileAdsMediationFacebook'
+  
+  # Unity Ads - Good for gaming-style apps
+  pod 'GoogleMobileAdsMediationUnity'
+  
+  # AppLovin - High fill rates globally
+  pod 'GoogleMobileAdsMediationAppLovin'
+  
+  # Pangle (TikTok/ByteDance) - Good for emerging markets
+  pod 'GoogleMobileAdsMediationPangle'
 end
 
 post_install do |installer|

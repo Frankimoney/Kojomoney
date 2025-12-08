@@ -1,434 +1,865 @@
 'use client'
 
-import { apiCall } from '@/lib/api-client'
-
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Database, Users, TrendingUp, DollarSign, Eye, Settings, BarChart3, Activity } from 'lucide-react'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+    Users, DollarSign, TrendingUp, Clock, CheckCircle, XCircle,
+    RefreshCw, Search, Eye, Download, Ban, Gift, Wallet,
+    ArrowUpRight, ArrowDownRight, Activity, AlertCircle, Mail,
+    Calendar, Globe, Smartphone, BarChart3, Settings, Shield,
+    FileText, Link, ExternalLink, Check, X, Loader2, LogOut
+} from 'lucide-react'
+import { apiCall } from '@/lib/api-client'
+import { logoutAdmin, getAdminEmail, getAdminToken } from '@/components/AdminLogin'
+import { exportUsers, exportWithdrawals, exportTransactions, generateAdminReport } from '@/services/exportService'
 
-interface AdminData {
-    overview?: {
-        totalUsers: number
-        totalNews: number
-        totalTrivia: number
-        totalWithdrawals: number
-        totalPointsInSystem: number
-        activeUsersThisWeek: number
-    }
-    stats?: {
-        newUsersThisWeek: number
-        newUsersThisMonth: number
-        totalPointsInSystem: number
-        pointsEarnedThisWeek: number
-        totalWithdrawalsThisMonth: number
-        topUsers: Array<{
-            email: string
-            name?: string
-            totalPoints: number
-            dailyStreak: number
-            createdAt: string
-        }>
-    }
-    users?: Array<any>
-    data?: Array<any>
+interface DashboardStats {
+    totalUsers: number
+    activeUsers: number
+    newUsersToday: number
+    totalWithdrawals: number
+    pendingWithdrawals: number
+    totalPointsDistributed: number
+    totalMissions: number
+    totalOffers: number
+    activeMissions: number
+    completedMissions24h: number
 }
 
-const AdminDashboard = () => {
+interface User {
+    id: string
+    email: string
+    displayName: string
+    points: number
+    totalEarnings: number
+    referralCode: string
+    referredBy?: string
+    createdAt: number
+    lastActive?: number
+    country?: string
+    deviceType?: string
+    status: 'active' | 'suspended' | 'banned'
+}
+
+interface Withdrawal {
+    id: string
+    oderId: string
+    usedId: string
+    userEmail: string
+    amount: number
+    amountUSD: number
+    method: 'paypal' | 'bank' | 'crypto' | 'mobile_money' | 'gift_card'
+    accountDetails: string
+    status: 'pending' | 'processing' | 'completed' | 'rejected'
+    createdAt: number
+    processedAt?: number
+    processedBy?: string
+    rejectionReason?: string
+}
+
+interface Transaction {
+    id: string
+    oderId: string
+    userId: string
+    type: 'credit' | 'debit'
+    amount: number
+    source: string
+    status: string
+    createdAt: number
+    metadata?: any
+}
+
+interface AdminDashboardProps {
+    onLogout?: () => void
+}
+
+export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     const [activeTab, setActiveTab] = useState('overview')
-    const [selectedTable, setSelectedTable] = useState('users')
-    const [adminData, setAdminData] = useState<AdminData>({})
-    const [ingestStats, setIngestStats] = useState<{ inserted: number; updated: number; processed: number } | null>(null)
-    const [ingestLoading, setIngestLoading] = useState(false)
-    const [loading, setLoading] = useState(true)
+    const [isLoading, setIsLoading] = useState(true)
+    const [stats, setStats] = useState<DashboardStats | null>(null)
+    const [users, setUsers] = useState<User[]>([])
+    const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([])
+    const [transactions, setTransactions] = useState<Transaction[]>([])
+    const [searchQuery, setSearchQuery] = useState('')
+    const [withdrawalFilter, setWithdrawalFilter] = useState<string>('pending')
+    const [selectedWithdrawal, setSelectedWithdrawal] = useState<Withdrawal | null>(null)
+    const [showWithdrawalDialog, setShowWithdrawalDialog] = useState(false)
+    const [processingAction, setProcessingAction] = useState(false)
+    const [rejectionReason, setRejectionReason] = useState('')
     const [error, setError] = useState<string | null>(null)
+    const [success, setSuccess] = useState<string | null>(null)
+    const [isExporting, setIsExporting] = useState(false)
+    const [adminEmail, setAdminEmail] = useState<string | null>(null)
 
-    const fetchAdminData = async (action: string, table?: string) => {
-        setLoading(true)
-        setError(null)
-
-        try {
-            const url = table
-                ? `/api/admin?action=${action}&table=${table}`
-                : `/api/admin?action=${action}`
-
-            const response = await fetch(url, {
-                headers: {
-                    'Authorization': 'Bearer admin-earnapp-2024'
-                }
-            })
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch admin data')
+    const authApiCall = (path: string, options: any = {}) => {
+        const token = getAdminToken()
+        return apiCall(path, {
+            ...options,
+            headers: {
+                ...options.headers,
+                'Authorization': `Bearer ${token}`
             }
-
-            const data = await response.json()
-
-            if (data.error) {
-                throw new Error(data.error)
-            }
-
-            setAdminData(data)
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Unknown error')
-        } finally {
-            setLoading(false)
-        }
+        })
     }
 
     useEffect(() => {
-        fetchAdminData('overview')
+        setAdminEmail(getAdminEmail())
     }, [])
 
     useEffect(() => {
-        if (activeTab === 'table') {
-            fetchAdminData('table', selectedTable)
-        } else if (activeTab === 'users') {
-            fetchAdminData('users')
-        } else if (activeTab === 'stats') {
-            fetchAdminData('stats')
-        }
-    }, [activeTab, selectedTable])
+        loadDashboardData()
+    }, [])
 
-    const refreshFeeds = async () => {
+    useEffect(() => {
+        if (activeTab === 'withdrawals') {
+            loadWithdrawals()
+        } else if (activeTab === 'users') {
+            loadUsers()
+        } else if (activeTab === 'transactions') {
+            loadTransactions()
+        }
+    }, [activeTab, withdrawalFilter])
+
+    const loadDashboardData = async () => {
+        setIsLoading(true)
         try {
-            setIngestLoading(true)
-            setError(null)
-            const res = await apiCall('/api/news?action=ingest&source=rss&limit=20&points=5', {
-                method: 'POST',
-                headers: { 'Authorization': 'Bearer admin-earnapp-2024' }
-            })
-            const data = await res.json()
-            if (!res.ok || data.error) throw new Error(data.error || 'Ingest failed')
-            setIngestStats({ inserted: data.inserted || 0, updated: data.updated || 0, processed: data.processed || 0 })
+            const response = await authApiCall('/api/admin/stats')
+            if (response.ok) {
+                const data = await response.json()
+                setStats(data)
+            }
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Unknown error')
+            console.error('Failed to load dashboard data:', err)
+            setError('Failed to load dashboard data')
         } finally {
-            setIngestLoading(false)
+            setIsLoading(false)
         }
     }
 
-    const OverviewTab = () => (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{adminData.overview?.totalUsers || 0}</div>
-                    <p className="text-xs text-muted-foreground">
-                        +{adminData.overview?.activeUsersThisWeek || 0} active this week
-                    </p>
-                </CardContent>
-            </Card>
+    const loadUsers = async () => {
+        try {
+            const response = await authApiCall(`/api/admin/users?search=${searchQuery}`)
+            if (response.ok) {
+                const data = await response.json()
+                setUsers(data.users || [])
+            }
+        } catch (err) {
+            console.error('Failed to load users:', err)
+        }
+    }
 
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Points</CardTitle>
-                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{adminData.overview?.totalPointsInSystem || 0}</div>
-                    <p className="text-xs text-muted-foreground">
-                        In circulation
-                    </p>
-                </CardContent>
-            </Card>
+    const loadWithdrawals = async () => {
+        try {
+            const response = await authApiCall(`/api/admin/withdrawals?status=${withdrawalFilter}`)
+            if (response.ok) {
+                const data = await response.json()
+                setWithdrawals(data.withdrawals || [])
+            }
+        } catch (err) {
+            console.error('Failed to load withdrawals:', err)
+        }
+    }
 
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">News Stories</CardTitle>
-                    <Database className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{adminData.overview?.totalNews || 0}</div>
-                    <p className="text-xs text-muted-foreground">
-                        Published stories
-                    </p>
-                </CardContent>
-            </Card>
+    const loadTransactions = async () => {
+        try {
+            const response = await authApiCall('/api/admin/transactions?limit=100')
+            if (response.ok) {
+                const data = await response.json()
+                setTransactions(data.transactions || [])
+            }
+        } catch (err) {
+            console.error('Failed to load transactions:', err)
+        }
+    }
 
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Trivia Sets</CardTitle>
-                    <Activity className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{adminData.overview?.totalTrivia || 0}</div>
-                    <p className="text-xs text-muted-foreground">
-                        Daily trivia created
-                    </p>
-                </CardContent>
-            </Card>
+    const handleWithdrawalAction = async (action: 'approve' | 'reject') => {
+        if (!selectedWithdrawal) return
 
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Withdrawals</CardTitle>
-                    <DollarSign className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{adminData.overview?.totalWithdrawals || 0}</div>
-                    <p className="text-xs text-muted-foreground">
-                        Total withdrawal requests
-                    </p>
-                </CardContent>
-            </Card>
+        setProcessingAction(true)
+        try {
+            const response = await authApiCall('/api/admin/withdrawals/process', {
+                method: 'POST',
+                body: JSON.stringify({
+                    withdrawalId: selectedWithdrawal.id,
+                    action,
+                    rejectionReason: action === 'reject' ? rejectionReason : undefined,
+                }),
+            })
 
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Active Users</CardTitle>
-                    <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{adminData.overview?.activeUsersThisWeek || 0}</div>
-                    <p className="text-xs text-muted-foreground">
-                        Active this week
-                    </p>
-                </CardContent>
-            </Card>
+            if (response.ok) {
+                setSuccess(`Withdrawal ${action === 'approve' ? 'approved' : 'rejected'} successfully`)
+                setShowWithdrawalDialog(false)
+                setSelectedWithdrawal(null)
+                setRejectionReason('')
+                loadWithdrawals()
+            } else {
+                const data = await response.json()
+                setError(data.error || `Failed to ${action} withdrawal`)
+            }
+        } catch (err) {
+            setError(`Failed to ${action} withdrawal`)
+        } finally {
+            setProcessingAction(false)
+        }
+    }
 
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Feeds</CardTitle>
-                    <Settings className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent className="space-y-3">
-                    <Button onClick={refreshFeeds} disabled={ingestLoading}>
-                        {ingestLoading ? 'Refreshing...' : 'Refresh Feeds'}
-                    </Button>
-                    {ingestStats && (
-                        <div className="text-xs text-muted-foreground">
-                            Updated: {ingestStats.updated}, Inserted: {ingestStats.inserted}, Processed: {ingestStats.processed}
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
-        </div>
-    )
+    const handleLogout = () => {
+        logoutAdmin()
+        if (onLogout) {
+            onLogout()
+        } else {
+            window.location.reload()
+        }
+    }
 
-    const TableTab = () => (
-        <div className="space-y-4">
-            <div className="flex items-center space-x-4">
-                <Select value={selectedTable} onValueChange={setSelectedTable}>
-                    <SelectTrigger className="w-[200px]">
-                        <SelectValue placeholder="Select table" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="users">Users</SelectItem>
-                        <SelectItem value="news_reads">News Reads</SelectItem>
-                        <SelectItem value="ad_views">Ad Views</SelectItem>
-                        <SelectItem value="withdrawals">Withdrawals</SelectItem>
-                        <SelectItem value="daily_activities">Daily Activities</SelectItem>
-                    </SelectContent>
-                </Select>
-                <Button onClick={() => fetchAdminData('table', selectedTable)}>
-                    <Eye className="h-4 w-4 mr-2" />
-                    Refresh
-                </Button>
-            </div>
+    const handleExportAll = async () => {
+        setIsExporting(true)
+        try {
+            await generateAdminReport(authApiCall)
+            setSuccess('Reports exported successfully!')
+        } catch (err) {
+            setError('Failed to export reports')
+        } finally {
+            setIsExporting(false)
+        }
+    }
 
-            <div className="border rounded-lg">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            {selectedTable === 'users' && (
-                                <>
-                                    <TableHead>Email</TableHead>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead>Points</TableHead>
-                                    <TableHead>Streak</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Joined</TableHead>
-                                </>
-                            )}
-                            {selectedTable === 'news_reads' && (
-                                <>
-                                    <TableHead>User</TableHead>
-                                    <TableHead>Story</TableHead>
-                                    <TableHead>Started</TableHead>
-                                    <TableHead>Completed</TableHead>
-                                    <TableHead>Points</TableHead>
-                                </>
-                            )}
-                            {selectedTable === 'ad_views' && (
-                                <>
-                                    <TableHead>User</TableHead>
-                                    <TableHead>Started</TableHead>
-                                    <TableHead>Completed</TableHead>
-                                    <TableHead>Points</TableHead>
-                                    <TableHead>Status</TableHead>
-                                </>
-                            )}
-                            {selectedTable === 'withdrawals' && (
-                                <>
-                                    <TableHead>User</TableHead>
-                                    <TableHead>Amount</TableHead>
-                                    <TableHead>Bank</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Date</TableHead>
-                                </>
-                            )}
-                            {selectedTable === 'daily_activities' && (
-                                <>
-                                    <TableHead>User</TableHead>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead>Ads</TableHead>
-                                    <TableHead>Stories</TableHead>
-                                    <TableHead>Trivia</TableHead>
-                                    <TableHead>Points</TableHead>
-                                </>
-                            )}
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {loading ? (
-                            <TableRow>
-                                <TableCell colSpan={6} className="text-center py-8">
-                                    Loading data...
-                                </TableCell>
-                            </TableRow>
-                        ) : error ? (
-                            <TableRow>
-                                <TableCell colSpan={6} className="text-center py-8 text-red-600">
-                                    Error: {error}
-                                </TableCell>
-                            </TableRow>
-                        ) : adminData.data && adminData.data.length > 0 ? (
-                            adminData.data.map((row, index) => (
-                                <TableRow key={index}>
-                                    {selectedTable === 'users' && (
-                                        <>
-                                            <TableCell>{row.email}</TableCell>
-                                            <TableCell>{row.name || '-'}</TableCell>
-                                            <TableCell>{row.totalPoints}</TableCell>
-                                            <TableCell>{row.dailyStreak}</TableCell>
-                                            <TableCell>
-                                                <Badge variant={row.isBlocked ? 'destructive' : 'default'}>
-                                                    {row.isBlocked ? 'Blocked' : 'Active'}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell>{new Date(row.createdAt).toLocaleDateString()}</TableCell>
-                                        </>
-                                    )}
-                                    {selectedTable === 'news_reads' && (
-                                        <>
-                                            <TableCell>{row.user?.email}</TableCell>
-                                            <TableCell className="max-w-xs truncate">{row.story?.title}</TableCell>
-                                            <TableCell>{new Date(row.startedAt).toLocaleString()}</TableCell>
-                                            <TableCell>{row.completedAt ? new Date(row.completedAt).toLocaleString() : '-'}</TableCell>
-                                            <TableCell>{row.pointsEarned || 0}</TableCell>
-                                        </>
-                                    )}
-                                    {selectedTable === 'ad_views' && (
-                                        <>
-                                            <TableCell>{row.user?.email}</TableCell>
-                                            <TableCell>{new Date(row.startedAt).toLocaleString()}</TableCell>
-                                            <TableCell>{row.completedAt ? new Date(row.completedAt).toLocaleString() : '-'}</TableCell>
-                                            <TableCell>{row.pointsEarned || 0}</TableCell>
-                                            <TableCell>
-                                                <Badge variant={row.isConfirmed ? 'default' : 'secondary'}>
-                                                    {row.isConfirmed ? 'Confirmed' : 'Pending'}
-                                                </Badge>
-                                            </TableCell>
-                                        </>
-                                    )}
-                                    {selectedTable === 'withdrawals' && (
-                                        <>
-                                            <TableCell>{row.user?.email}</TableCell>
-                                            <TableCell>₦{row.amount}</TableCell>
-                                            <TableCell>{row.bankName}</TableCell>
-                                            <TableCell>
-                                                <Badge variant={
-                                                    row.status === 'approved' ? 'default' :
-                                                        row.status === 'rejected' ? 'destructive' : 'secondary'
-                                                }>
-                                                    {row.status}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell>{new Date(row.createdAt).toLocaleDateString()}</TableCell>
-                                        </>
-                                    )}
-                                    {selectedTable === 'daily_activities' && (
-                                        <>
-                                            <TableCell>{row.user?.email}</TableCell>
-                                            <TableCell>{new Date(row.date).toLocaleDateString()}</TableCell>
-                                            <TableCell>{row.adsWatched}</TableCell>
-                                            <TableCell>{row.storiesRead}</TableCell>
-                                            <TableCell>{row.triviaPlayed ? 'Yes' : 'No'}</TableCell>
-                                            <TableCell>{row.pointsEarned}</TableCell>
-                                        </>
-                                    )}
-                                </TableRow>
-                            ))
-                        ) : (
-                            <TableRow>
-                                <TableCell colSpan={6} className="text-center py-8">
-                                    No data found
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
-        </div>
-    )
+    const formatDate = (timestamp: number) => {
+        return new Date(timestamp).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        })
+    }
+
+    const formatCurrency = (amount: number) => {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+        }).format(amount)
+    }
+
+    const getStatusBadge = (status: string) => {
+        switch (status) {
+            case 'pending':
+                return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Pending</Badge>
+            case 'processing':
+                return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Processing</Badge>
+            case 'completed':
+                return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Completed</Badge>
+            case 'rejected':
+                return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Rejected</Badge>
+            default:
+                return <Badge variant="secondary">{status}</Badge>
+        }
+    }
+
+    const getMethodIcon = (method: string) => {
+        switch (method) {
+            case 'paypal': return '💳'
+            case 'bank': return '🏦'
+            case 'crypto': return '₿'
+            case 'mobile_money': return '📱'
+            case 'gift_card': return '🎁'
+            default: return '💰'
+        }
+    }
 
     return (
-        <div className="min-h-screen bg-gray-50 p-6">
-            <div className="max-w-7xl mx-auto">
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-                    <p className="text-gray-600">Manage your Kojomoney database and users</p>
+        <div className="min-h-screen bg-gray-50 dark:bg-zinc-900">
+            {/* Header */}
+            <header className="bg-white dark:bg-zinc-950 border-b sticky top-0 z-10">
+                <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center">
+                            <Shield className="h-6 w-6 text-white" />
+                        </div>
+                        <div>
+                            <h1 className="text-xl font-bold">Admin Dashboard</h1>
+                            <p className="text-xs text-muted-foreground">KojoMoney Management</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        {adminEmail && (
+                            <span className="text-xs text-muted-foreground hidden md:block">
+                                {adminEmail}
+                            </span>
+                        )}
+                        <Button variant="outline" size="sm" onClick={loadDashboardData}>
+                            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                            Refresh
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={handleLogout} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                            <LogOut className="h-4 w-4 mr-2" />
+                            Logout
+                        </Button>
+                    </div>
                 </div>
+            </header>
 
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                    <TabsList>
-                        <TabsTrigger value="overview">Overview</TabsTrigger>
-                        <TabsTrigger value="table">Table Data</TabsTrigger>
-                        <TabsTrigger value="users">Users</TabsTrigger>
-                        <TabsTrigger value="stats">Statistics</TabsTrigger>
+            {/* Alerts */}
+            <div className="max-w-7xl mx-auto px-4">
+                {error && (
+                    <div className="mt-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-sm text-red-600 dark:text-red-400 flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4" />
+                        {error}
+                        <Button variant="ghost" size="sm" onClick={() => setError(null)} className="ml-auto">×</Button>
+                    </div>
+                )}
+                {success && (
+                    <div className="mt-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 text-sm text-green-600 dark:text-green-400 flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4" />
+                        {success}
+                        <Button variant="ghost" size="sm" onClick={() => setSuccess(null)} className="ml-auto">×</Button>
+                    </div>
+                )}
+            </div>
+
+            {/* Main Content */}
+            <main className="max-w-7xl mx-auto px-4 py-6">
+                <Tabs value={activeTab} onValueChange={setActiveTab}>
+                    <TabsList className="mb-6">
+                        <TabsTrigger value="overview" className="flex items-center gap-2">
+                            <BarChart3 className="h-4 w-4" /> Overview
+                        </TabsTrigger>
+                        <TabsTrigger value="withdrawals" className="flex items-center gap-2">
+                            <Wallet className="h-4 w-4" /> Withdrawals
+                            {stats?.pendingWithdrawals ? (
+                                <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                                    {stats.pendingWithdrawals}
+                                </Badge>
+                            ) : null}
+                        </TabsTrigger>
+                        <TabsTrigger value="users" className="flex items-center gap-2">
+                            <Users className="h-4 w-4" /> Users
+                        </TabsTrigger>
+                        <TabsTrigger value="transactions" className="flex items-center gap-2">
+                            <Activity className="h-4 w-4" /> Transactions
+                        </TabsTrigger>
+                        <TabsTrigger value="missions" className="flex items-center gap-2">
+                            <Gift className="h-4 w-4" /> Missions
+                        </TabsTrigger>
                     </TabsList>
 
-                    <TabsContent value="overview">
-                        <OverviewTab />
+                    {/* OVERVIEW TAB */}
+                    <TabsContent value="overview" className="space-y-6">
+                        {/* Stats Grid */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <StatsCard
+                                title="Total Users"
+                                value={stats?.totalUsers || 0}
+                                icon={Users}
+                                trend={stats?.newUsersToday ? `+${stats.newUsersToday} today` : undefined}
+                                trendUp={true}
+                                loading={isLoading}
+                            />
+                            <StatsCard
+                                title="Active Users"
+                                value={stats?.activeUsers || 0}
+                                icon={Activity}
+                                loading={isLoading}
+                            />
+                            <StatsCard
+                                title="Pending Withdrawals"
+                                value={stats?.pendingWithdrawals || 0}
+                                icon={Clock}
+                                highlight={(stats?.pendingWithdrawals || 0) > 0}
+                                loading={isLoading}
+                            />
+                            <StatsCard
+                                title="Points Distributed"
+                                value={stats?.totalPointsDistributed || 0}
+                                icon={TrendingUp}
+                                format="number"
+                                loading={isLoading}
+                            />
+                        </div>
+
+                        <div className="grid md:grid-cols-2 gap-6">
+                            {/* Quick Actions */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Quick Actions</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-3">
+                                    <Button variant="outline" className="w-full justify-start" onClick={() => setActiveTab('withdrawals')}>
+                                        <Wallet className="h-4 w-4 mr-3" />
+                                        Process Withdrawals
+                                        {stats?.pendingWithdrawals ? (
+                                            <Badge variant="destructive" className="ml-auto">{stats.pendingWithdrawals} pending</Badge>
+                                        ) : null}
+                                    </Button>
+                                    <Button variant="outline" className="w-full justify-start" onClick={() => setActiveTab('missions')}>
+                                        <Gift className="h-4 w-4 mr-3" />
+                                        Manage Missions
+                                    </Button>
+                                    <Button variant="outline" className="w-full justify-start" onClick={() => setActiveTab('users')}>
+                                        <Users className="h-4 w-4 mr-3" />
+                                        View Users
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        className="w-full justify-start"
+                                        onClick={handleExportAll}
+                                        disabled={isExporting}
+                                    >
+                                        {isExporting ? (
+                                            <Loader2 className="h-4 w-4 mr-3 animate-spin" />
+                                        ) : (
+                                            <Download className="h-4 w-4 mr-3" />
+                                        )}
+                                        {isExporting ? 'Exporting...' : 'Export All Reports'}
+                                    </Button>
+                                </CardContent>
+                            </Card>
+
+                            {/* Platform Stats */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Platform Stats</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                                        <span className="text-sm">Active Missions</span>
+                                        <span className="font-bold">{stats?.activeMissions || 0}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                                        <span className="text-sm">Missions Completed (24h)</span>
+                                        <span className="font-bold">{stats?.completedMissions24h || 0}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                                        <span className="text-sm">Total Offers</span>
+                                        <span className="font-bold">{stats?.totalOffers || 0}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                                        <span className="text-sm">Total Withdrawals</span>
+                                        <span className="font-bold">{stats?.totalWithdrawals || 0}</span>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
                     </TabsContent>
 
-                    <TabsContent value="table">
-                        <TableTab />
-                    </TabsContent>
+                    {/* WITHDRAWALS TAB */}
+                    <TabsContent value="withdrawals" className="space-y-4">
+                        <div className="flex flex-col md:flex-row gap-4 justify-between">
+                            <h2 className="text-lg font-semibold">Withdrawal Requests</h2>
+                            <div className="flex gap-2">
+                                <Select value={withdrawalFilter} onValueChange={setWithdrawalFilter}>
+                                    <SelectTrigger className="w-[150px]">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All</SelectItem>
+                                        <SelectItem value="pending">Pending</SelectItem>
+                                        <SelectItem value="processing">Processing</SelectItem>
+                                        <SelectItem value="completed">Completed</SelectItem>
+                                        <SelectItem value="rejected">Rejected</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Button variant="outline" onClick={loadWithdrawals}>
+                                    <RefreshCw className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => exportWithdrawals(withdrawals)}
+                                    disabled={withdrawals.length === 0}
+                                >
+                                    <Download className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
 
-                    <TabsContent value="users">
                         <Card>
-                            <CardHeader>
-                                <CardTitle>User Management</CardTitle>
-                                <CardDescription>View and manage all registered users</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-muted-foreground">User management features coming soon...</p>
-                            </CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>User</TableHead>
+                                        <TableHead>Amount</TableHead>
+                                        <TableHead>Method</TableHead>
+                                        <TableHead>Account</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead>Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {withdrawals.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                                No withdrawal requests found
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        withdrawals.map((withdrawal) => (
+                                            <TableRow key={withdrawal.id}>
+                                                <TableCell>
+                                                    <div>
+                                                        <p className="font-medium">{withdrawal.userEmail}</p>
+                                                        <p className="text-xs text-muted-foreground">{withdrawal.usedId?.slice(0, 8)}...</p>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div>
+                                                        <p className="font-bold">{withdrawal.amount} pts</p>
+                                                        <p className="text-xs text-muted-foreground">{formatCurrency(withdrawal.amountUSD)}</p>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <span className="flex items-center gap-2">
+                                                        {getMethodIcon(withdrawal.method)}
+                                                        <span className="capitalize">{withdrawal.method?.replace('_', ' ')}</span>
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell className="max-w-[200px] truncate">
+                                                    {withdrawal.accountDetails}
+                                                </TableCell>
+                                                <TableCell>{getStatusBadge(withdrawal.status)}</TableCell>
+                                                <TableCell className="text-sm text-muted-foreground">
+                                                    {formatDate(withdrawal.createdAt)}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {withdrawal.status === 'pending' && (
+                                                        <div className="flex gap-1">
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                                                                onClick={() => {
+                                                                    setSelectedWithdrawal(withdrawal)
+                                                                    setShowWithdrawalDialog(true)
+                                                                }}
+                                                            >
+                                                                <Check className="h-4 w-4" />
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                onClick={() => {
+                                                                    setSelectedWithdrawal(withdrawal)
+                                                                    setShowWithdrawalDialog(true)
+                                                                }}
+                                                            >
+                                                                <X className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
+                                                    )}
+                                                    {withdrawal.status !== 'pending' && (
+                                                        <Button size="sm" variant="ghost">
+                                                            <Eye className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
                         </Card>
                     </TabsContent>
 
-                    <TabsContent value="stats">
+                    {/* USERS TAB */}
+                    <TabsContent value="users" className="space-y-4">
+                        <div className="flex flex-col md:flex-row gap-4 justify-between">
+                            <h2 className="text-lg font-semibold">Users ({users.length})</h2>
+                            <div className="flex gap-2">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Search users..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && loadUsers()}
+                                        className="pl-9 w-[250px]"
+                                    />
+                                </div>
+                                <Button variant="outline" onClick={loadUsers}>
+                                    <Search className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => exportUsers(users)}
+                                    disabled={users.length === 0}
+                                >
+                                    <Download className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+
                         <Card>
-                            <CardHeader>
-                                <CardTitle>Statistics & Analytics</CardTitle>
-                                <CardDescription>Detailed insights about your app performance</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-muted-foreground">Advanced analytics coming soon...</p>
-                            </CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>User</TableHead>
+                                        <TableHead>Points</TableHead>
+                                        <TableHead>Total Earned</TableHead>
+                                        <TableHead>Referral Code</TableHead>
+                                        <TableHead>Joined</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead>Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {users.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                                No users found. Click search to load users.
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        users.map((user) => (
+                                            <TableRow key={user.id}>
+                                                <TableCell>
+                                                    <div>
+                                                        <p className="font-medium">{user.displayName || 'Anonymous'}</p>
+                                                        <p className="text-xs text-muted-foreground">{user.email}</p>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="font-bold">{user.points?.toLocaleString() || 0}</TableCell>
+                                                <TableCell>{user.totalEarnings?.toLocaleString() || 0}</TableCell>
+                                                <TableCell>
+                                                    <code className="text-xs bg-muted px-2 py-1 rounded">{user.referralCode}</code>
+                                                </TableCell>
+                                                <TableCell className="text-sm text-muted-foreground">
+                                                    {formatDate(user.createdAt)}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant={user.status === 'active' ? 'default' : 'destructive'}>
+                                                        {user.status || 'active'}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex gap-1">
+                                                        <Button size="sm" variant="ghost">
+                                                            <Eye className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button size="sm" variant="ghost">
+                                                            <Mail className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
                         </Card>
+                    </TabsContent>
+
+                    {/* TRANSACTIONS TAB */}
+                    <TabsContent value="transactions" className="space-y-4">
+                        <div className="flex justify-between">
+                            <h2 className="text-lg font-semibold">Recent Transactions</h2>
+                            <div className="flex gap-2">
+                                <Button variant="outline" onClick={loadTransactions}>
+                                    <RefreshCw className="h-4 w-4 mr-2" /> Refresh
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => exportTransactions(transactions)}
+                                    disabled={transactions.length === 0}
+                                >
+                                    <Download className="h-4 w-4 mr-2" /> Export
+                                </Button>
+                            </div>
+                        </div>
+
+                        <Card>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>User ID</TableHead>
+                                        <TableHead>Type</TableHead>
+                                        <TableHead>Amount</TableHead>
+                                        <TableHead>Source</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead>Date</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {transactions.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                                                No transactions found
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        transactions.map((tx) => (
+                                            <TableRow key={tx.id}>
+                                                <TableCell className="font-mono text-xs">{tx.userId?.slice(0, 8)}...</TableCell>
+                                                <TableCell>
+                                                    <Badge variant={tx.type === 'credit' ? 'default' : 'secondary'}>
+                                                        {tx.type === 'credit' ? (
+                                                            <ArrowUpRight className="h-3 w-3 mr-1" />
+                                                        ) : (
+                                                            <ArrowDownRight className="h-3 w-3 mr-1" />
+                                                        )}
+                                                        {tx.type}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className={tx.type === 'credit' ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}>
+                                                    {tx.type === 'credit' ? '+' : '-'}{tx.amount}
+                                                </TableCell>
+                                                <TableCell className="capitalize">{tx.source?.replace('_', ' ')}</TableCell>
+                                                <TableCell>{getStatusBadge(tx.status)}</TableCell>
+                                                <TableCell className="text-sm text-muted-foreground">
+                                                    {formatDate(tx.createdAt)}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </Card>
+                    </TabsContent>
+
+                    {/* MISSIONS TAB */}
+                    <TabsContent value="missions">
+                        <div className="text-center py-8">
+                            <Gift className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                            <p className="text-muted-foreground mb-4">Manage your affiliate missions and offers</p>
+                            <Button onClick={() => window.location.href = '/admin/missions'}>
+                                Open Mission Manager
+                            </Button>
+                        </div>
                     </TabsContent>
                 </Tabs>
-            </div>
+            </main>
+
+            {/* Withdrawal Processing Dialog */}
+            <Dialog open={showWithdrawalDialog} onOpenChange={setShowWithdrawalDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Process Withdrawal Request</DialogTitle>
+                        <DialogDescription>
+                            Review and process this withdrawal request.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {selectedWithdrawal && (
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <Label className="text-muted-foreground">User</Label>
+                                    <p className="font-medium">{selectedWithdrawal.userEmail}</p>
+                                </div>
+                                <div>
+                                    <Label className="text-muted-foreground">Amount</Label>
+                                    <p className="font-bold text-lg">{selectedWithdrawal.amount} pts</p>
+                                    <p className="text-sm text-muted-foreground">{formatCurrency(selectedWithdrawal.amountUSD)}</p>
+                                </div>
+                                <div>
+                                    <Label className="text-muted-foreground">Method</Label>
+                                    <p className="font-medium capitalize">{getMethodIcon(selectedWithdrawal.method)} {selectedWithdrawal.method?.replace('_', ' ')}</p>
+                                </div>
+                                <div>
+                                    <Label className="text-muted-foreground">Account</Label>
+                                    <p className="font-mono text-sm">{selectedWithdrawal.accountDetails}</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Rejection Reason (if rejecting)</Label>
+                                <Input
+                                    placeholder="e.g., Invalid account details"
+                                    value={rejectionReason}
+                                    onChange={(e) => setRejectionReason(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    <DialogFooter className="gap-2">
+                        <Button variant="outline" onClick={() => setShowWithdrawalDialog(false)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={() => handleWithdrawalAction('reject')}
+                            disabled={processingAction}
+                        >
+                            {processingAction ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <X className="h-4 w-4 mr-2" />}
+                            Reject
+                        </Button>
+                        <Button
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={() => handleWithdrawalAction('approve')}
+                            disabled={processingAction}
+                        >
+                            {processingAction ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
+                            Approve
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }
 
-export default AdminDashboard
+// Stats Card Component
+function StatsCard({
+    title,
+    value,
+    icon: Icon,
+    trend,
+    trendUp,
+    highlight,
+    format = 'default',
+    loading
+}: {
+    title: string
+    value: number
+    icon: any
+    trend?: string
+    trendUp?: boolean
+    highlight?: boolean
+    format?: 'default' | 'number' | 'currency'
+    loading?: boolean
+}) {
+    const formattedValue = format === 'number'
+        ? value.toLocaleString()
+        : format === 'currency'
+            ? `$${value.toLocaleString()}`
+            : value
+
+    if (loading) {
+        return (
+            <Card>
+                <CardContent className="p-4">
+                    <Skeleton className="h-4 w-20 mb-2" />
+                    <Skeleton className="h-8 w-16" />
+                </CardContent>
+            </Card>
+        )
+    }
+
+    return (
+        <Card className={highlight ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/10' : ''}>
+            <CardContent className="p-4">
+                <div className="flex justify-between items-start mb-2">
+                    <span className="text-sm text-muted-foreground">{title}</span>
+                    <Icon className={`h-5 w-5 ${highlight ? 'text-yellow-600' : 'text-muted-foreground'}`} />
+                </div>
+                <p className="text-2xl font-bold">{formattedValue}</p>
+                {trend && (
+                    <p className={`text-xs mt-1 ${trendUp ? 'text-green-600' : 'text-red-600'}`}>
+                        {trendUp ? <ArrowUpRight className="h-3 w-3 inline" /> : <ArrowDownRight className="h-3 w-3 inline" />}
+                        {trend}
+                    </p>
+                )}
+            </CardContent>
+        </Card>
+    )
+}

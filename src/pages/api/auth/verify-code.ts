@@ -19,15 +19,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             return res.status(500).json({ error: 'Database not available', success: false })
         }
 
-        // Get verification record
-        const verificationRef = db.ref(`verifications/${verificationId}`)
+        // Get verification record from Firestore
+        const verificationRef = db.collection('verifications').doc(verificationId)
         const snapshot = await verificationRef.get()
 
-        if (!snapshot.exists()) {
+        if (!snapshot.exists) {
             return res.status(400).json({ error: 'Invalid verification ID', success: false })
         }
 
-        const verification = snapshot.val()
+        const verification = snapshot.data()!
 
         // Check if already used
         if (verification.used) {

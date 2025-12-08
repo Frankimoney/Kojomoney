@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Trophy, Medal, Crown, Timer, Info, ArrowUp, ArrowDown, ChevronRight, Zap, Target, Star, Gift, ArrowLeft, Users, Flame, Clock } from 'lucide-react'
+import { Trophy, Medal, Crown, Timer, Info, ArrowUp, ArrowDown, ChevronRight, Zap, Target, Star, Gift, ArrowLeft, Users, Flame, Clock, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { apiCall } from '@/lib/api-client'
+import { apiCall, apiJson } from '@/lib/api-client'
 
 interface Player {
     id: string
@@ -21,81 +21,69 @@ interface Player {
     isMe?: boolean
 }
 
-// Mock Data
-const MOCK_LEADERBOARD: Player[] = [
-    { id: '1', rank: 1, name: 'CryptoKing', points: 15420, change: 0, tier: 'Platinum' },
-    { id: '2', rank: 2, name: 'EarnMaster', points: 14200, change: 1, tier: 'Platinum' },
-    { id: '3', rank: 3, name: 'Sarah2024', points: 13850, change: -1, tier: 'Gold' },
-    { id: '4', rank: 4, name: 'JohnDoe', points: 12100, change: 2, tier: 'Gold' },
-    { id: '5', rank: 5, name: 'KojoFan', points: 11500, change: 0, tier: 'Silver' },
-    { id: '6', rank: 6, name: 'MoneyMaker', points: 10200, change: -2, tier: 'Silver' },
-    { id: '7', rank: 7, name: 'You (Me)', points: 9850, change: 5, tier: 'Bronze', isMe: true },
-    { id: '8', rank: 8, name: 'Newbie01', points: 8700, change: 0, tier: 'Bronze' },
-    { id: '9', rank: 9, name: 'TaskHero', points: 8500, change: -1, tier: 'Bronze' },
-    { id: '10', rank: 10, name: 'LuckyWinner', points: 8200, change: 1, tier: 'Bronze' },
-]
-
 interface TournamentSystemProps {
     userId?: string
     onClose?: () => void
 }
 
 export default function TournamentSystem({ userId, onClose }: TournamentSystemProps) {
-    const [players, setPlayers] = useState<Player[]>(MOCK_LEADERBOARD)
-    const [timeLeft, setTimeLeft] = useState('')
+    const [players, setPlayers] = useState<Player[]>([])
+    const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0 })
     const [showRules, setShowRules] = useState(false)
     const [activityFeed, setActivityFeed] = useState<string[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+    const [myRank, setMyRank] = useState<number | null>(null)
+    const [rewards, setRewards] = useState<any[]>([])
+    const [pendingReward, setPendingReward] = useState<any>(null)
 
-    // Simulated Timer
+
     useEffect(() => {
-        const updateTimer = () => {
-            // Mock standard end of week
-            const now = new Date()
-            const endOfWeek = new Date()
-            endOfWeek.setDate(now.getDate() + (7 - now.getDay()))
-            endOfWeek.setHours(23, 59, 59)
+        loadTournamentData()
 
-            const diff = endOfWeek.getTime() - now.getTime()
-            const d = Math.floor(diff / (1000 * 60 * 60 * 24))
-            const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
-            const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+        // Refresh data every 30 seconds
+        const refreshInterval = setInterval(loadTournamentData, 30000)
 
-            setTimeLeft(`${d}d ${h}h ${m}m`)
-        }
-        updateTimer()
-        const timer = setInterval(updateTimer, 60000)
-
-        // Mock Live Updates
-        const updateInterval = setInterval(() => {
-            // Randomly update a player's score
-            setPlayers(prev => {
-                const newPlayers = [...prev]
-                const randIdx = Math.floor(Math.random() * 10)
-                const points = Math.floor(Math.random() * 50) + 10
-                newPlayers[randIdx] = {
-                    ...newPlayers[randIdx],
-                    points: newPlayers[randIdx].points + points
+        // Update timer every minute
+        const timerInterval = setInterval(() => {
+            setTimeLeft(prev => {
+                if (prev.minutes > 0) {
+                    return { ...prev, minutes: prev.minutes - 1 }
+                } else if (prev.hours > 0) {
+                    return { ...prev, hours: prev.hours - 1, minutes: 59 }
+                } else if (prev.days > 0) {
+                    return { ...prev, days: prev.days - 1, hours: 23, minutes: 59 }
                 }
-
-                // Add to activity feed
-                const newFeed = [`${newPlayers[randIdx].name} earned +${points} pts`, ...activityFeed].slice(0, 3)
-                setActivityFeed(newFeed)
-
-                return newPlayers.sort((a, b) => b.points - a.points).map((p, i) => ({
-                    ...p,
-                    rank: i + 1
-                }))
+                return prev
             })
-        }, 5000)
+        }, 60000)
 
         return () => {
-            clearInterval(timer)
-            clearInterval(updateInterval)
+            clearInterval(refreshInterval)
+            clearInterval(timerInterval)
         }
-    }, [activityFeed])
+    }, [userId])
+
+    const loadTournamentData = async () => {
+        try {
+            const response = await apiJson(`/api/tournament?userId=${userId || ''}`)
+            if (response) {
+                setPlayers(response.leaderboard || [])
+                setTimeLeft(response.timeRemaining || { days: 0, hours: 0, minutes: 0 })
+                setMyRank(response.myRank)
+                setRewards(response.rewards || [])
+                setPendingReward(response.pendingReward)
+            }
+        } catch (error) {
+            console.error('Error loading tournament:', error)
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    const timeString = `${timeLeft.days}d ${timeLeft.hours}h ${timeLeft.minutes}m`
 
     // Find current user stats
-    const me = players.find(p => p.isMe) || players[6]
+    const me = players.find(p => p.isMe) || (myRank ? { rank: myRank, points: 0, tier: 'Bronze' as const } : null)
 
     const getRankIcon = (rank: number) => {
         if (rank === 1) return <Crown className="h-6 w-6 text-yellow-500 fill-yellow-500" />
@@ -110,6 +98,34 @@ export default function TournamentSystem({ userId, onClose }: TournamentSystemPr
             case 'Gold': return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800'
             case 'Silver': return 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700'
             default: return 'bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 border-orange-100 dark:border-orange-800'
+        }
+    }
+
+
+
+    const handleClaimReward = async () => {
+        if (!userId || !pendingReward) return
+
+        try {
+            const response = await apiJson('/api/tournament', {
+                method: 'POST',
+                body: JSON.stringify({
+                    userId,
+                    action: 'claim_reward',
+                    weekKey: pendingReward.weekKey
+                })
+            })
+
+            if (response.success) {
+                alert(response.message || 'Reward claimed!')
+                setPendingReward(null)
+                // Trigger refresh
+                loadTournamentData()
+            } else {
+                alert(response.error || 'Failed to claim reward')
+            }
+        } catch (e) {
+            console.error('Error claiming reward:', e)
         }
     }
 
@@ -138,16 +154,16 @@ export default function TournamentSystem({ userId, onClose }: TournamentSystemPr
                     <div className="bg-gradient-to-r from-indigo-600 to-blue-600 rounded-xl p-4 text-white shadow-lg flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <div className="h-10 w-10 bg-white/20 rounded-full flex items-center justify-center font-bold text-lg border border-white/30">
-                                {me.rank}
+                                {me?.rank || '-'}
                             </div>
                             <div>
                                 <p className="text-blue-100 text-xs font-medium">My Rank</p>
-                                <p className="font-bold text-lg">{me.points.toLocaleString()} pts</p>
+                                <p className="font-bold text-lg">{(me?.points || 0).toLocaleString()} pts</p>
                             </div>
                         </div>
                         <div className="text-right">
                             <div className="bg-white/20 px-2 py-1 rounded text-xs font-medium backdrop-blur-sm">
-                                {me.tier} League
+                                {me?.tier || 'Bronze'} League
                             </div>
                             <p className="text-[10px] text-blue-200 mt-1">Top 20%</p>
                         </div>
@@ -155,7 +171,26 @@ export default function TournamentSystem({ userId, onClose }: TournamentSystemPr
                 </div>
             </div>
 
+
+
             <div className="p-4 max-w-md mx-auto space-y-4">
+                {/* PENDING REWARD BANNER */}
+                {pendingReward && (
+                    <Card className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-none shadow-lg animate-pulse">
+                        <CardContent className="p-4 flex items-center justify-between">
+                            <div>
+                                <h3 className="font-bold flex items-center gap-2">
+                                    <Trophy className="h-5 w-5 text-yellow-100" />
+                                    Results Available!
+                                </h3>
+                                <p className="text-yellow-100 text-sm">You have results from last week's cup.</p>
+                            </div>
+                            <Button onClick={handleClaimReward} variant="secondary" className="font-bold text-orange-600 bg-white hover:bg-white/90">
+                                Check & Claim
+                            </Button>
+                        </CardContent>
+                    </Card>
+                )}
 
                 {/* TIMER & PRIZE POOL */}
                 <div className="flex gap-2">
@@ -164,7 +199,7 @@ export default function TournamentSystem({ userId, onClose }: TournamentSystemPr
                             <Timer className="h-8 w-8 text-yellow-400" />
                             <div>
                                 <p className="text-[10px] text-gray-400 uppercase font-bold">Ends In</p>
-                                <p className="font-mono font-bold text-sm">{timeLeft}</p>
+                                <p className="font-mono font-bold text-sm">{timeString}</p>
                             </div>
                         </CardContent>
                     </Card>
@@ -210,8 +245,8 @@ export default function TournamentSystem({ userId, onClose }: TournamentSystemPr
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             className={`flex items-center justify-between p-3 rounded-xl border ${player.isMe
-                                    ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800 shadow-sm'
-                                    : 'bg-card border-border hover:bg-accent/50'
+                                ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800 shadow-sm'
+                                : 'bg-card border-border hover:bg-accent/50'
                                 }`}
                         >
                             <div className="flex items-center gap-3">
@@ -304,6 +339,6 @@ export default function TournamentSystem({ userId, onClose }: TournamentSystemPr
                     </div>
                 </DialogContent>
             </Dialog>
-        </div>
+        </div >
     )
 }

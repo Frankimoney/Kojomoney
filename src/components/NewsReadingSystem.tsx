@@ -10,7 +10,7 @@ import { Progress } from '@/components/ui/progress'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
 import { Clock, BookOpen, CheckCircle, XCircle, ArrowRight } from 'lucide-react'
- 
+
 
 interface NewsStory {
     id: string
@@ -186,6 +186,8 @@ const NewsReadingSystem = ({ userId }: NewsReadingSystemProps) => {
                 })
             })
             const result = await response.json()
+            console.log('[NewsReading] Quiz result:', result)
+
             setReadingState(prev => ({
                 ...prev,
                 quizSubmitted: true,
@@ -198,17 +200,25 @@ const NewsReadingSystem = ({ userId }: NewsReadingSystemProps) => {
             }))
 
             // Sync updated user to localStorage and notify parent when points awarded
-            if (result.awarded) {
+            if (result.awarded && result.isCorrect) {
+                console.log('[NewsReading] Points awarded, syncing user data...')
                 try {
-                    const userId = (typeof window !== 'undefined' && window.localStorage.getItem('kojomoneyUser'))
-                        ? (JSON.parse(window.localStorage.getItem('kojomoneyUser') || '{}')?.id || null)
-                        : null
+                    // Use the prop userId directly, not from localStorage
                     const effectiveId = userId || `anon:${anonId}`
+                    console.log('[NewsReading] Fetching updated user:', effectiveId)
+
                     const ures = await fetch(`/api/user?userId=${encodeURIComponent(effectiveId)}`)
                     const udata = await ures.json()
+                    console.log('[NewsReading] Updated user data:', udata)
+
                     if (udata?.user) {
                         window.localStorage.setItem('kojomoneyUser', JSON.stringify(udata.user))
-                        // Dispatch multiple events to ensure wallet updates
+                        console.log('[NewsReading] Saved to localStorage, dispatching events')
+
+                        // Small delay to ensure localStorage is written
+                        await new Promise(r => setTimeout(r, 100))
+
+                        // Dispatch events
                         window.dispatchEvent(new Event('kojo:user:update'))
                         window.dispatchEvent(new CustomEvent('kojo:points:earned', {
                             detail: {
@@ -218,7 +228,11 @@ const NewsReadingSystem = ({ userId }: NewsReadingSystemProps) => {
                             }
                         }))
                     }
-                } catch (_) { }
+                } catch (syncError) {
+                    console.error('[NewsReading] Error syncing user:', syncError)
+                    // Still dispatch event to try to trigger a refresh
+                    window.dispatchEvent(new Event('kojo:user:update'))
+                }
             }
         } catch (error) {
             console.error('Error submitting quiz:', error)

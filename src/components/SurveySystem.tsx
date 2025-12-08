@@ -1,119 +1,20 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
+import { Skeleton } from '@/components/ui/skeleton'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Clock, DollarSign, AlertCircle, CheckCircle2, ChevronRight, X, Star, HelpCircle, RefreshCcw, ShieldCheck, Timer, ArrowLeft } from 'lucide-react'
+import { Clock, DollarSign, AlertCircle, CheckCircle2, ChevronRight, X, Star, HelpCircle, RefreshCcw, ShieldCheck, Timer, ArrowLeft, FileText } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Survey, SurveyCompletion } from '@/lib/db-schema'
+import { fetchSurveys, updateSurveyStatus } from '@/services/surveyService'
 import { apiCall } from '@/lib/api-client'
-
-// Interfaces
-interface Survey {
-    id: string
-    title: string
-    provider: 'CPX' | 'TheoremReach' | 'BitLabs' | 'Pollfish'
-    payout: number
-    timeMinutes: number
-    starRating: number // 1-5, indicates success rate
-    isHot?: boolean
-    tags: string[]
-    iframeSupport: boolean
-    url: string
-}
-
-interface CompletedSurvey {
-    id: string
-    title: string
-    payout: number
-    completedAt: string
-    status: 'pending' | 'verified' | 'rejected'
-    estimatedCreditTime: string
-}
-
-const MOCK_SURVEYS: Survey[] = [
-    {
-        id: 's1',
-        title: 'Consumer Habits Survey',
-        provider: 'CPX',
-        payout: 850,
-        timeMinutes: 12,
-        starRating: 5,
-        isHot: true,
-        tags: ['High Pay', 'Retail'],
-        iframeSupport: false,
-        url: 'https://google.com'
-    },
-    {
-        id: 's2',
-        title: 'Tech Preferences',
-        provider: 'TheoremReach',
-        payout: 420,
-        timeMinutes: 5,
-        starRating: 4,
-        tags: ['Fast', 'Tech'],
-        iframeSupport: true,
-        url: 'https://google.com'
-    },
-    {
-        id: 's3',
-        title: 'Entertainment Choices',
-        provider: 'BitLabs',
-        payout: 1200,
-        timeMinutes: 20,
-        starRating: 3,
-        isHot: true,
-        tags: ['Entertainment'],
-        iframeSupport: false,
-        url: 'https://google.com'
-    },
-    {
-        id: 's4',
-        title: 'Daily Check-in Survey',
-        provider: 'Pollfish',
-        payout: 150,
-        timeMinutes: 2,
-        starRating: 5,
-        tags: ['Daily', 'Bonus'],
-        iframeSupport: true,
-        url: 'https://google.com'
-    },
-    {
-        id: 's5',
-        title: 'Automotive Trends',
-        provider: 'CPX',
-        payout: 600,
-        timeMinutes: 15,
-        starRating: 2,
-        tags: ['Niche'],
-        iframeSupport: false,
-        url: 'https://google.com'
-    }
-]
-
-const MOCK_COMPLETED: CompletedSurvey[] = [
-    {
-        id: 'c1',
-        title: 'Shopping Experience',
-        payout: 350,
-        completedAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30 mins ago
-        status: 'pending',
-        estimatedCreditTime: '24 hours'
-    },
-    {
-        id: 'c2',
-        title: 'Brand Awareness',
-        payout: 120,
-        completedAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // 1 day ago
-        status: 'verified',
-        estimatedCreditTime: 'Credited'
-    }
-]
 
 interface SurveySystemProps {
     userId?: string
@@ -122,38 +23,62 @@ interface SurveySystemProps {
 
 export default function SurveySystem({ userId, onClose }: SurveySystemProps) {
     const [activeTab, setActiveTab] = useState('available')
-    const [surveys, setSurveys] = useState<Survey[]>(MOCK_SURVEYS)
-    const [completedSurveys, setCompletedSurveys] = useState<CompletedSurvey[]>(MOCK_COMPLETED)
-    const [isLoading, setIsLoading] = useState(false)
+    const [surveys, setSurveys] = useState<Survey[]>([])
+    const [completedSurveys, setCompletedSurveys] = useState<SurveyCompletion[]>([])
+    const [isLoading, setIsLoading] = useState(true)
     const [currentSurvey, setCurrentSurvey] = useState<Survey | null>(null)
     const [showExitConfirm, setShowExitConfirm] = useState(false)
     const [showTips, setShowTips] = useState(false)
     const [webViewMode, setWebViewMode] = useState<'iframe' | 'external' | null>(null)
+    const [error, setError] = useState<string | null>(null)
 
     // For disqualification simulation
     const [isSimulatingDisq, setIsSimulatingDisq] = useState(false)
 
-    // Scroll progress for survey duration simulation (just visual sugar)
+    // Scroll progress for survey duration simulation
     const [scrollProgress, setScrollProgress] = useState(0)
 
     useEffect(() => {
-        // Simulate loading
+        loadSurveys()
+        loadCompletedSurveys()
+    }, [userId])
+
+    const loadSurveys = async () => {
         setIsLoading(true)
-        setTimeout(() => setIsLoading(false), 800)
-    }, [])
+        setError(null)
+        try {
+            const response = await fetchSurveys(userId || 'anonymous')
+            setSurveys(response.surveys)
+        } catch (err) {
+            console.error('Failed to load surveys:', err)
+            setError('Failed to load surveys. Please try again.')
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    const loadCompletedSurveys = async () => {
+        if (!userId) return
+        try {
+            const response = await apiCall(`/api/surveys/history?userId=${userId}`)
+            if (response.ok) {
+                const data = await response.json()
+                setCompletedSurveys(data.completions || [])
+            }
+        } catch (err) {
+            console.error('Failed to load completed surveys:', err)
+        }
+    }
 
     const handleStartSurvey = async (survey: Survey) => {
         setCurrentSurvey(survey)
 
         if (typeof window !== 'undefined' && (window as any).Capacitor && !survey.iframeSupport) {
-            // Use native browser if available and iframe not supported
             try {
                 const { Browser } = await import('@capacitor/browser')
                 await Browser.open({ url: survey.url })
-                // We assume they return after this for external
                 setWebViewMode('external')
             } catch (e) {
-                // Fallback
                 setWebViewMode('iframe')
             }
         } else {
@@ -165,26 +90,25 @@ export default function SurveySystem({ userId, onClose }: SurveySystemProps) {
         setShowExitConfirm(true)
     }
 
-    const confirmExit = (completed: boolean = false) => {
-        if (completed && currentSurvey) {
-            // Add to completed list
-            const newCompleted: CompletedSurvey = {
-                id: Math.random().toString(36),
-                title: currentSurvey.title,
-                payout: currentSurvey.payout,
-                completedAt: new Date().toISOString(),
-                status: 'pending',
-                estimatedCreditTime: '15 mins'
-            }
-            setCompletedSurveys([newCompleted, ...completedSurveys])
+    const confirmExit = async (completed: boolean = false) => {
+        if (completed && currentSurvey && userId) {
+            // Update survey status in database
+            const result = await updateSurveyStatus(userId, currentSurvey.id, 'completed')
 
-            // Sync with backend (mock)
-            try {
-                apiCall('/api/surveys/status', {
-                    method: 'POST',
-                    body: JSON.stringify({ userId, surveyId: currentSurvey.id, status: 'completed' })
-                }).catch(() => { })
-            } catch (e) { }
+            if (result.success) {
+                // Add to completed list locally
+                const newCompleted: SurveyCompletion = {
+                    id: result.completionId || Math.random().toString(36),
+                    surveyId: currentSurvey.id,
+                    userId,
+                    provider: currentSurvey.provider,
+                    payout: currentSurvey.payout,
+                    status: 'pending',
+                    startedAt: Date.now(),
+                    completedAt: Date.now(),
+                }
+                setCompletedSurveys([newCompleted, ...completedSurveys])
+            }
         }
 
         setCurrentSurvey(null)
@@ -193,18 +117,27 @@ export default function SurveySystem({ userId, onClose }: SurveySystemProps) {
         setScrollProgress(0)
     }
 
-    const simulateDisqualification = () => {
+    const simulateDisqualification = async () => {
+        if (!currentSurvey || !userId) return
+
         setIsSimulatingDisq(true)
+
+        // Log disqualification
+        await updateSurveyStatus(userId, currentSurvey.id, 'disqualified')
+
         setTimeout(() => {
-            // Refresh list logic
             const newSurveys = surveys.filter(s => s.id !== currentSurvey?.id)
             setSurveys(newSurveys)
             setIsSimulatingDisq(false)
             setCurrentSurvey(null)
             setWebViewMode(null)
-            // Show toast or alert here ideally
             alert(`You didn't qualify for that survey. Here are some other matches for you!`)
         }, 1500)
+    }
+
+    const formatDate = (timestamp: number | undefined) => {
+        if (!timestamp) return 'Unknown'
+        return new Date(timestamp).toLocaleDateString()
     }
 
     return (
@@ -219,7 +152,7 @@ export default function SurveySystem({ userId, onClose }: SurveySystemProps) {
                         exit={{ opacity: 0, scale: 0.95 }}
                         className="fixed inset-0 z-50 bg-background flex flex-col"
                     >
-                        {/* Fake Browser Header */}
+                        {/* Browser Header */}
                         <div className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border-b p-3 shadow-sm flex items-center justify-between sticky top-0 z-20">
                             <div className="flex-1">
                                 <Progress value={scrollProgress} className="h-1 mb-2 w-full absolute top-0 left-0 rounded-none bg-indigo-100 dark:bg-indigo-950" />
@@ -248,7 +181,6 @@ export default function SurveySystem({ userId, onClose }: SurveySystemProps) {
 
                         {/* Iframe Container */}
                         <div className="flex-1 relative w-full h-full bg-gray-100 dark:bg-black overflow-y-auto" onScroll={(e) => {
-                            // Mock progress on scroll
                             const target = e.currentTarget
                             const progress = (target.scrollTop / (target.scrollHeight - target.clientHeight)) * 100
                             setScrollProgress(progress)
@@ -260,7 +192,7 @@ export default function SurveySystem({ userId, onClose }: SurveySystemProps) {
                                 title="Survey"
                             />
 
-                            {/* Dev/Demo Controls overlay */}
+                            {/* Demo Controls overlay */}
                             <div className="absolute bottom-10 right-4 flex flex-col gap-2">
                                 <Button size="sm" onClick={() => confirmExit(true)} className="bg-green-600 hover:bg-green-700 shadow-lg">
                                     Simulate Complete
@@ -303,9 +235,20 @@ export default function SurveySystem({ userId, onClose }: SurveySystemProps) {
                             Survey Hub
                         </h1>
                     </div>
-                    <Button variant="ghost" size="icon" onClick={() => setShowTips(true)}>
-                        <HelpCircle className="h-5 w-5 text-muted-foreground" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={loadSurveys}
+                            disabled={isLoading}
+                            className="h-8 w-8"
+                        >
+                            <RefreshCcw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => setShowTips(true)}>
+                            <HelpCircle className="h-5 w-5 text-muted-foreground" />
+                        </Button>
+                    </div>
                 </div>
 
                 <Tabs defaultValue="available" className="w-full" onValueChange={setActiveTab}>
@@ -355,6 +298,17 @@ export default function SurveySystem({ userId, onClose }: SurveySystemProps) {
                     </DialogContent>
                 </Dialog>
 
+                {/* Error Message */}
+                {error && (
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-sm text-red-600 dark:text-red-400 flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4" />
+                        {error}
+                        <Button variant="link" size="sm" onClick={loadSurveys} className="text-red-600 dark:text-red-400 p-0 h-auto ml-auto">
+                            Retry
+                        </Button>
+                    </div>
+                )}
+
                 {activeTab === 'available' && (
                     <div className="space-y-4">
                         {/* Info Banner */}
@@ -368,83 +322,107 @@ export default function SurveySystem({ userId, onClose }: SurveySystemProps) {
                             </div>
                         </div>
 
-                        {isLoading && (
+                        {isLoading ? (
                             <div className="space-y-3">
                                 {[1, 2, 3].map(i => (
-                                    <div key={i} className="h-24 bg-muted animate-pulse rounded-xl" />
+                                    <Card key={i} className="overflow-hidden">
+                                        <CardContent className="p-4">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <Skeleton className="h-5 w-24" />
+                                                <Skeleton className="h-4 w-16" />
+                                            </div>
+                                            <Skeleton className="h-6 w-3/4 mb-2" />
+                                            <div className="flex gap-2 mb-4">
+                                                <Skeleton className="h-4 w-16" />
+                                                <Skeleton className="h-4 w-12" />
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <Skeleton className="h-5 w-20" />
+                                                <Skeleton className="h-8 w-28" />
+                                            </div>
+                                        </CardContent>
+                                    </Card>
                                 ))}
+                            </div>
+                        ) : (
+                            surveys.map((survey, i) => (
+                                <motion.div
+                                    key={survey.id}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: i * 0.1 }}
+                                >
+                                    <Card className="overflow-hidden border-l-4 border-l-teal-500 hover:shadow-md transition-shadow">
+                                        <CardContent className="p-0">
+                                            <div className="p-4">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <Badge variant="outline" className="font-medium">{survey.provider}</Badge>
+                                                        {survey.isHot && (
+                                                            <Badge className="bg-orange-500 hover:bg-orange-600 text-white border-none flex items-center gap-1 px-1.5">
+                                                                <Star className="h-3 w-3 fill-white" /> Hot
+                                                            </Badge>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger>
+                                                                    <div className="flex gap-0.5">
+                                                                        {[...Array(5)].map((_, idx) => (
+                                                                            <div key={idx} className={`h-1.5 w-1.5 rounded-full ${idx < survey.starRating ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-700'}`} />
+                                                                        ))}
+                                                                    </div>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p>Success Rate: {survey.starRating}/5</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                    </div>
+                                                </div>
+
+                                                <h3 className="font-bold text-lg mb-1">{survey.title}</h3>
+
+                                                <div className="flex flex-wrap gap-2 mb-4">
+                                                    {survey.tags.map(tag => (
+                                                        <span key={tag} className="text-[10px] bg-muted px-2 py-1 rounded text-muted-foreground uppercase tracking-wide">
+                                                            {tag}
+                                                        </span>
+                                                    ))}
+                                                </div>
+
+                                                <div className="flex items-center justify-between mt-4">
+                                                    <div className="flex items-center gap-4 text-sm font-medium">
+                                                        <div className="flex items-center text-green-600 dark:text-green-400">
+                                                            <DollarSign className="h-4 w-4 mr-1" />
+                                                            {survey.payout} pts
+                                                        </div>
+                                                        <div className="flex items-center text-muted-foreground">
+                                                            <Timer className="h-4 w-4 mr-1" />
+                                                            {survey.timeMinutes} min
+                                                        </div>
+                                                    </div>
+                                                    <Button size="sm" onClick={() => handleStartSurvey(survey)} className="bg-teal-600 hover:bg-teal-700 text-white shadow-sm hover:shadow-teal-500/20">
+                                                        Start Survey <ChevronRight className="h-4 w-4 ml-1" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                </motion.div>
+                            ))
+                        )}
+
+                        {!isLoading && surveys.length === 0 && (
+                            <div className="text-center py-10 opacity-50 space-y-3">
+                                <FileText className="h-12 w-12 mx-auto text-muted-foreground" />
+                                <p>No surveys available right now.</p>
+                                <Button variant="outline" onClick={loadSurveys}>Check Again</Button>
                             </div>
                         )}
 
-                        {!isLoading && surveys.map((survey, i) => (
-                            <motion.div
-                                key={survey.id}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: i * 0.1 }}
-                            >
-                                <Card className="overflow-hidden border-l-4 border-l-teal-500 hover:shadow-md transition-shadow">
-                                    <CardContent className="p-0">
-                                        <div className="p-4">
-                                            <div className="flex justify-between items-start mb-2">
-                                                <div className="flex items-center gap-2">
-                                                    <Badge variant="outline" className="font-medium">{survey.provider}</Badge>
-                                                    {survey.isHot && (
-                                                        <Badge className="bg-orange-500 hover:bg-orange-600 text-white border-none flex items-center gap-1 px-1.5">
-                                                            <Star className="h-3 w-3 fill-white" /> Hot
-                                                        </Badge>
-                                                    )}
-                                                </div>
-                                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                                    <TooltipProvider>
-                                                        <Tooltip>
-                                                            <TooltipTrigger>
-                                                                <div className="flex gap-0.5">
-                                                                    {[...Array(5)].map((_, idx) => (
-                                                                        <div key={idx} className={`h-1.5 w-1.5 rounded-full ${idx < survey.starRating ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-700'}`} />
-                                                                    ))}
-                                                                </div>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                <p>Success Rate: {survey.starRating}/5</p>
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                    </TooltipProvider>
-                                                </div>
-                                            </div>
-
-                                            <h3 className="font-bold text-lg mb-1">{survey.title}</h3>
-
-                                            <div className="flex flex-wrap gap-2 mb-4">
-                                                {survey.tags.map(tag => (
-                                                    <span key={tag} className="text-[10px] bg-muted px-2 py-1 rounded text-muted-foreground uppercase tracking-wide">
-                                                        {tag}
-                                                    </span>
-                                                ))}
-                                            </div>
-
-                                            <div className="flex items-center justify-between mt-4">
-                                                <div className="flex items-center gap-4 text-sm font-medium">
-                                                    <div className="flex items-center text-green-600 dark:text-green-400">
-                                                        <DollarSign className="h-4 w-4 mr-1" />
-                                                        {survey.payout} pts
-                                                    </div>
-                                                    <div className="flex items-center text-muted-foreground">
-                                                        <Timer className="h-4 w-4 mr-1" />
-                                                        {survey.timeMinutes} min
-                                                    </div>
-                                                </div>
-                                                <Button size="sm" onClick={() => handleStartSurvey(survey)} className="bg-teal-600 hover:bg-teal-700 text-white shadow-sm hover:shadow-teal-500/20">
-                                                    Start Survey <ChevronRight className="h-4 w-4 ml-1" />
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </motion.div>
-                        ))}
-
-                        {/* Rejected/Disqualified Retry Prompt */}
+                        {/* Disqualification Refresh Prompt */}
                         {isSimulatingDisq && (
                             <motion.div
                                 initial={{ opacity: 0 }}
@@ -466,7 +444,7 @@ export default function SurveySystem({ userId, onClose }: SurveySystemProps) {
                     <div className="space-y-3">
                         {completedSurveys.length === 0 ? (
                             <div className="text-center py-10 opacity-50 space-y-3">
-                                <FileTextIcon className="h-12 w-12 mx-auto text-muted-foreground" />
+                                <FileText className="h-12 w-12 mx-auto text-muted-foreground" />
                                 <p>No completed surveys yet.</p>
                                 <Button variant="outline" onClick={() => setActiveTab('available')}>Browse Surveys</Button>
                             </div>
@@ -475,8 +453,8 @@ export default function SurveySystem({ userId, onClose }: SurveySystemProps) {
                                 <Card key={s.id} className="opacity-90">
                                     <CardContent className="p-4 flex items-center justify-between">
                                         <div>
-                                            <p className="font-semibold">{s.title}</p>
-                                            <p className="text-xs text-muted-foreground">Completed: {new Date(s.completedAt).toLocaleDateString()}</p>
+                                            <p className="font-semibold">Survey #{s.surveyId?.slice(-6) || s.id.slice(-6)}</p>
+                                            <p className="text-xs text-muted-foreground">Completed: {formatDate(s.completedAt)}</p>
                                         </div>
                                         <div className="text-right">
                                             <p className="font-bold text-green-600 dark:text-green-400">+{s.payout} pts</p>
@@ -492,7 +470,7 @@ export default function SurveySystem({ userId, onClose }: SurveySystemProps) {
                                     {s.status === 'pending' && (
                                         <div className="bg-yellow-50 dark:bg-yellow-900/10 px-4 py-2 border-t text-xs text-yellow-700 dark:text-yellow-400 flex justify-between items-center">
                                             <span>Est. credit time:</span>
-                                            <span className="font-medium">{s.estimatedCreditTime}</span>
+                                            <span className="font-medium">15 mins</span>
                                         </div>
                                     )}
                                 </Card>
@@ -521,28 +499,6 @@ function TrendingIcon(props: any) {
         >
             <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
             <polyline points="17 6 23 6 23 12" />
-        </svg>
-    )
-}
-
-function FileTextIcon(props: any) {
-    return (
-        <svg
-            {...props}
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-            <polyline points="14 2 14 8 20 8" />
-            <line x1="16" x2="8" y1="13" y2="13" />
-            <line x1="16" x2="8" y1="17" y2="17" />
         </svg>
     )
 }

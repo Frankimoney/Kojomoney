@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { UserPlus, LogIn, Gift, Shield, CheckCircle2, AlertCircle } from 'lucide-react'
+import { UserPlus, LogIn, Gift, Shield, CheckCircle2, AlertCircle, Eye, EyeOff, RefreshCw } from 'lucide-react'
 import { apiCall } from '@/lib/api-client'
 
 interface AuthSystemProps {
@@ -43,6 +43,12 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
         contactEmail: ''
     })
     const [passwordStrength, setPasswordStrength] = useState<PasswordStrength>({ score: 0, feedback: [] })
+
+    // Password visibility states
+    const [showRegPassword, setShowRegPassword] = useState(false)
+    const [showRegPasswordConfirm, setShowRegPasswordConfirm] = useState(false)
+    const [showLoginPassword, setShowLoginPassword] = useState(false)
+    const [resendCooldown, setResendCooldown] = useState(0)
 
     // Login states
     const [loginStep, setLoginStep] = useState<AuthStep>('enter-details')
@@ -89,16 +95,16 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
                             setMessage({ type: 'success', text: `Referral code applied: ${ref}` })
                             setTimeout(() => setMessage(null), 5000)
                         }
-                    } catch (_) {}
+                    } catch (_) { }
                 })
-            } catch (_) {}
+            } catch (_) { }
         }
         init()
         return () => {
-            try { 
+            try {
                 // eslint-disable-next-line @typescript-eslint/no-unused-expressions
                 remove && remove.remove && remove.remove()
-            } catch (_) {}
+            } catch (_) { }
         }
     }, [])
 
@@ -160,6 +166,7 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
 
         try {
             // Send verification code
+            console.log('[AUTH] Sending verification request...')
             const response = await apiCall('/api/auth/send-verification', {
                 method: 'POST',
                 body: JSON.stringify({
@@ -168,9 +175,12 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
                 })
             })
 
+            console.log('[AUTH] Response status:', response.status)
             const data = await response.json()
+            console.log('[AUTH] Response data:', data)
 
             if (data.success) {
+                console.log('[AUTH] Success! Transitioning to verify-email step')
                 setRegisterVerification({
                     verificationId: data.verificationId,
                     code: '',
@@ -179,11 +189,14 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
                 setRegisterStep('verify-email')
                 showMessage('success', `Verification code sent to ${registerForm.email}`)
             } else {
+                console.log('[AUTH] API returned error:', data.error)
                 showMessage('error', data.error || 'Failed to send verification code')
             }
         } catch (error) {
+            console.error('[AUTH] Catch error:', error)
             showMessage('error', 'Network error. Please try again.')
         } finally {
+            console.log('[AUTH] Setting isLoading to false')
             setIsLoading(false)
         }
     }
@@ -247,7 +260,7 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
                             body: JSON.stringify({ anonId })
                         })
                     }
-                } catch (_) {}
+                } catch (_) { }
 
                 setRegisterStep('complete')
             } else {
@@ -354,11 +367,54 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
                             body: JSON.stringify({ anonId })
                         })
                     }
-                } catch (_) {}
+                } catch (_) { }
 
                 setLoginStep('complete')
             } else {
                 showMessage('error', loginData.error || 'Login failed')
+            }
+        } catch (error) {
+            showMessage('error', 'Network error. Please try again.')
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    const handleResendCode = async (type: 'register' | 'login') => {
+        if (resendCooldown > 0) return
+
+        setIsLoading(true)
+        const email = type === 'register' ? registerForm.email : loginForm.usernameOrEmail
+
+        try {
+            const response = await apiCall('/api/auth/send-verification', {
+                method: 'POST',
+                body: JSON.stringify({ email, type })
+            })
+
+            const data = await response.json()
+
+            if (data.success) {
+                if (type === 'register') {
+                    setRegisterVerification(prev => ({ ...prev, verificationId: data.verificationId }))
+                } else {
+                    setLoginVerification(prev => ({ ...prev, verificationId: data.verificationId }))
+                }
+                showMessage('success', 'New verification code sent!')
+
+                // Start 60-second cooldown
+                setResendCooldown(60)
+                const interval = setInterval(() => {
+                    setResendCooldown(prev => {
+                        if (prev <= 1) {
+                            clearInterval(interval)
+                            return 0
+                        }
+                        return prev - 1
+                    })
+                }, 1000)
+            } else {
+                showMessage('error', data.error || 'Failed to resend code')
             }
         } catch (error) {
             showMessage('error', 'Network error. Please try again.')
@@ -447,17 +503,27 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
 
                                         <div>
                                             <Label htmlFor="reg-password">Password *</Label>
-                                            <Input
-                                                id="reg-password"
-                                                type="password"
-                                                placeholder="••••••••"
-                                                value={registerForm.password}
-                                                onChange={(e) => {
-                                                    setRegisterForm(prev => ({ ...prev, password: e.target.value }))
-                                                    checkPasswordStrength(e.target.value)
-                                                }}
-                                                required
-                                            />
+                                            <div className="relative">
+                                                <Input
+                                                    id="reg-password"
+                                                    type={showRegPassword ? "text" : "password"}
+                                                    placeholder="••••••••"
+                                                    value={registerForm.password}
+                                                    onChange={(e) => {
+                                                        setRegisterForm(prev => ({ ...prev, password: e.target.value }))
+                                                        checkPasswordStrength(e.target.value)
+                                                    }}
+                                                    required
+                                                    className="pr-10"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowRegPassword(!showRegPassword)}
+                                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                                                >
+                                                    {showRegPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                                </button>
+                                            </div>
                                             <div className="mt-2 space-y-2">
                                                 <div className="flex gap-1">
                                                     {[0, 1, 2, 3].map(i => (
@@ -482,35 +548,47 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
 
                                         <div>
                                             <Label htmlFor="reg-password-confirm">Confirm Password *</Label>
-                                            <Input
-                                                id="reg-password-confirm"
-                                                type="password"
-                                                placeholder="••••••••"
-                                                value={registerForm.passwordConfirm}
-                                                onChange={(e) => setRegisterForm(prev => ({ ...prev, passwordConfirm: e.target.value }))}
-                                                required
-                                            />
+                                            <div className="relative">
+                                                <Input
+                                                    id="reg-password-confirm"
+                                                    type={showRegPasswordConfirm ? "text" : "password"}
+                                                    placeholder="••••••••"
+                                                    value={registerForm.passwordConfirm}
+                                                    onChange={(e) => setRegisterForm(prev => ({ ...prev, passwordConfirm: e.target.value }))}
+                                                    required
+                                                    className="pr-10"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowRegPasswordConfirm(!showRegPasswordConfirm)}
+                                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                                                >
+                                                    {showRegPasswordConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                                </button>
+                                            </div>
                                         </div>
 
                                         <div>
-                                            <Label htmlFor="reg-name">Full Name</Label>
+                                            <Label htmlFor="reg-name">Full Name *</Label>
                                             <Input
                                                 id="reg-name"
                                                 type="text"
                                                 placeholder="John Doe"
                                                 value={registerForm.name}
                                                 onChange={(e) => setRegisterForm(prev => ({ ...prev, name: e.target.value }))}
+                                                required
                                             />
                                         </div>
 
                                         <div>
-                                            <Label htmlFor="reg-phone">Phone Number</Label>
+                                            <Label htmlFor="reg-phone">Phone Number *</Label>
                                             <Input
                                                 id="reg-phone"
                                                 type="tel"
                                                 placeholder="+2348000000000"
                                                 value={registerForm.phone}
                                                 onChange={(e) => setRegisterForm(prev => ({ ...prev, phone: e.target.value }))}
+                                                required
                                             />
                                         </div>
 
@@ -525,7 +603,11 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
                                             />
                                         </div>
 
-                                        <Button type="submit" className="w-full" disabled={isLoading}>
+                                        <Button
+                                            type="submit"
+                                            className="w-full"
+                                            disabled={isLoading || !registerForm.username || !registerForm.email || !registerForm.password || !registerForm.passwordConfirm || !registerForm.name || !registerForm.phone || registerForm.password !== registerForm.passwordConfirm}
+                                        >
                                             {isLoading ? 'Sending Verification...' : 'Continue to Verification'}
                                         </Button>
                                     </form>
@@ -558,14 +640,26 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
                                             {isLoading ? 'Verifying...' : 'Verify & Create Account'}
                                         </Button>
 
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            className="w-full"
-                                            onClick={() => setRegisterStep('enter-details')}
-                                        >
-                                            Back
-                                        </Button>
+                                        <div className="flex gap-2">
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                className="flex-1"
+                                                onClick={() => setRegisterStep('enter-details')}
+                                            >
+                                                Back
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                className="flex-1"
+                                                onClick={() => handleResendCode('register')}
+                                                disabled={isLoading || resendCooldown > 0}
+                                            >
+                                                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                                                {resendCooldown > 0 ? `Resend (${resendCooldown}s)` : 'Resend Code'}
+                                            </Button>
+                                        </div>
                                     </form>
                                 )}
 
@@ -595,14 +689,24 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
 
                                         <div>
                                             <Label htmlFor="login-password">Password *</Label>
-                                            <Input
-                                                id="login-password"
-                                                type="password"
-                                                placeholder="••••••••"
-                                                value={loginForm.password}
-                                                onChange={(e) => setLoginForm(prev => ({ ...prev, password: e.target.value }))}
-                                                required
-                                            />
+                                            <div className="relative">
+                                                <Input
+                                                    id="login-password"
+                                                    type={showLoginPassword ? "text" : "password"}
+                                                    placeholder="••••••••"
+                                                    value={loginForm.password}
+                                                    onChange={(e) => setLoginForm(prev => ({ ...prev, password: e.target.value }))}
+                                                    required
+                                                    className="pr-10"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowLoginPassword(!showLoginPassword)}
+                                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                                                >
+                                                    {showLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                                </button>
+                                            </div>
                                         </div>
 
                                         <Button type="submit" className="w-full" disabled={isLoading}>
@@ -638,14 +742,26 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
                                             {isLoading ? 'Verifying...' : 'Verify & Login'}
                                         </Button>
 
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            className="w-full"
-                                            onClick={() => setLoginStep('enter-details')}
-                                        >
-                                            Back
-                                        </Button>
+                                        <div className="flex gap-2">
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                className="flex-1"
+                                                onClick={() => setLoginStep('enter-details')}
+                                            >
+                                                Back
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                className="flex-1"
+                                                onClick={() => handleResendCode('login')}
+                                                disabled={isLoading || resendCooldown > 0}
+                                            >
+                                                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                                                {resendCooldown > 0 ? `Resend (${resendCooldown}s)` : 'Resend Code'}
+                                            </Button>
+                                        </div>
                                     </form>
                                 )}
 

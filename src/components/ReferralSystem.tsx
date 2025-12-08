@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Share2, Copy, Download, Users, Gift, Star, Award, ChevronRight, ArrowLeft, MessageCircle, Twitter, Facebook, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { Share2, Copy, Download, Users, Gift, Star, Award, ChevronRight, ArrowLeft, MessageCircle, Twitter, Facebook, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { apiCall } from '@/lib/api-client'
 import html2canvas from 'html2canvas'
@@ -25,21 +25,8 @@ interface Milestone {
     count: number
     reward: number
     isClaimed: boolean
+    isUnlocked: boolean
 }
-
-// Mock Data
-const MOCK_REFERRALS: Referral[] = [
-    { id: '1', name: 'John Doe', date: '2023-12-01', status: 'completed', earnings: 500 },
-    { id: '2', name: 'Sarah Smith', date: '2023-12-03', status: 'active', earnings: 100 },
-    { id: '3', name: 'Mike Johnson', date: '2023-12-05', status: 'registered', earnings: 0 },
-    { id: '4', name: 'Alex Brown', date: '2023-12-05', status: 'registered', earnings: 0 }
-]
-
-const MILESTONES: Milestone[] = [
-    { count: 5, reward: 1000, isClaimed: false },
-    { count: 10, reward: 2500, isClaimed: false },
-    { count: 25, reward: 7500, isClaimed: false }
-]
 
 interface ReferralSystemProps {
     user: any
@@ -47,25 +34,71 @@ interface ReferralSystemProps {
 }
 
 export default function ReferralSystem({ user, onClose }: ReferralSystemProps) {
-    const [referrals, setReferrals] = useState<Referral[]>(MOCK_REFERRALS)
-    const [milestones, setMilestones] = useState<Milestone[]>(MILESTONES)
+    const [referrals, setReferrals] = useState<Referral[]>([])
+    const [milestones, setMilestones] = useState<Milestone[]>([])
+    const [totalEarnings, setTotalEarnings] = useState(0)
+    const [isLoading, setIsLoading] = useState(true)
     const [showPoster, setShowPoster] = useState(false)
     const [lastShareTime, setLastShareTime] = useState(0)
     const [showSpamWarning, setShowSpamWarning] = useState(false)
+    const [claimingMilestone, setClaimingMilestone] = useState<number | null>(null)
     const posterRef = useRef<HTMLDivElement>(null)
 
     const activeCount = referrals.filter(r => r.status === 'active' || r.status === 'completed').length
-    const nextMilestone = milestones.find(m => m.count > activeCount) || milestones[milestones.length - 1]
-    const progress = Math.min((activeCount / nextMilestone.count) * 100, 100)
+    const nextMilestone = milestones.find(m => !m.isClaimed && m.count > activeCount) || milestones[milestones.length - 1]
+    const progress = nextMilestone ? Math.min((activeCount / nextMilestone.count) * 100, 100) : 100
 
     useEffect(() => {
-        // Trigger confetti if a new referral becomes active (Simulation)
-        // In a real app, this would be based on websocket or polling diffs
-        if (referrals.some(r => r.status === 'active')) {
-            // just a demo trigger on mount if any are active
-            // confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } })
+        loadReferralData()
+    }, [user?.id])
+
+    const loadReferralData = async () => {
+        if (!user?.id) return
+
+        setIsLoading(true)
+        try {
+            const response = await apiCall(`/api/referrals?userId=${user.id}`)
+            if (response) {
+                setReferrals(response.referrals || [])
+                setMilestones(response.milestones || [])
+                setTotalEarnings(response.totalEarnings || 0)
+            }
+        } catch (error) {
+            console.error('Error loading referrals:', error)
+        } finally {
+            setIsLoading(false)
         }
-    }, [])
+    }
+
+    const handleClaimMilestone = async (milestone: Milestone) => {
+        if (!user?.id || milestone.isClaimed || !milestone.isUnlocked) return
+
+        setClaimingMilestone(milestone.count)
+        try {
+            const response = await apiCall('/api/referrals', {
+                method: 'POST',
+                body: JSON.stringify({
+                    userId: user.id,
+                    action: 'claim_milestone',
+                    milestoneCount: milestone.count,
+                }),
+            })
+
+            if (response.success) {
+                confetti({
+                    particleCount: 150,
+                    spread: 60,
+                    origin: { y: 0.7 },
+                    zIndex: 9999
+                })
+                loadReferralData() // Refresh data
+            }
+        } catch (error) {
+            console.error('Error claiming milestone:', error)
+        } finally {
+            setClaimingMilestone(null)
+        }
+    }
 
     const handleCopy = () => {
         if (user?.referralCode) {
@@ -188,22 +221,24 @@ export default function ReferralSystem({ user, onClose }: ReferralSystemProps) {
                 </AnimatePresence>
 
                 {/* MILESTONES */}
-                <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                        <span className="font-semibold text-muted-foreground">Milestone Progress</span>
-                        <span className="text-purple-600 dark:text-purple-400 font-bold">{activeCount} / {nextMilestone.count} Active</span>
+                {nextMilestone && (
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                            <span className="font-semibold text-muted-foreground">Milestone Progress</span>
+                            <span className="text-purple-600 dark:text-purple-400 font-bold">{activeCount} / {nextMilestone.count} Active</span>
+                        </div>
+                        <div className="h-3 bg-muted rounded-full overflow-hidden relative">
+                            <motion.div
+                                className="absolute top-0 left-0 bottom-0 bg-gradient-to-r from-pink-500 to-purple-600"
+                                initial={{ width: 0 }}
+                                animate={{ width: `${progress}%` }}
+                            />
+                        </div>
+                        <p className="text-xs text-muted-foreground text-center pt-1">
+                            Reach {nextMilestone.count} active referrals to unlock ₦{nextMilestone.reward.toLocaleString()} bonus!
+                        </p>
                     </div>
-                    <div className="h-3 bg-muted rounded-full overflow-hidden relative">
-                        <motion.div
-                            className="absolute top-0 left-0 bottom-0 bg-gradient-to-r from-pink-500 to-purple-600"
-                            initial={{ width: 0 }}
-                            animate={{ width: `${progress}%` }}
-                        />
-                    </div>
-                    <p className="text-xs text-muted-foreground text-center pt-1">
-                        Reach {nextMilestone.count} active referrals to unlock ₦{nextMilestone.reward.toLocaleString()} bonus!
-                    </p>
-                </div>
+                )}
 
                 {/* REFERRAL LIST */}
                 <Card>

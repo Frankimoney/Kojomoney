@@ -36,16 +36,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             return res.status(400).json({ error: 'Username must be 3-20 characters, letters, numbers, underscores only', success: false })
         }
 
-        // Check if email already exists
-        const usersRef = db.ref('users')
-        const emailCheck = await usersRef.orderByChild('email').equalTo(normalizedEmail).once('value')
-        if (emailCheck.exists()) {
+        // Check if email already exists (Firestore query)
+        const usersRef = db.collection('users')
+        const emailCheck = await usersRef.where('email', '==', normalizedEmail).get()
+        if (!emailCheck.empty) {
             return res.status(400).json({ error: 'Email already registered', success: false })
         }
 
         // Check if username already exists
-        const usernameCheck = await usersRef.orderByChild('username').equalTo(normalizedUsername).once('value')
-        if (usernameCheck.exists()) {
+        const usernameCheck = await usersRef.where('username', '==', normalizedUsername).get()
+        if (!usernameCheck.empty) {
             return res.status(400).json({ error: 'Username already taken', success: false })
         }
 
@@ -81,31 +81,44 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             updatedAt: Date.now()
         }
 
-        // Save user to Firebase
-        await db.ref(`users/${userId}`).set(newUser)
+        // Save user to Firestore
+        await usersRef.doc(userId).set(newUser)
 
         // If user was referred, credit the referrer
         if (referralCode) {
-            const referrerQuery = await usersRef.orderByChild('referralCode').equalTo(referralCode.toUpperCase()).once('value')
-            if (referrerQuery.exists()) {
-                const referrerData = referrerQuery.val()
-                const referrerId = Object.keys(referrerData)[0]
-                const referrer = referrerData[referrerId]
+            const referrerQuery = await usersRef.where('referralCode', '==', referralCode.toUpperCase()).get()
+            if (!referrerQuery.empty) {
+                const referrerDoc = referrerQuery.docs[0]
+                const referrer = referrerDoc.data()
 
                 // Add referral reward to referrer
                 const newTotalPoints = (referrer.totalPoints || 0) + 100
-                const referralRewards = referrer.referralRewards || []
-                referralRewards.push({
-                    referredUserId: userId,
-                    referredUsername: normalizedUsername,
-                    points: 100,
-                    createdAt: Date.now()
+                const now = Date.now()
+
+                await usersRef.doc(referrerDoc.id).update({
+                    totalPoints: newTotalPoints,
+                    updatedAt: now
                 })
 
-                await db.ref(`users/${referrerId}`).update({
-                    totalPoints: newTotalPoints,
-                    referralRewards,
-                    updatedAt: Date.now()
+                // Create referral record for tracking
+                await db.collection('referrals').add({
+                    referrerId: referrerDoc.id,
+                    referredUserId: userId,
+                    referredUsername: normalizedUsername,
+                    status: 'registered',
+                    earnedAmount: 100,
+                    createdAt: now
+                })
+
+                // Create transaction for referrer
+                await db.collection('transactions').add({
+                    userId: referrerDoc.id,
+                    type: 'credit',
+                    amount: 100,
+                    source: 'referral_bonus',
+                    status: 'completed',
+                    description: `Referral bonus for ${normalizedUsername}`,
+                    createdAt: now
                 })
             }
         }

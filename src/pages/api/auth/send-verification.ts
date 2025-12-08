@@ -105,6 +105,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(405).json({ error: 'Method not allowed' })
     }
 
+    const startTime = Date.now()
+    console.log('[VERIFY-API] Request started')
+
     try {
         const { email, type } = req.body
 
@@ -113,6 +116,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         if (!db) {
+            console.error('[VERIFY-API] Database not available')
             return res.status(500).json({ error: 'Database not available', success: false })
         }
 
@@ -125,7 +129,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Store verification in database with expiration (15 minutes)
         const expiresAt = Date.now() + 15 * 60 * 1000
 
-        await db.ref(`verifications/${verificationId}`).set({
+        console.log('[VERIFY-API] Saving to Firestore...')
+        const dbStart = Date.now()
+
+        // Use Firestore syntax with timeout
+        const savePromise = db.collection('verifications').doc(verificationId).set({
             email: normalizedEmail,
             code,
             type: type || 'register',
@@ -134,48 +142,70 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             used: false
         })
 
-        // Send email using Nodemailer
-        const emailConfigured = process.env.EMAIL_USER && process.env.EMAIL_PASS
-        let emailSent = false
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Database write timed out')), 5000)
+        )
 
-        if (emailConfigured) {
-            try {
-                const transporter = createTransporter()
-                const isLogin = type === 'login'
+        await Promise.race([savePromise, timeoutPromise])
 
-                await transporter.sendMail({
-                    from: process.env.EMAIL_FROM || `"KojoMoney" <${process.env.EMAIL_USER}>`,
-                    to: normalizedEmail,
-                    subject: isLogin ? 'Login Verification Code - KojoMoney' : 'Verify Your Email - KojoMoney',
-                    html: generateEmailHtml(code, type),
-                })
+        console.log(`[VERIFY-API] Firebase save took ${Date.now() - dbStart}ms`)
 
-                emailSent = true
-                console.log(`[EMAIL] Verification code sent to ${normalizedEmail}`)
-            } catch (emailError) {
-                console.error('[EMAIL] Failed to send email:', emailError)
-                // Continue without throwing - we'll fallback to showing the code in dev
-            }
-        }
-
-        // For development, log the code to console if email not configured or failed
+        // For development, log the code to console
         const isDev = process.env.NODE_ENV === 'development'
-
-        if (!emailSent && isDev) {
+        if (isDev) {
             console.log(`[DEV] Verification code for ${normalizedEmail}: ${code}`)
         }
 
-        return res.status(200).json({
+        // Send response IMMEDIATELY (don't wait for email)
+        const responseTime = Date.now() - startTime
+        console.log(`[VERIFY-API] Sending response after ${responseTime}ms`)
+
+        res.status(200).json({
             success: true,
             verificationId,
-            message: emailSent
-                ? `Verification code sent to ${normalizedEmail}`
-                : `Verification code generated${isDev ? ' (check console)' : ''}`,
-            // Only include code in development for testing when email is not configured
-            ...(isDev && !emailSent && { devCode: code })
+            message: `Verification code sent to ${normalizedEmail}`,
+            // Only include code in development for testing
+            ...(isDev && { devCode: code })
         })
+
+        // Send email in background (fire-and-forget)
+        const emailConfigured = process.env.EMAIL_USER && process.env.EMAIL_PASS
+        console.log(`[VERIFY-API] Email configured? ${!!emailConfigured} (User: ${process.env.EMAIL_USER})`)
+
+        if (emailConfigured) {
+            // Don't await - let it run in background
+            sendEmailAsync(normalizedEmail, code, type).catch(err => {
+                console.error('[EMAIL] Background send failed:', err.message)
+            })
+        } else {
+            console.log('[VERIFY-API] Skipping email send - credentials missing')
+        }
+
     } catch (error) {
-        console.error('Send verification error:', error)
+        console.error('[VERIFY-API] Error:', error)
         return res.status(500).json({ error: 'Failed to send verification code', success: false })
     }
 }
+
+// Async email sending function (runs in background)
+async function sendEmailAsync(email: string, code: string, type: string) {
+    console.log('[EMAIL] Starting background email send...')
+    const emailStart = Date.now()
+
+    try {
+        const transporter = createTransporter()
+        const isLogin = type === 'login'
+
+        await transporter.sendMail({
+            from: process.env.EMAIL_FROM || `"KojoMoney" <${process.env.EMAIL_USER}>`,
+            to: email,
+            subject: isLogin ? 'Login Verification Code - KojoMoney' : 'Verify Your Email - KojoMoney',
+            html: generateEmailHtml(code, type),
+        })
+
+        console.log(`[EMAIL] Sent successfully to ${email} in ${Date.now() - emailStart}ms`)
+    } catch (error: any) {
+        console.error(`[EMAIL] Failed after ${Date.now() - emailStart}ms:`, error.message)
+    }
+}
+

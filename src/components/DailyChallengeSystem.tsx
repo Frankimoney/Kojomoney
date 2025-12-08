@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { CheckCircle2, Circle, Flame, Timer, Gift, Lock, Calendar, Trophy, ChevronRight, ArrowLeft } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import confetti from 'canvas-confetti'
+import { apiJson } from '@/lib/api-client'
 
 interface Challenge {
     id: string
@@ -21,61 +22,29 @@ interface Challenge {
     icon?: any
 }
 
-const MOCK_CHALLENGES: Challenge[] = [
-    {
-        id: 'c1',
-        title: 'Daily Logger',
-        description: 'Open the app today',
-        current: 1,
-        target: 1,
-        reward: 10,
-        isClaimed: true
-    },
-    {
-        id: 'c2',
-        title: 'Ad Watcher',
-        description: 'Watch 3 video ads',
-        current: 2,
-        target: 3,
-        reward: 50,
-        isClaimed: false
-    },
-    {
-        id: 'c3',
-        title: 'Trivia Master',
-        description: 'Complete 1 trivia quiz',
-        current: 0,
-        target: 1,
-        reward: 20,
-        isClaimed: false
-    },
-    {
-        id: 'c4',
-        title: 'Survey Starter',
-        description: 'Start or complete 1 survey',
-        current: 0,
-        target: 1,
-        reward: 100,
-        isClaimed: false
-    }
-]
-
 interface DailyChallengeSystemProps {
     userId?: string
     onClose?: () => void
 }
 
 export default function DailyChallengeSystem({ userId, onClose }: DailyChallengeSystemProps) {
-    const [challenges, setChallenges] = useState<Challenge[]>(MOCK_CHALLENGES)
-    const [streak, setStreak] = useState(5)
-    const [weeklyEarnings, setWeeklyEarnings] = useState(1450)
+    const [challenges, setChallenges] = useState<Challenge[]>([])
+    const [streak, setStreak] = useState(0)
+    const [weeklyEarnings, setWeeklyEarnings] = useState(0)
     const [timeLeft, setTimeLeft] = useState('')
     const [showBonusModal, setShowBonusModal] = useState(false)
     const [bonusClaimed, setBonusClaimed] = useState(false)
+    const [bonusAmount, setBonusAmount] = useState(0)
+    const [isLoading, setIsLoading] = useState(true)
 
     // Derived state
-    const allCompleted = challenges.every(c => c.current >= c.target)
+    const allCompleted = challenges.length > 0 && challenges.every(c => c.current >= c.target)
     const canClaimBonus = allCompleted && !bonusClaimed
+
+    // Initial Data Load
+    useEffect(() => {
+        loadData()
+    }, [userId])
 
     // Timer Logic
     useEffect(() => {
@@ -98,21 +67,75 @@ export default function DailyChallengeSystem({ userId, onClose }: DailyChallenge
         return () => clearInterval(interval)
     }, [])
 
-    const handleClaim = (id: string) => {
-        setChallenges(prev => prev.map(c => {
-            if (c.id === id) {
-                // Simulate Claim
-                triggerConfetti(false)
-                return { ...c, isClaimed: true }
+    const loadData = async () => {
+        if (!userId) return
+
+        try {
+            const response = await apiJson<any>(`/api/daily-challenges?userId=${userId}`)
+
+            if (response) {
+                setChallenges(response.challenges || [])
+                setBonusClaimed(response.bonusClaimed || false)
+                setBonusAmount(response.bonusReward || 0)
+
+                // For streak/weekly - in real app would come from user profile or separate stats endpoint
+                // We'll trust the API response logic we previously set up or default
             }
-            return c
-        }))
+        } catch (error) {
+            console.error('Error loading daily challenges:', error)
+        } finally {
+            setIsLoading(false)
+        }
     }
 
-    const claimDailyBonus = () => {
-        setBonusClaimed(true)
-        setShowBonusModal(true)
-        triggerConfetti(true)
+    const handleClaim = async (id: string) => {
+        if (!userId) return
+
+        try {
+            const response = await apiJson<any>('/api/daily-challenges', {
+                method: 'POST',
+                body: JSON.stringify({
+                    userId,
+                    action: 'claim_reward',
+                    challengeId: id
+                })
+            })
+
+            if (response.success) {
+                triggerConfetti(false)
+                // Update local state without full reload
+                setChallenges(prev => prev.map(c => {
+                    if (c.id === id) {
+                        return { ...c, isClaimed: true }
+                    }
+                    return c
+                }))
+            }
+        } catch (error) {
+            console.error('Error claiming reward:', error)
+        }
+    }
+
+    const claimDailyBonus = async () => {
+        if (!userId) return
+
+        try {
+            const response = await apiJson<any>('/api/daily-challenges', {
+                method: 'POST',
+                body: JSON.stringify({
+                    userId,
+                    action: 'claim_bonus'
+                })
+            })
+
+            if (response.success) {
+                setBonusClaimed(true)
+                setShowBonusModal(true)
+                triggerConfetti(true)
+            }
+        } catch (error) {
+            console.error('Error claiming bonus:', error)
+        }
     }
 
     const triggerConfetti = (big: boolean) => {
@@ -131,16 +154,6 @@ export default function DailyChallengeSystem({ userId, onClose }: DailyChallenge
                 zIndex: 9999
             })
         }
-    }
-
-    // Progress simulation for demo purposes
-    const simulateProgress = (id: string) => {
-        setChallenges(prev => prev.map(c => {
-            if (c.id === id && c.current < c.target) {
-                return { ...c, current: c.current + 1 }
-            }
-            return c
-        }))
     }
 
     return (
@@ -211,7 +224,6 @@ export default function DailyChallengeSystem({ userId, onClose }: DailyChallenge
                                 initial={{ opacity: 0, x: -20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: idx * 0.1 }}
-                                onClick={() => simulateProgress(challenge.id)} // Demo interaction
                             >
                                 <Card className={`border-l-4 transition-all ${isDone ? 'border-l-green-500 bg-green-50/50 dark:bg-green-900/10' : 'border-l-gray-300 dark:border-l-gray-700'}`}>
                                     <CardContent className="p-4">
@@ -327,7 +339,7 @@ export default function DailyChallengeSystem({ userId, onClose }: DailyChallenge
                         </motion.div>
                         <div className="space-y-1">
                             <p className="text-4xl font-black text-green-600 dark:text-green-400">
-                                +250 <span className="text-lg text-muted-foreground font-normal">pts</span>
+                                +{bonusAmount > 0 ? bonusAmount : 500} <span className="text-lg text-muted-foreground font-normal">pts</span>
                             </p>
                             <p className="text-muted-foreground">Daily Bonus Reward</p>
                         </div>
@@ -338,6 +350,6 @@ export default function DailyChallengeSystem({ userId, onClose }: DailyChallenge
                 </DialogContent>
             </Dialog>
 
-        </div>
+        </div >
     )
 }
