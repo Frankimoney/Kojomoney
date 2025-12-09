@@ -100,7 +100,9 @@ const generateEmailHtml = (code: string, type: string) => {
 `
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+import { allowCors } from '@/lib/cors'
+
+async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' })
     }
@@ -209,3 +211,5 @@ async function sendEmailAsync(email: string, code: string, type: string) {
     }
 }
 
+
+export default allowCors(handler)

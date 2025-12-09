@@ -3,7 +3,9 @@ import { db } from '@/lib/firebase-admin'
 
 export const dynamic = 'force-dynamic'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+import { allowCors } from '@/lib/cors'
+
+async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' })
     }
@@ -57,3 +59,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({ error: 'Failed to verify code', success: false })
     }
 }
+
+export default allowCors(handler)
