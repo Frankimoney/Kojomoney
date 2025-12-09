@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Share2, Copy, Download, Users, Gift, Star, Award, ChevronRight, ArrowLeft, MessageCircle, Twitter, Facebook, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { apiCall } from '@/lib/api-client'
+import { apiCall, apiJson } from '@/lib/api-client'
 import html2canvas from 'html2canvas'
 import confetti from 'canvas-confetti'
 
@@ -57,7 +57,7 @@ export default function ReferralSystem({ user, onClose }: ReferralSystemProps) {
 
         setIsLoading(true)
         try {
-            const response = await apiCall(`/api/referrals?userId=${user.id}`)
+            const response = await apiJson(`/api/referrals?userId=${user.id}`)
             if (response) {
                 setReferrals(response.referrals || [])
                 setMilestones(response.milestones || [])
@@ -75,7 +75,7 @@ export default function ReferralSystem({ user, onClose }: ReferralSystemProps) {
 
         setClaimingMilestone(milestone.count)
         try {
-            const response = await apiCall('/api/referrals', {
+            const response = await apiJson('/api/referrals', {
                 method: 'POST',
                 body: JSON.stringify({
                     userId: user.id,

@@ -6,11 +6,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { Home, Coins, Wallet, User, Play, BookOpen, Brain, Clock, TrendingUp, Gift, Settings, Share2, Bell, Moon, LogOut, Users, Trophy, Medal } from 'lucide-react'
+import { Home, Coins, Wallet, User, Play, BookOpen, Brain, Clock, TrendingUp, Gift, Settings, Share2, Bell, Moon, LogOut, Users, Trophy, Medal, ArrowLeft, FileText } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { useTheme } from 'next-themes'
 import { Toaster } from '@/components/ui/toaster'
 import { apiCall } from '@/lib/api-client'
+import AdService from '@/services/adService'
 
 // Dynamically import components to prevent SSR issues
 const NewsReadingSystem = dynamic(() => import('./NewsReadingSystem'), {
@@ -24,6 +25,7 @@ const DailyTrivia = dynamic(() => import('./DailyTrivia'), {
 })
 
 import AuthSystem from './AuthSystem'
+import { NotificationCenter } from '@/components/notifications/NotificationCenter'
 // Capacitor plugins - only available on mobile, lazy loaded
 // import { PushNotifications } from '@capacitor/push-notifications'
 // import { FirebaseAnalytics } from '@capacitor-firebase/analytics'
@@ -48,6 +50,8 @@ interface User {
         triviaCompleted: boolean
     }
 }
+
+type LegalPageType = 'privacy' | 'terms' | 'cookies' | 'gdpr'
 
 // Dynamically import OfferwallSystem
 const OfferwallSystem = dynamic(() => import('./OfferwallSystem'), {
@@ -85,13 +89,351 @@ const TournamentSystem = dynamic(() => import('./TournamentSystem'), {
     loading: () => <div>Loading tournament...</div>
 })
 
+// Dynamically import LegalPages
+const LegalPages = dynamic(() => import('./LegalPages'), {
+    ssr: false,
+    loading: () => <div>Loading legal pages...</div>
+})
+
+// Dedicated Page Components for focused activity experience
+interface DedicatedPageProps {
+    user: User
+    onBack: () => void
+}
+
+function NewsPage({ user: initialUser, onBack }: DedicatedPageProps) {
+    const [user, setUser] = useState<User>(initialUser)
+
+    useEffect(() => {
+        const handler = () => {
+            // Re-read user from localStorage when notified
+            const savedUser = localStorage.getItem('kojomoneyUser')
+            if (savedUser) {
+                try {
+                    setUser(JSON.parse(savedUser))
+                } catch { }
+            }
+        }
+
+        window.addEventListener('kojo:user:update', handler)
+        window.addEventListener('kojo:points:earned', handler)
+
+        return () => {
+            window.removeEventListener('kojo:user:update', handler)
+            window.removeEventListener('kojo:points:earned', handler)
+        }
+    }, [])
+
+    return (
+        <div className="min-h-screen bg-background">
+            <div className="container mx-auto px-4 py-6 max-w-4xl">
+                {/* Header */}
+                <div className="flex items-center space-x-4 mb-6">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={onBack}
+                        className="hover:bg-green-100 dark:hover:bg-green-900/30"
+                    >
+                        <ArrowLeft className="h-5 w-5" />
+                    </Button>
+                    <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl">
+                            <BookOpen className="h-6 w-6 text-white" />
+                        </div>
+                        <div>
+                            <h1 className="text-2xl font-bold">Today's Stories</h1>
+                            <p className="text-sm text-muted-foreground">Read stories and earn 10 points each</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Stats Card */}
+                <Card className="mb-6 bg-gradient-to-r from-green-500 to-emerald-500 text-white border-none">
+                    <CardContent className="py-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-green-100 text-sm">Stories Read Today</p>
+                                <p className="text-2xl font-bold">{user.todayProgress?.storiesRead || 0}/5</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-green-100 text-sm">Points Earned</p>
+                                <p className="text-2xl font-bold">{(user.todayProgress?.storiesRead || 0) * 10} pts</p>
+                            </div>
+                        </div>
+                        <Progress
+                            value={Math.min(((user.todayProgress?.storiesRead || 0) / 5) * 100, 100)}
+                            className="mt-3 h-2 bg-green-400/30"
+                        />
+                    </CardContent>
+                </Card>
+
+                {/* News Content */}
+                <NewsReadingSystem userId={user?.id} />
+            </div>
+        </div>
+    )
+}
+
+function TriviaPage({ user: initialUser, onBack }: DedicatedPageProps) {
+    const [user, setUser] = useState<User>(initialUser)
+
+    useEffect(() => {
+        const handler = () => {
+            const savedUser = localStorage.getItem('kojomoneyUser')
+            if (savedUser) {
+                try {
+                    setUser(JSON.parse(savedUser))
+                } catch { }
+            }
+        }
+
+        window.addEventListener('kojo:user:update', handler)
+        window.addEventListener('kojo:points:earned', handler)
+
+        return () => {
+            window.removeEventListener('kojo:user:update', handler)
+            window.removeEventListener('kojo:points:earned', handler)
+        }
+    }, [])
+
+    return (
+        <div className="min-h-screen bg-background">
+            <div className="container mx-auto px-4 py-6 max-w-4xl">
+                {/* Header */}
+                <div className="flex items-center space-x-4 mb-6">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={onBack}
+                        className="hover:bg-purple-100 dark:hover:bg-purple-900/30"
+                    >
+                        <ArrowLeft className="h-5 w-5" />
+                    </Button>
+                    <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl">
+                            <Brain className="h-6 w-6 text-white" />
+                        </div>
+                        <div>
+                            <h1 className="text-2xl font-bold">Daily Trivia Challenge</h1>
+                            <p className="text-sm text-muted-foreground">Answer questions and earn up to 50 bonus points</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Stats Card */}
+                <Card className="mb-6 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-none">
+                    <CardContent className="py-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-purple-100 text-sm">Daily Trivia Status</p>
+                                <p className="text-2xl font-bold">
+                                    {user.todayProgress?.triviaCompleted ? '✅ Completed' : '🎯 Ready to Play'}
+                                </p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-purple-100 text-sm">Current Streak</p>
+                                <p className="text-2xl font-bold">{user.dailyStreak} days 🔥</p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Trivia Content */}
+                <DailyTrivia userId={user?.id} dailyStreak={user.dailyStreak} />
+            </div>
+        </div>
+    )
+}
+
+interface AdsPageProps {
+    user: User
+    onBack: () => void
+}
+
+function AdsPage({ user, onBack }: AdsPageProps) {
+    const [adCooldown, setAdCooldown] = useState(0)
+    const [isLoading, setIsLoading] = useState(false)
+
+    const handleWatchAd = async () => {
+        if (!user?.id || isLoading) return
+
+        // Check if on native platform
+        const isNative = typeof window !== 'undefined' && (
+            ((window as any)?.Capacitor?.isNativePlatform?.() === true) ||
+            (((window as any)?.Capacitor?.getPlatform?.() && (window as any).Capacitor.getPlatform() !== 'web'))
+        )
+
+        if (!isNative) {
+            alert('To earn ad points, please use the Kojomoney mobile app.')
+            return
+        }
+
+        setIsLoading(true)
+
+        try {
+            // Start ad session on backend
+            const start = await apiCall('/api/ads', {
+                method: 'POST',
+                body: JSON.stringify({ userId: user.id })
+            })
+            const startData = await start.json()
+            if (!start.ok || !startData?.adViewId) {
+                alert(startData?.error || 'Unable to start ad view. Please try again.')
+                setIsLoading(false)
+                return
+            }
+
+            const adViewId = startData.adViewId
+
+            // Use AdService to show the rewarded ad
+            const reward = await AdService.showRewarded()
+
+            if (reward) {
+                // Ad was watched successfully, credit points
+                await apiCall('/api/ads', {
+                    method: 'PATCH',
+                    body: JSON.stringify({ adViewId, userId: user.id })
+                })
+
+                // Start cooldown
+                setAdCooldown(30)
+                const timer = setInterval(() => {
+                    setAdCooldown(prev => {
+                        if (prev <= 1) {
+                            clearInterval(timer)
+                            return 0
+                        }
+                        return prev - 1
+                    })
+                }, 1000)
+
+                // Trigger user data refresh
+                if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new Event('kojo:user:update'))
+                }
+            } else {
+                alert('Ad was not completed. Please watch the full ad to earn points.')
+            }
+        } catch (err) {
+            console.error('Error showing ad:', err)
+            alert('Ad failed to load. Please try again.')
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    return (
+        <div className="min-h-screen bg-background">
+            <div className="container mx-auto px-4 py-6 max-w-4xl">
+                {/* Header */}
+                <div className="flex items-center space-x-4 mb-6">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={onBack}
+                        className="hover:bg-blue-100 dark:hover:bg-blue-900/30"
+                    >
+                        <ArrowLeft className="h-5 w-5" />
+                    </Button>
+                    <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl">
+                            <Play className="h-6 w-6 text-white" />
+                        </div>
+                        <div>
+                            <h1 className="text-2xl font-bold">Watch Ads & Earn</h1>
+                            <p className="text-sm text-muted-foreground">Earn 5 points per ad watched</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Stats Card */}
+                <Card className="mb-6 bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-none">
+                    <CardContent className="py-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-blue-100 text-sm">Ads Watched Today</p>
+                                <p className="text-2xl font-bold">{user.todayProgress?.adsWatched || 0}/10</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-blue-100 text-sm">Points Earned</p>
+                                <p className="text-2xl font-bold">{(user.todayProgress?.adsWatched || 0) * 5} pts</p>
+                            </div>
+                        </div>
+                        <Progress
+                            value={Math.min(((user.todayProgress?.adsWatched || 0) / 10) * 100, 100)}
+                            className="mt-3 h-2 bg-blue-400/30"
+                        />
+                    </CardContent>
+                </Card>
+
+                {/* Ad Watch Section */}
+                <Card className="mb-6">
+                    <CardHeader>
+                        <CardTitle className="flex items-center space-x-2">
+                            <Play className="h-5 w-5 text-blue-500" />
+                            <span>Rewarded Video Ads</span>
+                        </CardTitle>
+                        <CardDescription>Watch short video ads to earn points instantly</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="grid gap-4">
+                            <div className="p-4 border rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center">
+                                            <Play className="h-6 w-6 text-white" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-semibold">Standard Video Ad</h3>
+                                            <p className="text-sm text-muted-foreground">30-60 seconds</p>
+                                        </div>
+                                    </div>
+                                    <Badge className="bg-blue-500 text-white">5 pts</Badge>
+                                </div>
+                                <Button
+                                    className="w-full bg-blue-500 hover:bg-blue-600 text-white h-12 text-lg"
+                                    disabled={adCooldown > 0}
+                                    onClick={handleWatchAd}
+                                >
+                                    {adCooldown > 0 ? `⏱️ Wait ${adCooldown}s` : '▶️ Watch Ad Now'}
+                                </Button>
+                                {adCooldown > 0 && (
+                                    <p className="text-center text-sm text-muted-foreground mt-2">
+                                        Cooldown active - please wait before watching another ad
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Tips */}
+                        <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
+                            <h4 className="font-semibold flex items-center space-x-2 mb-2">
+                                <span>💡</span>
+                                <span>Tips for Earning More</span>
+                            </h4>
+                            <ul className="text-sm text-muted-foreground space-y-1">
+                                <li>• Watch up to 10 ads per day for maximum earnings</li>
+                                <li>• Ads are available on the mobile app only</li>
+                                <li>• Complete the full video to earn your reward</li>
+                                <li>• Check back regularly for new ad opportunities</li>
+                            </ul>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        </div>
+    )
+}
+
 interface EarnTabProps {
     user: User
     userPoints: number
     setUserPoints: (updater: (prev: number) => number) => void
+    setActiveView: (val: 'news' | 'trivia' | 'ads' | null) => void
 }
 
-function EarnTab({ user, userPoints, setUserPoints }: EarnTabProps) {
+function EarnTab({ user, userPoints, setUserPoints, setActiveView }: EarnTabProps) {
     const [adCooldown, setAdCooldown] = useState(0)
     const [view, setView] = useState<'list' | 'offerwall' | 'surveys' | 'missions' | 'referrals' | 'challenges' | 'tournament'>('list')
 
@@ -270,58 +612,7 @@ function EarnTab({ user, userPoints, setUserPoints }: EarnTabProps) {
                         <Button
                             className="w-full"
                             disabled={adCooldown > 0}
-                            onClick={async () => {
-                                if (!user?.id) return
-                                try {
-                                    const start = await apiCall('/api/ads', {
-                                        method: 'POST',
-                                        body: JSON.stringify({ userId: user.id })
-                                    })
-                                    const startData = await start.json()
-                                    if (!start.ok || !startData?.adViewId) {
-                                        alert(startData?.error || 'Unable to start ad view. Please try again.')
-                                        return
-                                    }
-
-                                    const adViewId = startData.adViewId
-
-                                    const isNative = typeof window !== 'undefined' && (
-                                        ((window as any)?.Capacitor?.isNativePlatform?.() === true) ||
-                                        (((window as any)?.Capacitor?.getPlatform?.() && (window as any).Capacitor.getPlatform() !== 'web'))
-                                    )
-                                    if (isNative) {
-                                        try {
-                                            const admob: any = await import('@capacitor-community/admob')
-                                            await admob.AdMob.initialize({ requestTrackingAuthorization: true, initializeForTesting: true })
-                                            // Test rewarded ad unit. Replace with your real ad unit in production.
-                                            await admob.AdMob.showRewardedAd({ adId: 'ca-app-pub-3940256099942544/5224354917' })
-                                            await apiCall('/api/ads', {
-                                                method: 'PATCH',
-                                                body: JSON.stringify({ adViewId, userId: user.id })
-                                            })
-                                            setAdCooldown(30)
-                                            const timer = setInterval(() => {
-                                                setAdCooldown(prev => {
-                                                    if (prev <= 1) {
-                                                        clearInterval(timer)
-                                                        return 0
-                                                    }
-                                                    return prev - 1
-                                                })
-                                            }, 1000)
-                                            if (typeof window !== 'undefined') {
-                                                window.dispatchEvent(new Event('kojo:user:update'))
-                                            }
-                                        } catch (e) {
-                                            alert('Ad failed to load. Please try again.')
-                                        }
-                                    } else {
-                                        alert('To earn ad points, please use the Kojomoney mobile app.')
-                                    }
-                                } catch (err) {
-                                    alert('Network error starting ad.')
-                                }
-                            }}
+                            onClick={() => setActiveView('ads')}
                         >
                             {adCooldown > 0 ? `Cooldown: ${adCooldown}s` : 'Watch Ad'}
                         </Button>
@@ -344,7 +635,7 @@ function EarnTab({ user, userPoints, setUserPoints }: EarnTabProps) {
                             <span>Daily News</span>
                             <Badge variant="secondary">10 pts</Badge>
                         </div>
-                        <Button className="w-full" variant="outline">
+                        <Button className="w-full" variant="outline" onClick={() => setActiveView('news')}>
                             Read Stories
                         </Button>
                         <p className="text-xs text-muted-foreground">
@@ -366,7 +657,7 @@ function EarnTab({ user, userPoints, setUserPoints }: EarnTabProps) {
                             <span>Daily Trivia</span>
                             <Badge variant="secondary">50 pts</Badge>
                         </div>
-                        <Button className="w-full" variant="outline">
+                        <Button className="w-full" variant="outline" onClick={() => setActiveView('trivia')}>
                             Play Trivia
                         </Button>
                         <p className="text-xs text-muted-foreground">
@@ -376,23 +667,7 @@ function EarnTab({ user, userPoints, setUserPoints }: EarnTabProps) {
                 </Card>
             </div>
 
-            <div className="space-y-8">
-                <div>
-                    <h3 className="text-xl font-semibold mb-4 flex items-center space-x-2">
-                        <BookOpen className="h-5 w-5 text-green-500" />
-                        <span>Read Today's Stories</span>
-                    </h3>
-                    <NewsReadingSystem userId={user?.id} />
-                </div>
 
-                <div>
-                    <h3 className="text-xl font-semibold mb-4 flex items-center space-x-2">
-                        <Brain className="h-5 w-5 text-purple-500" />
-                        <span>Daily Trivia Challenge</span>
-                    </h3>
-                    <DailyTrivia userId={user?.id} dailyStreak={user.dailyStreak} />
-                </div>
-            </div>
 
             <Card>
                 <CardHeader>
@@ -459,9 +734,10 @@ interface HomeTabProps {
     user: User
     userPoints: number
     setActiveTab: (val: string) => void
+    setActiveView: (val: 'news' | 'trivia' | 'ads' | null) => void
 }
 
-function HomeTab({ user, userPoints, setActiveTab }: HomeTabProps) {
+function HomeTab({ user, userPoints, setActiveTab, setActiveView }: HomeTabProps) {
     return (
         <div className="space-y-6">
             <Card className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
@@ -486,7 +762,7 @@ function HomeTab({ user, userPoints, setActiveTab }: HomeTabProps) {
             </Card>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setActiveTab('earn')}>
+                <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setActiveView('ads')}>
                     <CardHeader className="pb-3">
                         <div className="flex items-center space-x-2">
                             <Play className="h-6 w-6 text-blue-500" />
@@ -501,7 +777,7 @@ function HomeTab({ user, userPoints, setActiveTab }: HomeTabProps) {
                     </CardContent>
                 </Card>
 
-                <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setActiveTab('earn')}>
+                <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setActiveView('news')}>
                     <CardHeader className="pb-3">
                         <div className="flex items-center space-x-2">
                             <BookOpen className="h-6 w-6 text-green-500" />
@@ -516,7 +792,7 @@ function HomeTab({ user, userPoints, setActiveTab }: HomeTabProps) {
                     </CardContent>
                 </Card>
 
-                <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setActiveTab('earn')}>
+                <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setActiveView('trivia')}>
                     <CardHeader className="pb-3">
                         <div className="flex items-center space-x-2">
                             <Brain className="h-6 w-6 text-purple-500" />
@@ -757,15 +1033,18 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
     )
 }
 
+
+
 interface ProfileTabProps {
     user: User
-    setUser: (u: User) => void
-    resolvedTheme: string | undefined
-    setTheme: (theme: string) => void
+    setUser: (u: User | null) => void
+    resolvedTheme?: string
+    setTheme: (t: string) => void
     onLogout: () => void
+    onShowLegal: (page: LegalPageType) => void
 }
 
-function ProfileTab({ user, setUser, resolvedTheme, setTheme, onLogout }: ProfileTabProps) {
+function ProfileTab({ user, setUser, resolvedTheme, setTheme, onLogout, onShowLegal }: ProfileTabProps) {
     const [profileForm, setProfileForm] = useState({
         name: user?.name || '',
         phone: user?.phone || '',
@@ -981,6 +1260,31 @@ function ProfileTab({ user, setUser, resolvedTheme, setTheme, onLogout }: Profil
                 </CardContent>
             </Card>
 
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                        <FileText className="h-5 w-5" />
+                        <span>Legal & Privacy</span>
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Button variant="outline" className="justify-start" onClick={() => onShowLegal('privacy')}>
+                            Privacy Policy
+                        </Button>
+                        <Button variant="outline" className="justify-start" onClick={() => onShowLegal('terms')}>
+                            Terms of Service
+                        </Button>
+                        <Button variant="outline" className="justify-start" onClick={() => onShowLegal('cookies')}>
+                            Cookie Policy
+                        </Button>
+                        <Button variant="outline" className="justify-start" onClick={() => onShowLegal('gdpr')}>
+                            GDPR & Data Rights
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+
             <Button variant="destructive" className="w-full" onClick={onLogout}>
                 <LogOut className="h-4 w-4 mr-2" />
                 Sign Out
@@ -991,6 +1295,8 @@ function ProfileTab({ user, setUser, resolvedTheme, setTheme, onLogout }: Profil
 
 export default function EarnApp() {
     const [activeTab, setActiveTab] = useState('home')
+    const [activeView, setActiveView] = useState<'news' | 'trivia' | 'ads' | null>(null)
+    const [activeLegalPage, setActiveLegalPage] = useState<LegalPageType | null>(null)
     const [user, setUser] = useState<User | null>(null)
     const [userPoints, setUserPoints] = useState(0)
     const [isClient, setIsClient] = useState(false)
@@ -1067,12 +1373,12 @@ export default function EarnApp() {
                 // if (perm.receive !== 'granted') return
                 // await PushNotifications.register()
                 // const tok = await FirebaseMessaging.getToken()
-                if ((tok as any)?.token) {
-                    await apiCall('/api/push', {
-                        method: 'POST',
-                        body: JSON.stringify({ userId: user.id, token: (tok as any).token, platform: (window as any).Capacitor.getPlatform?.() })
-                    })
-                }
+                // if ((tok as any)?.token) {
+                //     await apiCall('/api/push', {
+                //         method: 'POST',
+                //         body: JSON.stringify({ userId: user.id, token: (tok as any).token, platform: (window as any).Capacitor.getPlatform?.() })
+                //     })
+                // }
             } catch (_) { }
         }
         setupPush()
@@ -1108,7 +1414,11 @@ export default function EarnApp() {
         if (typeof window !== 'undefined') {
             localStorage.removeItem('kojomoneyUser')
         }
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem('kojomoneyUser')
+        }
         setActiveTab('home')
+        setActiveView(null)
     }
 
     // Don't render anything until client-side hydration is complete
@@ -1138,63 +1448,114 @@ export default function EarnApp() {
 
 
 
+    // Handle dedicated activity views (full-screen pages)
+    const handleCloseActivityView = () => {
+        setActiveView(null)
+        // Sync user data when returning from activity page
+        syncUserFromServer()
+    }
+
+    if (activeView === 'news') {
+        return (
+            <>
+                <NewsPage user={user} onBack={handleCloseActivityView} />
+                <Toaster />
+            </>
+        )
+    }
+
+    if (activeView === 'trivia') {
+        return (
+            <>
+                <TriviaPage user={user} onBack={handleCloseActivityView} />
+                <Toaster />
+            </>
+        )
+    }
+
+    if (activeView === 'ads') {
+        return (
+            <>
+                <AdsPage user={user} onBack={handleCloseActivityView} />
+                <Toaster />
+            </>
+        )
+    }
+
+    if (activeLegalPage) {
+        return (
+            <LegalPages
+                initialPage={activeLegalPage}
+                onClose={() => setActiveLegalPage(null)}
+            />
+        )
+    }
+
     return (
         <div className="min-h-screen bg-background">
             <div className="container mx-auto px-4 py-6 max-w-6xl">
-                        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                            <div className="flex items-center justify-between mb-6">
-                                <div className="flex items-center space-x-2">
-                                    <Coins className="h-8 w-8 text-primary" />
-                                    <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-600">
-                                        KojoMoney
-                                    </h1>
-                                </div>
-                            </div>
-
-                            <TabsList className="grid w-full grid-cols-4 mb-8">
-                                <TabsTrigger value="home" className="space-x-2">
-                                    <Home className="h-4 w-4" />
-                                    <span className="hidden md:inline">Home</span>
-                                </TabsTrigger>
-                                <TabsTrigger value="earn" className="space-x-2">
-                                    <Play className="h-4 w-4" />
-                                    <span className="hidden md:inline">Earn</span>
-                                </TabsTrigger>
-                                <TabsTrigger value="wallet" className="space-x-2">
-                                    <Wallet className="h-4 w-4" />
-                                    <span className="hidden md:inline">Wallet</span>
-                                </TabsTrigger>
-                                <TabsTrigger value="profile" className="space-x-2">
-                                    <User className="h-4 w-4" />
-                                    <span className="hidden md:inline">Profile</span>
-                                </TabsTrigger>
-                            </TabsList>
-
-                            <TabsContent value="home" className="space-y-4">
-                                {user && (
-                                    <HomeTab user={user} userPoints={userPoints} setActiveTab={setActiveTab} />
-                                )}
-                            </TabsContent>
-
-                            <TabsContent value="earn" className="space-y-4">
-                                {user && (
-                                    <EarnTab user={user} userPoints={userPoints} setUserPoints={setUserPoints} />
-                                )}
-                            </TabsContent>
-
-                            <TabsContent value="wallet" className="space-y-4">
-                                {user && (
-                                    <WalletTab user={user} userPoints={userPoints} syncUserFromServer={syncUserFromServer} />
-                                )}
-                            </TabsContent>
-
-                            <TabsContent value="profile" className="space-y-4">
-                                {user && (
-                                    <ProfileTab user={user} setUser={setUser} resolvedTheme={resolvedTheme} setTheme={setTheme} onLogout={handleLogout} />
-                                )}
-                            </TabsContent>
-                        </Tabs>
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center space-x-2">
+                            <Coins className="h-8 w-8 text-primary" />
+                            <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-600">
+                                KojoMoney
+                            </h1>
+                        </div>
+                        <NotificationCenter />
                     </div>
-                </div>
+
+                    <TabsList className="grid w-full grid-cols-4 mb-8">
+                        <TabsTrigger value="home" className="space-x-2">
+                            <Home className="h-4 w-4" />
+                            <span className="hidden md:inline">Home</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="earn" className="space-x-2">
+                            <Play className="h-4 w-4" />
+                            <span className="hidden md:inline">Earn</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="wallet" className="space-x-2">
+                            <Wallet className="h-4 w-4" />
+                            <span className="hidden md:inline">Wallet</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="profile" className="space-x-2">
+                            <User className="h-4 w-4" />
+                            <span className="hidden md:inline">Profile</span>
+                        </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="home" className="space-y-4">
+                        {user && (
+                            <HomeTab user={user} userPoints={userPoints} setActiveTab={setActiveTab} setActiveView={setActiveView} />
+                        )}
+                    </TabsContent>
+
+                    <TabsContent value="earn" className="space-y-4">
+                        {user && (
+                            <EarnTab user={user} userPoints={userPoints} setUserPoints={setUserPoints} setActiveView={setActiveView} />
+                        )}
+                    </TabsContent>
+
+                    <TabsContent value="wallet" className="space-y-4">
+                        {user && (
+                            <WalletTab user={user} userPoints={userPoints} syncUserFromServer={syncUserFromServer} />
+                        )}
+                    </TabsContent>
+
+                    <TabsContent value="profile" className="space-y-4">
+                        {user && (
+                            <ProfileTab
+                                user={user}
+                                setUser={setUser}
+                                resolvedTheme={resolvedTheme}
+                                setTheme={setTheme}
+                                onLogout={handleLogout}
+                                onShowLegal={setActiveLegalPage}
+                            />
+                        )}
+                    </TabsContent>
+                </Tabs>
+            </div>
+        </div>
     )
 }
