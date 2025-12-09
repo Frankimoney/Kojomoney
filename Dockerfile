@@ -27,11 +27,11 @@ COPY --from=builder /app/public ./public
 
 # Set environment variables
 ENV NODE_ENV=production
-# Let Render set the PORT (defaults to 10000 on Render)
-# ENV PORT=3000
+# The Next.js standalone server binds to HOSTNAME and PORT
+ENV HOSTNAME="0.0.0.0"
+ENV PORT=10000
 
-# Expose both common ports
-EXPOSE 3000
+# Expose port
 EXPOSE 10000
 
 # Start the application
