@@ -82,11 +82,11 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
 
     // Handle native deep links: kojomoney://signup?ref=CODE
     useEffect(() => {
-        let remove: any
+        let listenerHandle: any = null
         const init = async () => {
             try {
                 const { App } = await import('@capacitor/app')
-                remove = App.addListener('appUrlOpen', ({ url }: { url: string }) => {
+                listenerHandle = await App.addListener('appUrlOpen', ({ url }: { url: string }) => {
                     try {
                         const parsed = new URL(url)
                         const ref = parsed.searchParams.get('ref')
@@ -101,10 +101,9 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
         }
         init()
         return () => {
-            try {
-                // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-                remove && remove.remove && remove.remove()
-            } catch (_) { }
+            if (listenerHandle && typeof listenerHandle.remove === 'function') {
+                listenerHandle.remove()
+            }
         }
     }, [])
 

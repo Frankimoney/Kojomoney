@@ -27,10 +27,12 @@ COPY --from=builder /app/public ./public
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV PORT=3000
+# Let Render set the PORT (defaults to 10000 on Render)
+# ENV PORT=3000
 
-# Expose port
+# Expose both common ports
 EXPOSE 3000
+EXPOSE 10000
 
 # Start the application
 CMD ["node", "server.js"]
