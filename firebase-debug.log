@@ -1,0 +1,178 @@
+[debug] [2025-12-09T18:22:11.174Z] ----------------------------------------------------------------------
+[debug] [2025-12-09T18:22:11.180Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\NWAJI\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only hosting
+[debug] [2025-12-09T18:22:11.181Z] CLI Version:   14.27.0
+[debug] [2025-12-09T18:22:11.182Z] Platform:      win32
+[debug] [2025-12-09T18:22:11.182Z] Node Version:  v22.14.0
+[debug] [2025-12-09T18:22:11.182Z] Time:          Tue Dec 09 2025 19:22:11 GMT+0100 (West Africa Standard Time)
+[debug] [2025-12-09T18:22:11.183Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-12-09T18:22:12.604Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-12-09T18:22:12.607Z] > authorizing via signed-in user (francistogor@gmail.com)
+[debug] [2025-12-09T18:22:12.608Z] [iam] checking project kojomoney-6e131 for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2025-12-09T18:22:12.612Z] Checked if tokens are valid: false, expires at: 1765302823446
+[debug] [2025-12-09T18:22:12.612Z] Checked if tokens are valid: false, expires at: 1765302823446
+[debug] [2025-12-09T18:22:12.613Z] > refreshing access token with scopes: []
+[debug] [2025-12-09T18:22:12.622Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-12-09T18:22:12.623Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-12-09T18:22:14.059Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2025-12-09T18:22:14.059Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-12-09T18:22:14.837Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/kojomoney-6e131:testIamPermissions [none]
+[debug] [2025-12-09T18:22:14.837Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/kojomoney-6e131:testIamPermissions x-goog-quota-user=projects/kojomoney-6e131
+[debug] [2025-12-09T18:22:14.838Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/kojomoney-6e131:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-12-09T18:22:16.090Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/kojomoney-6e131:testIamPermissions 200
+[debug] [2025-12-09T18:22:16.091Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/kojomoney-6e131:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-12-09T18:22:16.093Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:16.093Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:16.095Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/kojomoney-6e131 [none]
+[debug] [2025-12-09T18:22:16.824Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/kojomoney-6e131 200
+[debug] [2025-12-09T18:22:16.825Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/kojomoney-6e131 {"projectId":"kojomoney-6e131","projectNumber":"603833636954","displayName":"kojomoney","name":"projects/kojomoney-6e131","resources":{"hostingSite":"kojomoney-6e131"},"state":"ACTIVE","etag":"1_f9ca2adf-6d1c-4f5b-a0b6-1a24c81e1a64"}
+[info] 
+[info] === Deploying to 'kojomoney-6e131'...
+[info] 
+[info] i  deploying hosting 
+[debug] [2025-12-09T18:22:16.841Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:16.842Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:16.842Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/kojomoney-6e131/versions [none]
+[debug] [2025-12-09T18:22:16.842Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/kojomoney-6e131/versions {"status":"CREATED","labels":{"deployment-tool":"cli-firebase"}}
+[debug] [2025-12-09T18:22:18.428Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/kojomoney-6e131/versions 200
+[debug] [2025-12-09T18:22:18.428Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/kojomoney-6e131/versions {"name":"projects/603833636954/sites/kojomoney-6e131/versions/4cce077d518b7af6","status":"CREATED","config":{},"labels":{"deployment-tool":"cli-firebase"}}
+[info] i  hosting[kojomoney-6e131]: beginning deploy... 
+[info] i  hosting[kojomoney-6e131]: found 67 files in out 
+[debug] [2025-12-09T18:22:18.837Z] [hosting] uploading with 200 concurrency
+[info] i  hosting: hashing files [40/67] (59%) 
+[debug] [2025-12-09T18:22:21.470Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:21.470Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:21.568Z] [hosting] hash cache [b3V0] stored for 67 files
+[debug] [2025-12-09T18:22:21.569Z] [hosting][hash queue][FINAL] {"max":2386,"min":80,"avg":1506.2835820895523,"active":0,"complete":67,"success":67,"errored":0,"retried":0,"total":67,"elapsed":2688}
+[debug] [2025-12-09T18:22:21.571Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/603833636954/sites/kojomoney-6e131/versions/4cce077d518b7af6:populateFiles [none]
+[debug] [2025-12-09T18:22:21.571Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/603833636954/sites/kojomoney-6e131/versions/4cce077d518b7af6:populateFiles {"files":{"/robots.txt":"aee9d4f95c3207071226bbc3e6c43dbe4351f9d1e62f654934c6c0e9ffb504ae","/logo.svg":"46b50c321b39e89a491b6727a01628c34245605a30beb3e7414c5e01cff90e6e","/privacy.html":"4efaa59ee1e11c691b4da5c667986fb5ad7fbfa9992136fd139f6e0918718604","/terms.html":"86e8854d05d347c8b3e6c918da6d2679bc0450c4557cfcdb2a23e3aba2c02536","/terms.txt":"270cb4daed3ea22bb03fa9604c3df16b7666451cb3f2027f22c2298bc5a75021","/privacy.txt":"1b431476f66cb20602b34a2c7d4768aeea73aa1b3b060e11d71d57e7d6449475","/gdpr.txt":"a6dea0a63eea2f546bacb71122c60d4506bbe93938e5014e48e11125cff4d8ef","/index.txt":"3ee6c2c6638bc53377de8d00df2d5ecce5f8f63ad417cf07cc1dbf7f94f32974","/index.html":"6bc551b47a7b243d7ebeb187d6da2f4ca0005222722eacd711839fd6e83479b0","/admin.html":"9211b40bd86ee54e24e7520668c6412e0f90f903693c825968684491e8b46547","/cookies.txt":"135e850623f05123606b35e8df103950c84f7f4cf74d539ee8018d2d78da89b0","/_next/static/oA2O36eSM3Kq9QiAYuqmB/_ssgManifest.js":"dc28a4dc92fe352ed5d2201bd3972ce47691bc8e89e0400a68d1541d0567c6d5","/cookies.html":"3d8c0164f88ba0b0a134d107897e8a665de3bb4e3bb4ac75c4c54dd21c59d677","/gdpr.html":"08b122287c26d932a0349aedd8cc0f5cc77b62d55a37795a156ea014871fbb90","/404.html":"cd03b6dd70e94ed365d6db44932aa72dee813f0152aa967adc592c27717d9fa7","/_next/static/oA2O36eSM3Kq9QiAYuqmB/_buildManifest.js":"772308062fd0f6300dbc974c4e2612b50b6ba2988d8e2dcbb04575639feeebad","/_next/static/chunks/webpack-4f3c2fc5c20dcf55.js":"24889d5bf52b5be4034e83c585bc4fc4b2dc80b9163d0a884c2e7dd6b3421223","/_next/static/chunks/main-app-5225389a99506c47.js":"33982e900118d7c13cd36078023316c56e7bff1e549ce4b341520f78e0a80790","/_next/static/chunks/844.84e4ac4744216a1b.js":"c7c5066b9892dc9bdc3c5649d37ae7ce2c90b8fa9765154385f7ea9a0e8d4e30","/_next/static/chunks/979.5968fff7cf019063.js":"5b55fce6c4883c8e2ecdb1856410a9c022ed4bcdf10538dbd9395720f749d510","/_next/static/chunks/800.26963775abbdbe92.js":"7edbef2e8544b845256c9b7bea69f615edc158e77b4286a3c835f402878a5e88","/_next/static/chunks/685.e4a8d101be341c89.js":"29dd766a7bdebc94acc8169b11ec545b9a7f8d034cb1d3bb0a3ee1ed7f203e88","/_next/static/chunks/708.c19e93a041d10ae4.js":"6d6aa1d7e3dabffdfabdf3d699e6dc0bdf08a6b44fd633cf0b1657f469cd93fd","/_next/static/chunks/63.9e593f2a50cb9c7b.js":"373dc7acce7c426f8c7761fe75a4d15dad0e386a37a0f45636646d23f6144632","/_next/static/chunks/691-5791cf7ddc160d07.js":"c94c8942b9910ababd538c6a8bcffb4562b64704bb42e6f5b8478093649c3411","/_next/static/chunks/9.fd8b61785b880f17.js":"5364eada50e9ddffe21402b8cbbfa54b5f6a88424efba4c3df10ec2fd82eff51","/_next/static/chunks/585.a3b75701fd8137f3.js":"079d7b175606757d0e0ad1abac2189d984d37f1f67270883412c5b1357ce05b9","/_next/static/chunks/646.2487fd46faab413b.js":"690ecd932655ae424e1d696cd07bb2434854e03655dcbaca04fdc0a5b1260f31","/_next/static/chunks/530.e4ed9f39ec6baeb1.js":"f48f4ce454ec606d3af334038fe65901344cc4dad22c7211cd375beef9d9ad36","/_next/static/chunks/608.2e903d0c7e594c76.js":"f4da1aa856f976d199a8184c092ae7e0929b8f899bd584747131ddaa32d444c0","/_next/static/chunks/453.e1d843fcafff6939.js":"3726abb4470ec39b8e126c3259ffd22f348d514079f032e978abff4eaa59f5e6","/_next/static/chunks/479-756c9312ce7afb0a.js":"be62df252027219dade72fe0193c6018e7d143d7a3ec12a24605b259f5678205","/_next/static/chunks/50.529b6f146d547b5b.js":"02905f92905b2ba62b991e6ba447b0b95f4cc55b90ba2b98ed6f8c048f5ad555","/_next/static/chunks/584.749af4e045587d0a.js":"d83995fbe1696d4aa6867f813c627a01b2c726795acd1ba0afdb7d9c1de833ed","/_next/static/chunks/393.6c58ebe289724855.js":"4a192f458effb9ccd6f9d523ae705f2663341eb1091600fe7e5504be39e45fd6","/_next/static/chunks/226.19ac2285f3829ce0.js":"27a4c6b8cda731b6872d7e307c0db453f7703fb851ed215101e37ba0763f3460","/_next/static/chunks/221.da35c5963bca94c1.js":"4e76fde409bcad51f70fc263eb381a48811fe770c22e95a927d10dcc8b9fcc2c","/_next/static/chunks/292.e3bcfb3e44e0a5d0.js":"7ca5fd34f7c1300ad067155c179d8d2404975cbfe113c9d391ba24044071deed","/_next/static/chunks/223.f816014f8a8d598a.js":"a9757d15203a47458bb8c31261e21dc82f948afd2bb6081c18b026b9daa04b0b","/_next/static/chunks/318.8c3e9941d4238e98.js":"306102248e3267c17ad6884b858993a7aa9d57d967cfd0007388a695704f7a9b","/_next/static/chunks/211.a555c4bc31503f4b.js":"5f34ad611acaacf49f9b5949d67ee4e94d600d4a86b6600a4a99c3187ca4dfdd","/_next/static/chunks/201.b9ec2e055de1a321.js":"f49f96cb9c2c36ff33afa884dc2bcf358fd2c761b99cba4df15644ddf8b07d2a","/_next/static/chunks/main-c0d8713b77f5f6ff.js":"3e70e5d6ee71d8e0a6862cfcf7e54b0c604a1d3a2ee900c0a443004648fea70d","/_next/static/chunks/polyfills-42372ed130431b0a.js":"18e28d3214eda45048d80d3925ea7627b809e69ad2e95f7f98459e9146a61c3d","/_next/static/css/d241b046dd581ef2.css":"820430a6d782cb90dccebd5454cf5d10ae13e5d5ca292c0eaac0a1efa0f91874","/_next/static/chunks/733.b951b68ec6b3691c.js":"2824a508f0c57cfaabe16d931f9d50d89013e19986e6ff712e11f2de764532d4","/_next/static/chunks/54-e2cc1288df758c65.js":"6a8d86effa5ecffb591f681740cfd373950b869d4332f2569de25b7a616c4619","/_next/static/chunks/191.1f0c2f4268481140.js":"362dc7dd638fb88bfde6203b75c3d1eee3ff08d9e96d84065b6439d548b00e8b","/_next/static/chunks/pages/_error-b25b26bca5bd5b3f.js":"dc749f95b2a069f4d951b4eebfed0d0aa72f3c7d14924cd7cb60242ec4f5711d","/_next/static/chunks/139.959429c8392aa7b2.js":"afbe8ff39952fd1fd31fd93cb72f25af6de1773b7a16ecd79dea5881a90ee32f","/_next/static/chunks/131-10f2787899bbd110.js":"2518a1d1a95b247b0730e19f51b0883cd6e3e4879aab895f53dcfaf21c902986","/_next/static/chunks/pages/_app-2f0f888cc268924d.js":"2ec797f2589f167c5bfddb14fdd70252dcbbd238d173e4b20ac48ab4f458aec5","/_next/static/chunks/app/layout-ead577c3de0f33f3.js":"af114567b0b9e42b5682bfea753c671b9e2f550486a3dc54bd14f9a00d4a87b3","/_next/static/chunks/app/_not-found/page-470c8f5717222992.js":"6e3458549a25245f2f77eacdf9ddfc9f33220e70ee7dc11adbeecef19c7c2c0c","/_next/static/chunks/pages/admin/missions-3dd6aba6a845185d.js":"caeeedbfd08538fb4f1d597d1a9073b7b42668a161d63c3b70554ad97fc59003","/_next/static/chunks/pages/admin-36df32a3f4bd1bdd.js":"87cfe2f2fdc66604d89db4e0864da8bdd376fff769a2c920d46f95baa3bf7a29","/_next/static/chunks/app/terms/page-7458f2155bee2cb8.js":"507fec5a3ab6b96d23950eefb4ae6dd96277d6653659157bb3da36ac20e28536","/_next/static/chunks/app/privacy/page-7458f2155bee2cb8.js":"507fec5a3ab6b96d23950eefb4ae6dd96277d6653659157bb3da36ac20e28536","/_next/static/chunks/255-bad162159b680dbf.js":"450d73df3cc5fdce3162b4ccf644aaf248f49968d689f896b1a806296e8c88e2","/_next/static/chunks/ad2866b8.635304a38afc0b68.js":"b7c348db73531101e26aeab19e11fbc13009d28c985148089b729d451f8924b9","/_next/static/chunks/4bd1b696-409494caf8c83275.js":"2fb0b29caf155e9f018d16a0f6358639a0b8dd68310c8bfa40a11eb8aeca4b96","/_next/static/chunks/framework-3311683cffde0ebf.js":"680d054629b1329999ca64749b0907580dd73dda53d2f80391aa36b7cea27fee","/_next/static/chunks/app/page-cced953757b42b51.js":"28785dd787fdc627de900875454a74c1e9b4a883712bf2a5347102f9173b8ba8","/_next/static/chunks/981-162c463b989a9a01.js":"1826d3d8fadd348337a9f10220da8c87fa01cbce64916f28a885b90b83ff237f","/_next/static/chunks/app/gdpr/page-7458f2155bee2cb8.js":"507fec5a3ab6b96d23950eefb4ae6dd96277d6653659157bb3da36ac20e28536","/_next/static/chunks/app/cookies/page-7458f2155bee2cb8.js":"507fec5a3ab6b96d23950eefb4ae6dd96277d6653659157bb3da36ac20e28536","/admin/missions.html":"90c64ba3ce5e06337090a6c46ba691522ebe9e3f3010a7b051a53159fc8d28b2"}}
+[debug] [2025-12-09T18:22:22.011Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/603833636954/sites/kojomoney-6e131/versions/4cce077d518b7af6:populateFiles 200
+[debug] [2025-12-09T18:22:22.011Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/603833636954/sites/kojomoney-6e131/versions/4cce077d518b7af6:populateFiles {"uploadRequiredHashes":["4efaa59ee1e11c691b4da5c667986fb5ad7fbfa9992136fd139f6e0918718604","90c64ba3ce5e06337090a6c46ba691522ebe9e3f3010a7b051a53159fc8d28b2","3d8c0164f88ba0b0a134d107897e8a665de3bb4e3bb4ac75c4c54dd21c59d677","1b431476f66cb20602b34a2c7d4768aeea73aa1b3b060e11d71d57e7d6449475","135e850623f05123606b35e8df103950c84f7f4cf74d539ee8018d2d78da89b0","3ee6c2c6638bc53377de8d00df2d5ecce5f8f63ad417cf07cc1dbf7f94f32974","08b122287c26d932a0349aedd8cc0f5cc77b62d55a37795a156ea014871fbb90","270cb4daed3ea22bb03fa9604c3df16b7666451cb3f2027f22c2298bc5a75021","a6dea0a63eea2f546bacb71122c60d4506bbe93938e5014e48e11125cff4d8ef","9211b40bd86ee54e24e7520668c6412e0f90f903693c825968684491e8b46547","86e8854d05d347c8b3e6c918da6d2679bc0450c4557cfcdb2a23e3aba2c02536","6bc551b47a7b243d7ebeb187d6da2f4ca0005222722eacd711839fd6e83479b0","cd03b6dd70e94ed365d6db44932aa72dee813f0152aa967adc592c27717d9fa7"],"uploadUrl":"https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files"}
+[debug] [2025-12-09T18:22:22.012Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:22.012Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:22.013Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:22.013Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:22.014Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:22.014Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:22.015Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:22.015Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:22.015Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:22.016Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:22.016Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:22.016Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:22.017Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:22.017Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:22.017Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:22.018Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:22.018Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:22.018Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:22.019Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:22.019Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:22.020Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:22.020Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:22.020Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:22.020Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:22.021Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:22.021Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:22.022Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/4efaa59ee1e11c691b4da5c667986fb5ad7fbfa9992136fd139f6e0918718604 [none]
+[debug] [2025-12-09T18:22:22.022Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/4efaa59ee1e11c691b4da5c667986fb5ad7fbfa9992136fd139f6e0918718604 [stream]
+[debug] [2025-12-09T18:22:22.025Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/90c64ba3ce5e06337090a6c46ba691522ebe9e3f3010a7b051a53159fc8d28b2 [none]
+[debug] [2025-12-09T18:22:22.025Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/90c64ba3ce5e06337090a6c46ba691522ebe9e3f3010a7b051a53159fc8d28b2 [stream]
+[debug] [2025-12-09T18:22:22.027Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/3d8c0164f88ba0b0a134d107897e8a665de3bb4e3bb4ac75c4c54dd21c59d677 [none]
+[debug] [2025-12-09T18:22:22.027Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/3d8c0164f88ba0b0a134d107897e8a665de3bb4e3bb4ac75c4c54dd21c59d677 [stream]
+[debug] [2025-12-09T18:22:22.029Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/1b431476f66cb20602b34a2c7d4768aeea73aa1b3b060e11d71d57e7d6449475 [none]
+[debug] [2025-12-09T18:22:22.030Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/1b431476f66cb20602b34a2c7d4768aeea73aa1b3b060e11d71d57e7d6449475 [stream]
+[debug] [2025-12-09T18:22:22.033Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/135e850623f05123606b35e8df103950c84f7f4cf74d539ee8018d2d78da89b0 [none]
+[debug] [2025-12-09T18:22:22.033Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/135e850623f05123606b35e8df103950c84f7f4cf74d539ee8018d2d78da89b0 [stream]
+[debug] [2025-12-09T18:22:22.035Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/3ee6c2c6638bc53377de8d00df2d5ecce5f8f63ad417cf07cc1dbf7f94f32974 [none]
+[debug] [2025-12-09T18:22:22.035Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/3ee6c2c6638bc53377de8d00df2d5ecce5f8f63ad417cf07cc1dbf7f94f32974 [stream]
+[debug] [2025-12-09T18:22:22.037Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/08b122287c26d932a0349aedd8cc0f5cc77b62d55a37795a156ea014871fbb90 [none]
+[debug] [2025-12-09T18:22:22.037Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/08b122287c26d932a0349aedd8cc0f5cc77b62d55a37795a156ea014871fbb90 [stream]
+[debug] [2025-12-09T18:22:22.039Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/270cb4daed3ea22bb03fa9604c3df16b7666451cb3f2027f22c2298bc5a75021 [none]
+[debug] [2025-12-09T18:22:22.039Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/270cb4daed3ea22bb03fa9604c3df16b7666451cb3f2027f22c2298bc5a75021 [stream]
+[debug] [2025-12-09T18:22:22.041Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/a6dea0a63eea2f546bacb71122c60d4506bbe93938e5014e48e11125cff4d8ef [none]
+[debug] [2025-12-09T18:22:22.041Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/a6dea0a63eea2f546bacb71122c60d4506bbe93938e5014e48e11125cff4d8ef [stream]
+[debug] [2025-12-09T18:22:22.043Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/9211b40bd86ee54e24e7520668c6412e0f90f903693c825968684491e8b46547 [none]
+[debug] [2025-12-09T18:22:22.043Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/9211b40bd86ee54e24e7520668c6412e0f90f903693c825968684491e8b46547 [stream]
+[debug] [2025-12-09T18:22:22.044Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/86e8854d05d347c8b3e6c918da6d2679bc0450c4557cfcdb2a23e3aba2c02536 [none]
+[debug] [2025-12-09T18:22:22.045Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/86e8854d05d347c8b3e6c918da6d2679bc0450c4557cfcdb2a23e3aba2c02536 [stream]
+[debug] [2025-12-09T18:22:22.046Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/6bc551b47a7b243d7ebeb187d6da2f4ca0005222722eacd711839fd6e83479b0 [none]
+[debug] [2025-12-09T18:22:22.046Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/6bc551b47a7b243d7ebeb187d6da2f4ca0005222722eacd711839fd6e83479b0 [stream]
+[debug] [2025-12-09T18:22:22.048Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/cd03b6dd70e94ed365d6db44932aa72dee813f0152aa967adc592c27717d9fa7 [none]
+[debug] [2025-12-09T18:22:22.048Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/cd03b6dd70e94ed365d6db44932aa72dee813f0152aa967adc592c27717d9fa7 [stream]
+[debug] [2025-12-09T18:22:22.050Z] [hosting][populate queue][FINAL] {"max":551,"min":551,"avg":551,"active":0,"complete":1,"success":1,"errored":0,"retried":0,"total":1,"elapsed":580}
+[debug] [2025-12-09T18:22:22.051Z] [hosting] uploads queued: 13
+[info] i  hosting: uploading new files [0/13] (0%) 
+[debug] [2025-12-09T18:22:24.195Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/3ee6c2c6638bc53377de8d00df2d5ecce5f8f63ad417cf07cc1dbf7f94f32974 200
+[debug] [2025-12-09T18:22:24.196Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/3ee6c2c6638bc53377de8d00df2d5ecce5f8f63ad417cf07cc1dbf7f94f32974 [stream]
+[debug] [2025-12-09T18:22:24.198Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/270cb4daed3ea22bb03fa9604c3df16b7666451cb3f2027f22c2298bc5a75021 200
+[debug] [2025-12-09T18:22:24.198Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/270cb4daed3ea22bb03fa9604c3df16b7666451cb3f2027f22c2298bc5a75021 [stream]
+[debug] [2025-12-09T18:22:24.202Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/86e8854d05d347c8b3e6c918da6d2679bc0450c4557cfcdb2a23e3aba2c02536 200
+[debug] [2025-12-09T18:22:24.202Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/86e8854d05d347c8b3e6c918da6d2679bc0450c4557cfcdb2a23e3aba2c02536 [stream]
+[debug] [2025-12-09T18:22:24.205Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/cd03b6dd70e94ed365d6db44932aa72dee813f0152aa967adc592c27717d9fa7 200
+[debug] [2025-12-09T18:22:24.205Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/cd03b6dd70e94ed365d6db44932aa72dee813f0152aa967adc592c27717d9fa7 [stream]
+[debug] [2025-12-09T18:22:24.208Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/90c64ba3ce5e06337090a6c46ba691522ebe9e3f3010a7b051a53159fc8d28b2 200
+[debug] [2025-12-09T18:22:24.209Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/90c64ba3ce5e06337090a6c46ba691522ebe9e3f3010a7b051a53159fc8d28b2 [stream]
+[debug] [2025-12-09T18:22:24.210Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/1b431476f66cb20602b34a2c7d4768aeea73aa1b3b060e11d71d57e7d6449475 200
+[debug] [2025-12-09T18:22:24.211Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/1b431476f66cb20602b34a2c7d4768aeea73aa1b3b060e11d71d57e7d6449475 [stream]
+[debug] [2025-12-09T18:22:24.212Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/4efaa59ee1e11c691b4da5c667986fb5ad7fbfa9992136fd139f6e0918718604 200
+[debug] [2025-12-09T18:22:24.212Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/4efaa59ee1e11c691b4da5c667986fb5ad7fbfa9992136fd139f6e0918718604 [stream]
+[debug] [2025-12-09T18:22:24.214Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/a6dea0a63eea2f546bacb71122c60d4506bbe93938e5014e48e11125cff4d8ef 200
+[debug] [2025-12-09T18:22:24.214Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/a6dea0a63eea2f546bacb71122c60d4506bbe93938e5014e48e11125cff4d8ef [stream]
+[debug] [2025-12-09T18:22:24.216Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/135e850623f05123606b35e8df103950c84f7f4cf74d539ee8018d2d78da89b0 200
+[debug] [2025-12-09T18:22:24.216Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/135e850623f05123606b35e8df103950c84f7f4cf74d539ee8018d2d78da89b0 [stream]
+[debug] [2025-12-09T18:22:24.219Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/9211b40bd86ee54e24e7520668c6412e0f90f903693c825968684491e8b46547 200
+[debug] [2025-12-09T18:22:24.219Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/9211b40bd86ee54e24e7520668c6412e0f90f903693c825968684491e8b46547 [stream]
+[debug] [2025-12-09T18:22:24.221Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/6bc551b47a7b243d7ebeb187d6da2f4ca0005222722eacd711839fd6e83479b0 200
+[debug] [2025-12-09T18:22:24.221Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/6bc551b47a7b243d7ebeb187d6da2f4ca0005222722eacd711839fd6e83479b0 [stream]
+[debug] [2025-12-09T18:22:24.223Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/08b122287c26d932a0349aedd8cc0f5cc77b62d55a37795a156ea014871fbb90 200
+[debug] [2025-12-09T18:22:24.224Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/08b122287c26d932a0349aedd8cc0f5cc77b62d55a37795a156ea014871fbb90 [stream]
+[debug] [2025-12-09T18:22:24.425Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/3d8c0164f88ba0b0a134d107897e8a665de3bb4e3bb4ac75c4c54dd21c59d677 200
+[debug] [2025-12-09T18:22:24.425Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/kojomoney-6e131/versions/4cce077d518b7af6/files/3d8c0164f88ba0b0a134d107897e8a665de3bb4e3bb4ac75c4c54dd21c59d677 [stream]
+[debug] [2025-12-09T18:22:24.426Z] [hosting][upload queue][FINAL] {"max":2413,"min":2180,"avg":2211.230769230769,"active":0,"complete":13,"success":13,"errored":0,"retried":0,"total":13,"elapsed":2415}
+[info] i  hosting: upload complete 
+[info] +  hosting[kojomoney-6e131]: file upload complete 
+[debug] [2025-12-09T18:22:24.428Z] [hosting] deploy completed after 5864ms
+[debug] [2025-12-09T18:22:24.429Z] [
+  {
+    "config": {
+      "public": "out",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "site": "kojomoney-6e131"
+    },
+    "version": "projects/603833636954/sites/kojomoney-6e131/versions/4cce077d518b7af6"
+  }
+]
+[info] i  hosting[kojomoney-6e131]: finalizing version... 
+[debug] [2025-12-09T18:22:24.434Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:24.435Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:24.437Z] >>> [apiv2][query] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/kojomoney-6e131/versions/4cce077d518b7af6 updateMask=status%2Cconfig
+[debug] [2025-12-09T18:22:24.437Z] >>> [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/kojomoney-6e131/versions/4cce077d518b7af6 {"status":"FINALIZED","config":{}}
+[debug] [2025-12-09T18:22:24.921Z] <<< [apiv2][status] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/kojomoney-6e131/versions/4cce077d518b7af6 200
+[debug] [2025-12-09T18:22:24.922Z] <<< [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/kojomoney-6e131/versions/4cce077d518b7af6 {"name":"projects/603833636954/sites/kojomoney-6e131/versions/4cce077d518b7af6","status":"FINALIZED","config":{},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2025-12-09T18:22:18.539937Z","createUser":{"email":"francistogor@gmail.com"},"finalizeTime":"2025-12-09T18:22:25.178730Z","finalizeUser":{"email":"francistogor@gmail.com"}}
+[debug] [2025-12-09T18:22:24.922Z] [hosting] finalized version for kojomoney-6e131:[object Object]
+[info] +  hosting[kojomoney-6e131]: version finalized 
+[info] i  hosting[kojomoney-6e131]: releasing new version... 
+[debug] [2025-12-09T18:22:24.924Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:24.924Z] Checked if tokens are valid: true, expires at: 1765308133060
+[debug] [2025-12-09T18:22:24.924Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/kojomoney-6e131/channels/live/releases versionName=projects%2F603833636954%2Fsites%2Fkojomoney-6e131%2Fversions%2F4cce077d518b7af6
+[debug] [2025-12-09T18:22:24.925Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/kojomoney-6e131/channels/live/releases {}
+[debug] [2025-12-09T18:22:25.387Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/kojomoney-6e131/channels/live/releases 200
+[debug] [2025-12-09T18:22:25.388Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/kojomoney-6e131/channels/live/releases {"name":"projects/603833636954/sites/kojomoney-6e131/channels/live/releases/1765304545142000","version":{"name":"projects/603833636954/sites/kojomoney-6e131/versions/4cce077d518b7af6","status":"FINALIZED","config":{},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2025-12-09T18:22:18.539937Z","createUser":{"email":"francistogor@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocK0QuomYmSzmP14Y821yvC0Rn4eNQZioAWXfS3o4Lw4J11Env2O"},"finalizeTime":"2025-12-09T18:22:25.178730Z","finalizeUser":{"email":"francistogor@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocK0QuomYmSzmP14Y821yvC0Rn4eNQZioAWXfS3o4Lw4J11Env2O"}},"type":"DEPLOY","releaseTime":"2025-12-09T18:22:25.142Z","releaseUser":{"email":"francistogor@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocK0QuomYmSzmP14Y821yvC0Rn4eNQZioAWXfS3o4Lw4J11Env2O"}}
+[debug] [2025-12-09T18:22:25.388Z] [hosting] release: {"name":"projects/603833636954/sites/kojomoney-6e131/channels/live/releases/1765304545142000","version":{"name":"projects/603833636954/sites/kojomoney-6e131/versions/4cce077d518b7af6","status":"FINALIZED","config":{},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2025-12-09T18:22:18.539937Z","createUser":{"email":"francistogor@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocK0QuomYmSzmP14Y821yvC0Rn4eNQZioAWXfS3o4Lw4J11Env2O"},"finalizeTime":"2025-12-09T18:22:25.178730Z","finalizeUser":{"email":"francistogor@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocK0QuomYmSzmP14Y821yvC0Rn4eNQZioAWXfS3o4Lw4J11Env2O"}},"type":"DEPLOY","releaseTime":"2025-12-09T18:22:25.142Z","releaseUser":{"email":"francistogor@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocK0QuomYmSzmP14Y821yvC0Rn4eNQZioAWXfS3o4Lw4J11Env2O"}}
+[info] +  hosting[kojomoney-6e131]: release complete 
+[info] 
+[info] +  Deploy complete! 
+[info] 
+[info] Project Console: https://console.firebase.google.com/project/kojomoney-6e131/overview
+[info] Hosting URL: https://kojomoney-6e131.web.app
+[debug] [2025-12-09T18:22:30.979Z] Error: Timed out.
+    at Timeout._onTimeout (C:\Users\NWAJI\AppData\Roaming\npm\node_modules\firebase-tools\lib\utils.js:275:49)
+    at listOnTimeout (node:internal/timers:594:17)
+    at process.processTimers (node:internal/timers:529:7)
+[error] 
+[error] Error: An unexpected error has occurred.
