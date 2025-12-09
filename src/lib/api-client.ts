@@ -4,7 +4,13 @@
  */
 
 const getApiBase = (): string => {
-  // Always use Render backend for both Web and Mobile
+  if (typeof window === 'undefined') {
+    // Server-side: use Render backend
+    return 'https://kojomoney-api.onrender.com'
+  }
+
+  // Always use Render backend for all environments
+  // (CORS is now configured on the backend)
   return 'https://kojomoney-api.onrender.com'
 }
 
