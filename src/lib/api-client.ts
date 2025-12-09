@@ -6,12 +6,12 @@
 const getApiBase = (): string => {
   if (typeof window === 'undefined') {
     // Server-side: use Render backend
-    return 'https://kojomoney-api.onrender.com'
+    return 'https://kojomoney-app.onrender.com'
   }
 
   // Always use Render backend for all environments
   // (CORS is now configured on the backend)
-  return 'https://kojomoney-api.onrender.com'
+  return 'https://kojomoney-app.onrender.com'
 }
 
 export interface FetchOptions extends RequestInit {
