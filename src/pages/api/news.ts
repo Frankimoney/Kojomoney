@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { db } from '@/lib/firebase-admin'
 import { XMLParser } from 'fast-xml-parser'
 import crypto from 'crypto'
+import { allowCors } from '@/lib/cors'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,7 +41,7 @@ const RSS_FEEDS = [
     { url: 'https://www.premiumtimesng.com/feed', source: 'Premium Times' },
 ]
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method === 'GET') {
         return handleGet(req, res)
     } else if (req.method === 'POST') {
@@ -49,6 +50,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(405).json({ error: 'Method not allowed' })
     }
 }
+
+export default allowCors(handler)
 
 async function handleGet(req: NextApiRequest, res: NextApiResponse) {
     try {

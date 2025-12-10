@@ -7,6 +7,7 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { db } from '@/lib/firebase-admin'
+import { allowCors } from '@/lib/cors'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,7 +27,7 @@ function getCurrentWeekKey(): string {
     return `${now.getFullYear()}-W${weekNumber.toString().padStart(2, '0')}`
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (!db) {
         return res.status(500).json({ error: 'Database not available' })
     }
@@ -39,6 +40,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(405).json({ error: 'Method not allowed' })
     }
 }
+
+export default allowCors(handler)
 
 // POST: Start an ad viewing session
 async function handlePost(req: NextApiRequest, res: NextApiResponse) {

@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { db } from '@/lib/firebase-admin'
 import { getTriviaByRegion, shuffleArray, type TriviaQuestion, type Region } from '@/services/triviaService'
 import crypto from 'crypto'
+import { allowCors } from '@/lib/cors'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,7 +25,7 @@ function getCurrentWeekKey(): string {
 }
 
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method === 'GET') {
         return handleGet(req, res)
     } else if (req.method === 'POST') {
@@ -33,6 +34,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(405).json({ error: 'Method not allowed' })
     }
 }
+
+export default allowCors(handler)
 
 async function handleGet(req: NextApiRequest, res: NextApiResponse) {
     try {
@@ -130,6 +133,10 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
             })
         }
 
+        // Award points to user - get userRef first
+        const userRef = db.collection('users').doc(userId)
+        const userDoc = await userRef.get()
+
         // Calculate score
         let correctCount = 0
         for (let i = 0; i < Math.min(answers.length, questions.length); i++) {
@@ -138,7 +145,7 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
             }
         }
 
-        const currentStreak = ((await userRef.get()).data()?.dailyStreak || 0)
+        const currentStreak = userDoc.exists ? (userDoc.data()?.dailyStreak || 0) : 0
         const streakBonus = currentStreak * 5
         const pointsEarned = (correctCount * 10) + streakBonus
 
@@ -152,10 +159,6 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
             createdAt: Date.now(),
             date: today
         })
-
-        // Award points to user
-        const userRef = db.collection('users').doc(userId)
-        const userDoc = await userRef.get()
 
         if (userDoc.exists) {
             const userData = userDoc.data()!
