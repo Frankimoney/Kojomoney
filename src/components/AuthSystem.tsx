@@ -472,6 +472,20 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
                                 </TabsTrigger>
                             </TabsList>
 
+                            {/* Message Alert */}
+                            {message && (
+                                <Alert className={`mt-4 ${message.type === 'error' ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'}`}>
+                                    {message.type === 'error' ? (
+                                        <AlertCircle className="h-4 w-4 text-red-600" />
+                                    ) : (
+                                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                    )}
+                                    <AlertDescription className={message.type === 'error' ? 'text-red-800' : 'text-green-800'}>
+                                        {message.text}
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+
                             <TabsContent value="register" className="space-y-4 mt-4">
                                 {registerStep === 'enter-details' && (
                                     <form onSubmit={handleRegisterInitiate} className="space-y-4">
