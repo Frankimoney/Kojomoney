@@ -169,6 +169,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         res.status(200).json({
             success: true,
             verificationId,
+            email: normalizedEmail,  // Return the actual email the code was sent to
             message: `Verification code sent to ${normalizedEmail}`,
             // Only include code in development for testing
             ...(isDev && { devCode: code })

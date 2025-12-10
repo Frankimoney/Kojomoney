@@ -312,10 +312,10 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
                 setLoginVerification({
                     verificationId: data.verificationId,
                     code: '',
-                    contactEmail: loginForm.usernameOrEmail
+                    contactEmail: data.email || loginForm.usernameOrEmail  // Use actual email from API
                 })
                 setLoginStep('verify-email')
-                showMessage('success', 'Verification code sent')
+                showMessage('success', `Verification code sent to ${data.email || loginForm.usernameOrEmail}`)
             } else {
                 showMessage('error', data.error || 'Failed to send verification code')
             }
@@ -411,9 +411,13 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
                 if (type === 'register') {
                     setRegisterVerification(prev => ({ ...prev, verificationId: data.verificationId }))
                 } else {
-                    setLoginVerification(prev => ({ ...prev, verificationId: data.verificationId }))
+                    setLoginVerification(prev => ({
+                        ...prev,
+                        verificationId: data.verificationId,
+                        contactEmail: data.email || prev.contactEmail  // Update with actual email
+                    }))
                 }
-                showMessage('success', 'New verification code sent!')
+                showMessage('success', `New verification code sent to ${data.email || email}!`)
 
                 // Start 60-second cooldown
                 setResendCooldown(60)
