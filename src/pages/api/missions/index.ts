@@ -9,6 +9,7 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { db } from '@/lib/firebase-admin'
 import { Mission, MissionProgress } from '@/lib/db-schema'
 import { verifyAdminToken } from '@/lib/admin-auth'
+import { allowCors } from '@/lib/cors'
 
 export const dynamic = 'force-dynamic'
 
@@ -89,7 +90,7 @@ const DEFAULT_MISSIONS: Omit<Mission, 'id'>[] = [
     },
 ]
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (!db) {
         return res.status(500).json({ error: 'Database not available' })
     }
@@ -102,6 +103,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(405).json({ error: 'Method not allowed' })
     }
 }
+
+export default allowCors(handler)
 
 async function handleGet(req: NextApiRequest, res: NextApiResponse) {
     try {
