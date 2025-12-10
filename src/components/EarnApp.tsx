@@ -89,6 +89,18 @@ const TournamentSystem = dynamic(() => import('./TournamentSystem'), {
     loading: () => <div>Loading tournament...</div>
 })
 
+// Dynamically import AfricaOfferwallSystem (Wannads, Adgate, Monlix)
+const AfricaOfferwallSystem = dynamic(() => import('./AfricaOfferwallSystem'), {
+    ssr: false,
+    loading: () => <div>Loading offerwalls...</div>
+})
+
+// Dynamically import AfricaSurveySystem (Wannads, Adgate, Monlix surveys)
+const AfricaSurveySystem = dynamic(() => import('./AfricaSurveySystem'), {
+    ssr: false,
+    loading: () => <div>Loading surveys...</div>
+})
+
 // Dynamically import LegalPages
 const LegalPages = dynamic(() => import('./LegalPages'), {
     ssr: false,
@@ -435,14 +447,16 @@ interface EarnTabProps {
 
 function EarnTab({ user, userPoints, setUserPoints, setActiveView }: EarnTabProps) {
     const [adCooldown, setAdCooldown] = useState(0)
-    const [view, setView] = useState<'list' | 'offerwall' | 'surveys' | 'missions' | 'referrals' | 'challenges' | 'tournament'>('list')
+    const [view, setView] = useState<'list' | 'offerwall' | 'africa-offerwalls' | 'surveys' | 'missions' | 'referrals' | 'challenges' | 'tournament'>('list')
 
-    if (view === 'offerwall') {
-        return <OfferwallSystem userId={user?.id} onClose={() => setView('list')} />
+    // Africa Offerwalls (Wannads, Adgate, Monlix) - PRIMARY offerwall option
+    if (view === 'offerwall' || view === 'africa-offerwalls') {
+        return <AfricaOfferwallSystem userId={user?.id} onClose={() => setView('list')} />
     }
 
+    // Africa Surveys (Wannads, Adgate, Monlix) - Using survey APIs
     if (view === 'surveys') {
-        return <SurveySystem userId={user?.id} onClose={() => setView('list')} />
+        return <AfricaSurveySystem userId={user?.id} onClose={() => setView('list')} />
     }
 
     if (view === 'missions') {

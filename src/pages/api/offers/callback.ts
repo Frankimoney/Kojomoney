@@ -234,6 +234,52 @@ function parseProviderCallback(provider: OfferProvider, rawPayload: any): Callba
                     signature: rawPayload.sig,
                 }
 
+            // ===========================================
+            // AFRICA-FOCUSED PROVIDERS
+            // ===========================================
+
+            case 'Wannads':
+                // Wannads callback format
+                // Example: ?provider=Wannads&uid=USER_ID&tid=TRANS_ID&payout=100&oid=OFFER_ID&sig=SIGNATURE
+                return {
+                    provider,
+                    trackingId: rawPayload.tid || rawPayload.transaction_id || rawPayload.trans_id,
+                    userId: rawPayload.uid || rawPayload.user_id || rawPayload.subid,
+                    offerId: rawPayload.oid || rawPayload.offer_id || rawPayload.campaign_id,
+                    transactionId: rawPayload.tid || rawPayload.transaction_id || Date.now().toString(),
+                    payout: parseInt(rawPayload.payout) || parseInt(rawPayload.reward) || parseInt(rawPayload.points) || 0,
+                    status: rawPayload.status === 'reversed' || rawPayload.status === 'chargeback' ? 'reversed' : 'completed',
+                    signature: rawPayload.sig || rawPayload.signature || rawPayload.hash,
+                }
+
+            case 'Adgate':
+                // Adgate Media callback format
+                // Example: ?provider=Adgate&s1=USER_ID&points=100&tx_id=TRANS_ID&offer_id=123&signature=SIG
+                return {
+                    provider,
+                    trackingId: rawPayload.tx_id || rawPayload.transaction_id || rawPayload.tid,
+                    userId: rawPayload.s1 || rawPayload.user_id || rawPayload.uid || rawPayload.subid,
+                    offerId: rawPayload.offer_id || rawPayload.oid,
+                    transactionId: rawPayload.tx_id || rawPayload.transaction_id || Date.now().toString(),
+                    payout: parseInt(rawPayload.points) || parseInt(rawPayload.payout) || parseInt(rawPayload.currency) || 0,
+                    status: rawPayload.status === 'reversed' || rawPayload.type === 'chargeback' ? 'reversed' : 'completed',
+                    signature: rawPayload.signature || rawPayload.sig || rawPayload.hash,
+                }
+
+            case 'Monlix':
+                // Monlix callback format
+                // Example: ?provider=Monlix&userid=USER_ID&transid=TRANS_ID&payout=100&hash=HASH
+                return {
+                    provider,
+                    trackingId: rawPayload.transid || rawPayload.trans_id || rawPayload.tid || rawPayload.transaction_id,
+                    userId: rawPayload.userid || rawPayload.user_id || rawPayload.uid || rawPayload.subid,
+                    offerId: rawPayload.offerid || rawPayload.offer_id || rawPayload.survey_id,
+                    transactionId: rawPayload.transid || rawPayload.trans_id || rawPayload.transaction_id || Date.now().toString(),
+                    payout: parseInt(rawPayload.payout) || parseInt(rawPayload.reward) || parseInt(rawPayload.points) || 0,
+                    status: rawPayload.status === 'reversed' || rawPayload.status === 'chargeback' ? 'reversed' : 'completed',
+                    signature: rawPayload.hash || rawPayload.signature || rawPayload.sig,
+                }
+
             case 'CPX':
             case 'TheoremReach':
             case 'BitLabs':
@@ -254,12 +300,12 @@ function parseProviderCallback(provider: OfferProvider, rawPayload: any): Callba
                 return {
                     provider,
                     trackingId: rawPayload.tid || rawPayload.trackingId,
-                    userId: rawPayload.uid || rawPayload.userId,
-                    offerId: rawPayload.oid || rawPayload.offerId,
-                    transactionId: rawPayload.transactionId || rawPayload.trans_id || Date.now().toString(),
-                    payout: parseInt(rawPayload.payout) || parseInt(rawPayload.amount) || 0,
+                    userId: rawPayload.uid || rawPayload.userId || rawPayload.user_id || rawPayload.s1 || rawPayload.subid,
+                    offerId: rawPayload.oid || rawPayload.offerId || rawPayload.offer_id,
+                    transactionId: rawPayload.transactionId || rawPayload.trans_id || rawPayload.tx_id || Date.now().toString(),
+                    payout: parseInt(rawPayload.payout) || parseInt(rawPayload.points) || parseInt(rawPayload.amount) || 0,
                     status: rawPayload.status === 'reversed' ? 'reversed' : 'completed',
-                    signature: rawPayload.signature,
+                    signature: rawPayload.signature || rawPayload.sig || rawPayload.hash,
                 }
         }
     } catch (error) {

@@ -34,6 +34,7 @@ export interface Offer {
 }
 
 // Supported offer providers - can add more as needed
+// Africa-focused providers: Wannads, Adgate, Monlix
 export type OfferProvider =
     | 'AdGem'
     | 'CPX'
@@ -44,7 +45,10 @@ export type OfferProvider =
     | 'AdColony'
     | 'Pollfish'
     | 'BitLabs'
-    | 'Internal' // For custom offers managed by admin
+    | 'Wannads'    // Good African market coverage
+    | 'Adgate'     // Adgate Media - works in Africa
+    | 'Monlix'     // Global including Africa
+    | 'Internal'   // For custom offers managed by admin
     | 'Other'
 
 export type OfferCategory =
