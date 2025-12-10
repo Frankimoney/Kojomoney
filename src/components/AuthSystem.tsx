@@ -62,6 +62,20 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
         contactEmail: ''
     })
 
+    // Forgot password states
+    type ForgotStep = 'enter-email' | 'verify-code' | 'new-password' | 'complete'
+    const [showForgotPassword, setShowForgotPassword] = useState(false)
+    const [forgotStep, setForgotStep] = useState<ForgotStep>('enter-email')
+    const [forgotForm, setForgotForm] = useState({
+        email: '',
+        verificationId: '',
+        code: '',
+        newPassword: '',
+        confirmPassword: ''
+    })
+    const [showNewPassword, setShowNewPassword] = useState(false)
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+
     const showMessage = (type: 'success' | 'error', text: string) => {
         setMessage({ type, text })
         setTimeout(() => setMessage(null), 6000)
@@ -443,6 +457,116 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
         setMessage(null)
         setRegisterStep('enter-details')
         setLoginStep('enter-details')
+        setShowForgotPassword(false)
+        setForgotStep('enter-email')
+    }
+
+    // Forgot Password Handlers
+    const handleForgotPasswordSendCode = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setIsLoading(true)
+
+        if (!forgotForm.email) {
+            showMessage('error', 'Email is required')
+            setIsLoading(false)
+            return
+        }
+
+        try {
+            const response = await apiCall('/api/auth/send-verification', {
+                method: 'POST',
+                body: JSON.stringify({
+                    email: forgotForm.email,
+                    type: 'reset-password'
+                })
+            })
+
+            const data = await response.json()
+
+            if (data.success) {
+                setForgotForm(prev => ({ ...prev, verificationId: data.verificationId }))
+                setForgotStep('verify-code')
+                showMessage('success', `Reset code sent to ${forgotForm.email}`)
+            } else {
+                showMessage('error', data.error || 'Failed to send reset code')
+            }
+        } catch (error) {
+            showMessage('error', 'Network error. Please try again.')
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    const handleForgotPasswordVerifyCode = async (e: React.FormEvent) => {
+        e.preventDefault()
+
+        if (!forgotForm.code || forgotForm.code.length !== 6) {
+            showMessage('error', 'Please enter the 6-digit code')
+            return
+        }
+
+        setForgotStep('new-password')
+    }
+
+    const handleForgotPasswordReset = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setIsLoading(true)
+
+        if (!forgotForm.newPassword) {
+            showMessage('error', 'New password is required')
+            setIsLoading(false)
+            return
+        }
+
+        if (forgotForm.newPassword !== forgotForm.confirmPassword) {
+            showMessage('error', 'Passwords do not match')
+            setIsLoading(false)
+            return
+        }
+
+        if (forgotForm.newPassword.length < 8) {
+            showMessage('error', 'Password must be at least 8 characters')
+            setIsLoading(false)
+            return
+        }
+
+        try {
+            const response = await apiCall('/api/auth/reset-password', {
+                method: 'POST',
+                body: JSON.stringify({
+                    verificationId: forgotForm.verificationId,
+                    code: forgotForm.code,
+                    newPassword: forgotForm.newPassword,
+                    email: forgotForm.email
+                })
+            })
+
+            const data = await response.json()
+
+            if (data.success) {
+                setForgotStep('complete')
+                showMessage('success', 'Password reset successfully! You can now login.')
+            } else {
+                showMessage('error', data.error || 'Failed to reset password')
+            }
+        } catch (error) {
+            showMessage('error', 'Network error. Please try again.')
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    const handleBackToLogin = () => {
+        setShowForgotPassword(false)
+        setForgotStep('enter-email')
+        setForgotForm({
+            email: '',
+            verificationId: '',
+            code: '',
+            newPassword: '',
+            confirmPassword: ''
+        })
+        setMessage(null)
     }
 
     return (
@@ -459,8 +583,8 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
 
                 {/* Auth Tabs */}
                 <Card>
-                    <CardHeader>
-                        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+                    <CardHeader className="relative">
+                        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full relative">
                             <TabsList className="grid w-full grid-cols-2">
                                 <TabsTrigger value="register" className="flex items-center space-x-2">
                                     <UserPlus className="h-4 w-4" />
@@ -725,6 +849,16 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
                                         <Button type="submit" className="w-full" disabled={isLoading}>
                                             {isLoading ? 'Sending Code...' : 'Continue to Verification'}
                                         </Button>
+
+                                        <div className="text-center">
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowForgotPassword(true)}
+                                                className="text-sm text-purple-600 hover:text-purple-800 hover:underline"
+                                            >
+                                                Forgot your password?
+                                            </button>
+                                        </div>
                                     </form>
                                 )}
 
@@ -786,6 +920,165 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
                                     </div>
                                 )}
                             </TabsContent>
+
+                            {/* Forgot Password Modal/Overlay */}
+                            {showForgotPassword && (
+                                <div className="absolute inset-0 bg-white rounded-lg p-4 z-10">
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="text-lg font-semibold text-gray-900">Reset Password</h3>
+                                            <button
+                                                onClick={handleBackToLogin}
+                                                className="text-gray-500 hover:text-gray-700"
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
+
+                                        {/* Message Alert in Forgot Password */}
+                                        {message && (
+                                            <Alert className={`${message.type === 'error' ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'}`}>
+                                                {message.type === 'error' ? (
+                                                    <AlertCircle className="h-4 w-4 text-red-600" />
+                                                ) : (
+                                                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                                )}
+                                                <AlertDescription className={message.type === 'error' ? 'text-red-800' : 'text-green-800'}>
+                                                    {message.text}
+                                                </AlertDescription>
+                                            </Alert>
+                                        )}
+
+                                        {forgotStep === 'enter-email' && (
+                                            <form onSubmit={handleForgotPasswordSendCode} className="space-y-4">
+                                                <p className="text-sm text-gray-600">
+                                                    Enter your email address and we'll send you a code to reset your password.
+                                                </p>
+                                                <div>
+                                                    <Label htmlFor="forgot-email">Email Address *</Label>
+                                                    <Input
+                                                        id="forgot-email"
+                                                        type="email"
+                                                        placeholder="your@email.com"
+                                                        value={forgotForm.email}
+                                                        onChange={(e) => setForgotForm(prev => ({ ...prev, email: e.target.value }))}
+                                                        required
+                                                    />
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <Button type="button" variant="outline" className="flex-1" onClick={handleBackToLogin}>
+                                                        Cancel
+                                                    </Button>
+                                                    <Button type="submit" className="flex-1" disabled={isLoading}>
+                                                        {isLoading ? 'Sending...' : 'Send Reset Code'}
+                                                    </Button>
+                                                </div>
+                                            </form>
+                                        )}
+
+                                        {forgotStep === 'verify-code' && (
+                                            <form onSubmit={handleForgotPasswordVerifyCode} className="space-y-4">
+                                                <Alert className="border-blue-200 bg-blue-50">
+                                                    <AlertCircle className="h-4 w-4 text-blue-600" />
+                                                    <AlertDescription className="text-blue-800">
+                                                        A reset code has been sent to <strong>{forgotForm.email}</strong>
+                                                    </AlertDescription>
+                                                </Alert>
+                                                <div>
+                                                    <Label htmlFor="forgot-code">Verification Code *</Label>
+                                                    <Input
+                                                        id="forgot-code"
+                                                        type="text"
+                                                        placeholder="000000"
+                                                        maxLength={6}
+                                                        value={forgotForm.code}
+                                                        onChange={(e) => setForgotForm(prev => ({ ...prev, code: e.target.value.replace(/\D/g, '') }))}
+                                                        required
+                                                    />
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <Button type="button" variant="outline" className="flex-1" onClick={() => setForgotStep('enter-email')}>
+                                                        Back
+                                                    </Button>
+                                                    <Button type="submit" className="flex-1" disabled={forgotForm.code.length !== 6}>
+                                                        Verify Code
+                                                    </Button>
+                                                </div>
+                                            </form>
+                                        )}
+
+                                        {forgotStep === 'new-password' && (
+                                            <form onSubmit={handleForgotPasswordReset} className="space-y-4">
+                                                <p className="text-sm text-gray-600">
+                                                    Enter your new password below.
+                                                </p>
+                                                <div>
+                                                    <Label htmlFor="new-password">New Password *</Label>
+                                                    <div className="relative">
+                                                        <Input
+                                                            id="new-password"
+                                                            type={showNewPassword ? "text" : "password"}
+                                                            placeholder="••••••••"
+                                                            value={forgotForm.newPassword}
+                                                            onChange={(e) => setForgotForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                                                            required
+                                                            className="pr-10"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowNewPassword(!showNewPassword)}
+                                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                                                        >
+                                                            {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                                        </button>
+                                                    </div>
+                                                    <p className="text-xs text-gray-500 mt-1">At least 8 characters</p>
+                                                </div>
+                                                <div>
+                                                    <Label htmlFor="confirm-new-password">Confirm Password *</Label>
+                                                    <div className="relative">
+                                                        <Input
+                                                            id="confirm-new-password"
+                                                            type={showConfirmPassword ? "text" : "password"}
+                                                            placeholder="••••••••"
+                                                            value={forgotForm.confirmPassword}
+                                                            onChange={(e) => setForgotForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                                                            required
+                                                            className="pr-10"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                                                        >
+                                                            {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <Button type="button" variant="outline" className="flex-1" onClick={() => setForgotStep('verify-code')}>
+                                                        Back
+                                                    </Button>
+                                                    <Button type="submit" className="flex-1" disabled={isLoading}>
+                                                        {isLoading ? 'Resetting...' : 'Reset Password'}
+                                                    </Button>
+                                                </div>
+                                            </form>
+                                        )}
+
+                                        {forgotStep === 'complete' && (
+                                            <div className="text-center py-8">
+                                                <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto mb-4" />
+                                                <h3 className="text-lg font-semibold text-gray-900 mb-2">Password Reset!</h3>
+                                                <p className="text-gray-600 mb-4">Your password has been successfully reset.</p>
+                                                <Button onClick={handleBackToLogin} className="w-full">
+                                                    Back to Login
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </Tabs>
                     </CardHeader>
                 </Card>
