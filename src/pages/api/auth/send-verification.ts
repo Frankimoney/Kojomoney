@@ -93,7 +93,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         const { email, type } = req.body
 
         if (!email) {
-            return res.status(400).json({ error: 'Email is required', success: false })
+            return res.status(400).json({ error: 'Email or username is required', success: false })
         }
 
         if (!db) {
@@ -101,7 +101,32 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             return res.status(500).json({ error: 'Database not available', success: false })
         }
 
-        const normalizedEmail = email.toLowerCase().trim()
+        let normalizedEmail = email.toLowerCase().trim()
+
+        // For login and reset-password, the input might be a username instead of email
+        // We need to look up the email associated with the username
+        if ((type === 'login' || type === 'reset-password') && !email.includes('@')) {
+            console.log(`[VERIFY-API] Looking up email for username: ${normalizedEmail}`)
+
+            const usersRef = db.collection('users')
+            const usernameQuery = await usersRef.where('username', '==', normalizedEmail).get()
+
+            if (usernameQuery.empty) {
+                return res.status(404).json({ error: 'User not found', success: false })
+            }
+
+            const userData = usernameQuery.docs[0].data()
+            normalizedEmail = userData.email
+            console.log(`[VERIFY-API] Found email for username: ${normalizedEmail}`)
+        } else if ((type === 'login' || type === 'reset-password') && email.includes('@')) {
+            // If it's an email, verify the user exists
+            const usersRef = db.collection('users')
+            const emailQuery = await usersRef.where('email', '==', normalizedEmail).get()
+
+            if (emailQuery.empty) {
+                return res.status(404).json({ error: 'User not found', success: false })
+            }
+        }
 
         // Generate a 6-digit verification code
         const code = Math.floor(100000 + Math.random() * 900000).toString()
