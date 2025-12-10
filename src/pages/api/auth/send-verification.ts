@@ -1,32 +1,12 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { db } from '@/lib/firebase-admin'
 import crypto from 'crypto'
-import nodemailer from 'nodemailer'
+import { Resend } from 'resend'
 
 export const dynamic = 'force-dynamic'
 
-// Create email transporter with timeout
-const createTransporter = () => {
-    // Use port 465 (SSL) by default as it's more reliable
-    const port = parseInt(process.env.EMAIL_PORT || '465')
-    const secure = process.env.EMAIL_SECURE !== 'false' // Default to true for port 465
-
-    console.log('[EMAIL] Creating transporter - host:', process.env.EMAIL_HOST || 'smtp.gmail.com', 'port:', port, 'secure:', secure)
-
-    return nodemailer.createTransport({
-        host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-        port,
-        secure,
-        auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS,
-        },
-        // Add timeouts to prevent hanging
-        connectionTimeout: 15000,
-        greetingTimeout: 15000,
-        socketTimeout: 15000,
-    })
-}
+// Initialize Resend
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 // Generate verification email HTML
 const generateEmailHtml = (code: string, type: string) => {
@@ -170,17 +150,17 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             ...(isDev && { devCode: code })
         })
 
-        // Send email in background (fire-and-forget)
-        const emailConfigured = process.env.EMAIL_USER && process.env.EMAIL_PASS
-        console.log(`[VERIFY-API] Email configured? ${!!emailConfigured} (User: ${process.env.EMAIL_USER})`)
+        // Send email in background using Resend (fire-and-forget)
+        const resendConfigured = !!process.env.RESEND_API_KEY
+        console.log(`[VERIFY-API] Resend configured? ${resendConfigured}`)
 
-        if (emailConfigured) {
+        if (resendConfigured) {
             // Don't await - let it run in background
-            sendEmailAsync(normalizedEmail, code, type).catch(err => {
+            sendEmailWithResend(normalizedEmail, code, type).catch(err => {
                 console.error('[EMAIL] Background send failed:', err.message)
             })
         } else {
-            console.log('[VERIFY-API] Skipping email send - credentials missing')
+            console.log('[VERIFY-API] Skipping email send - RESEND_API_KEY missing')
         }
 
     } catch (error) {
@@ -189,25 +169,32 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 }
 
-// Async email sending function (runs in background)
-async function sendEmailAsync(email: string, code: string, type: string) {
-    console.log('[EMAIL] Starting background email send...')
+// Async email sending function using Resend (runs in background)
+async function sendEmailWithResend(email: string, code: string, type: string) {
+    console.log('[EMAIL] Starting Resend email send...')
     const emailStart = Date.now()
 
     try {
-        const transporter = createTransporter()
         const isLogin = type === 'login'
 
-        await transporter.sendMail({
-            from: process.env.EMAIL_FROM || `"KojoMoney" <${process.env.EMAIL_USER}>`,
-            to: email,
+        // Use your verified domain or Resend's test domain
+        const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'
+
+        const { data, error } = await resend.emails.send({
+            from: `KojoMoney <${fromEmail}>`,
+            to: [email],
             subject: isLogin ? 'Login Verification Code - KojoMoney' : 'Verify Your Email - KojoMoney',
             html: generateEmailHtml(code, type),
         })
 
-        console.log(`[EMAIL] Sent successfully to ${email} in ${Date.now() - emailStart}ms`)
+        if (error) {
+            throw new Error(error.message)
+        }
+
+        console.log(`[EMAIL] Sent successfully to ${email} in ${Date.now() - emailStart}ms (ID: ${data?.id})`)
     } catch (error: any) {
         console.error(`[EMAIL] Failed after ${Date.now() - emailStart}ms:`, error.message)
+        throw error
     }
 }
 
