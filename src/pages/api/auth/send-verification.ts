@@ -5,8 +5,7 @@ import { Resend } from 'resend'
 
 export const dynamic = 'force-dynamic'
 
-// Initialize Resend
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Resend will be initialized lazily when needed
 
 // Generate verification email HTML
 const generateEmailHtml = (code: string, type: string) => {
@@ -175,6 +174,9 @@ async function sendEmailWithResend(email: string, code: string, type: string) {
     const emailStart = Date.now()
 
     try {
+        // Initialize Resend with API key
+        const resend = new Resend(process.env.RESEND_API_KEY)
+
         const isLogin = type === 'login'
 
         // Use your verified domain or Resend's test domain
