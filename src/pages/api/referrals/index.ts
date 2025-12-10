@@ -7,6 +7,7 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { db } from '@/lib/firebase-admin'
+import { allowCors } from '@/lib/cors'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,7 +27,17 @@ const REFERRAL_REWARDS = {
     referralSignupBonus: 100, // New user gets when they use a referral code
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+// Tournament points for referrals
+const TOURNAMENT_POINTS_PER_REFERRAL = 100
+
+function getCurrentWeekKey(): string {
+    const now = new Date()
+    const startOfYear = new Date(now.getFullYear(), 0, 1)
+    const weekNumber = Math.ceil(((now.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7)
+    return `${now.getFullYear()}-W${weekNumber.toString().padStart(2, '0')}`
+}
+
+async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (!db) {
         return res.status(500).json({ error: 'Database not available' })
     }
@@ -39,6 +50,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(405).json({ error: 'Method not allowed' })
     }
 }
+
+export default allowCors(handler)
 
 async function handleGet(req: NextApiRequest, res: NextApiResponse) {
     try {
@@ -192,9 +205,39 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
                 createdAt: now,
             })
 
+            // Add tournament points for referral milestone
+            const weekKey = getCurrentWeekKey()
+            const tournamentPoints = TOURNAMENT_POINTS_PER_REFERRAL * milestoneCount
+
+            const entrySnapshot = await db!.collection('tournament_entries')
+                .where('weekKey', '==', weekKey)
+                .where('userId', '==', userId)
+                .limit(1)
+                .get()
+
+            if (!entrySnapshot.empty) {
+                const entryDoc = entrySnapshot.docs[0]
+                await entryDoc.ref.update({
+                    points: (entryDoc.data().points || 0) + tournamentPoints,
+                    lastUpdated: now,
+                })
+            } else {
+                // Auto-join tournament
+                await db!.collection('tournament_entries').add({
+                    weekKey,
+                    userId,
+                    name: userData.name || userData.username || 'Anonymous',
+                    avatar: userData.avatarUrl || '',
+                    points: tournamentPoints,
+                    joinedAt: now,
+                    lastUpdated: now,
+                })
+            }
+
             return res.status(200).json({
                 success: true,
                 reward: milestone.reward,
+                tournamentPoints,
                 message: `Claimed ${milestone.reward} points for ${milestoneCount} referrals!`,
             })
         }

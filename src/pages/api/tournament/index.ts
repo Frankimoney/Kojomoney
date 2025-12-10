@@ -15,18 +15,29 @@ export const dynamic = 'force-dynamic'
 const TOURNAMENT_CONFIG = {
     name: 'Weekly Cup',
     duration: 7, // days
+    prizePool: 500000, // Total prize pool in points (₦500k equivalent)
     rewards: [
-        { rank: 1, points: 50000, tier: 'Champion' },
-        { rank: 2, points: 25000, tier: 'Champion' },
-        { rank: 3, points: 15000, tier: 'Champion' },
-        { rank: 4, points: 10000, tier: 'Gold' },
-        { rank: 5, points: 10000, tier: 'Gold' },
-        { rank: 6, points: 5000, tier: 'Gold' },
-        { rank: 7, points: 5000, tier: 'Gold' },
-        { rank: 8, points: 5000, tier: 'Gold' },
-        { rank: 9, points: 2500, tier: 'Silver' },
-        { rank: 10, points: 2500, tier: 'Silver' },
+        { rank: 1, points: 100000, nairaValue: 100000, tier: 'Champion', label: '1st Place' },
+        { rank: 2, points: 50000, nairaValue: 50000, tier: 'Champion', label: '2nd Place' },
+        { rank: 3, points: 30000, nairaValue: 30000, tier: 'Champion', label: '3rd Place' },
+        { rank: 4, points: 20000, nairaValue: 20000, tier: 'Gold', label: '4th Place' },
+        { rank: 5, points: 20000, nairaValue: 20000, tier: 'Gold', label: '5th Place' },
+        { rank: 6, points: 15000, nairaValue: 15000, tier: 'Gold', label: '6th Place' },
+        { rank: 7, points: 15000, nairaValue: 15000, tier: 'Gold', label: '7th Place' },
+        { rank: 8, points: 10000, nairaValue: 10000, tier: 'Gold', label: '8th Place' },
+        { rank: 9, points: 10000, nairaValue: 10000, tier: 'Silver', label: '9th Place' },
+        { rank: 10, points: 10000, nairaValue: 10000, tier: 'Silver', label: '10th Place' },
     ],
+    // Points earned towards tournament ranking per activity
+    pointsPerActivity: {
+        survey: 50,        // Completing a survey
+        offerwall: 30,     // Completing an offerwall offer
+        mission: 20,       // Completing a quick mission
+        referral: 100,     // Successful referral
+        trivia: 20,        // Daily trivia completion
+        newsRead: 5,       // Reading a news story
+        adWatch: 10,       // Watching an ad
+    },
     tiers: {
         Platinum: { minRank: 1, maxRank: 3, color: '#E5E4E2' },
         Gold: { minRank: 4, maxRank: 10, color: '#FFD700' },
@@ -163,6 +174,8 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
             myEntry,
             myRank,
             rewards: TOURNAMENT_CONFIG.rewards,
+            prizePool: TOURNAMENT_CONFIG.prizePool,
+            pointsPerActivity: TOURNAMENT_CONFIG.pointsPerActivity,
             tiers: TOURNAMENT_CONFIG.tiers,
             pendingReward: await checkPendingReward(userId as string, weekKey)
         })

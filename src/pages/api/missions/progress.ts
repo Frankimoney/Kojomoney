@@ -7,10 +7,21 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { db } from '@/lib/firebase-admin'
 import { MissionProgress } from '@/lib/db-schema'
+import { allowCors } from '@/lib/cors'
 
 export const dynamic = 'force-dynamic'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+// Tournament points for missions
+const TOURNAMENT_POINTS_PER_MISSION = 20
+
+function getCurrentWeekKey(): string {
+    const now = new Date()
+    const startOfYear = new Date(now.getFullYear(), 0, 1)
+    const weekNumber = Math.ceil(((now.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7)
+    return `${now.getFullYear()}-W${weekNumber.toString().padStart(2, '0')}`
+}
+
+async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' })
     }
@@ -104,10 +115,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
             case 'complete':
                 // Mark mission as completed and credit points
+                const now = Date.now()
                 await progressDoc.update({
                     status: 'completed',
-                    completedAt: Date.now(),
-                    creditedAt: Date.now(),
+                    completedAt: now,
+                    creditedAt: now,
                 })
 
                 // Credit user's points
@@ -115,13 +127,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 const userDoc = await userRef.get()
 
                 if (userDoc.exists) {
-                    const currentPoints = userDoc.data()?.points || 0
-                    const totalEarnings = userDoc.data()?.totalEarnings || 0
+                    const userData = userDoc.data()!
+                    const currentPoints = userData.points || 0
+                    const totalEarnings = userData.totalEarnings || 0
 
                     await userRef.update({
                         points: currentPoints + mission.payout,
+                        totalPoints: (userData.totalPoints || 0) + mission.payout,
                         totalEarnings: totalEarnings + mission.payout,
-                        updatedAt: Date.now(),
+                        updatedAt: now,
                     })
 
                     // Create transaction record
@@ -136,14 +150,42 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                             missionTitle: mission.title,
                             missionType: mission.type,
                         },
-                        createdAt: Date.now(),
+                        createdAt: now,
                     })
+
+                    // Add tournament points for mission completion
+                    const weekKey = getCurrentWeekKey()
+                    const entrySnapshot = await db.collection('tournament_entries')
+                        .where('weekKey', '==', weekKey)
+                        .where('userId', '==', userId)
+                        .limit(1)
+                        .get()
+
+                    if (!entrySnapshot.empty) {
+                        const entryDoc = entrySnapshot.docs[0]
+                        await entryDoc.ref.update({
+                            points: (entryDoc.data().points || 0) + TOURNAMENT_POINTS_PER_MISSION,
+                            lastUpdated: now,
+                        })
+                    } else {
+                        // Auto-join tournament
+                        await db.collection('tournament_entries').add({
+                            weekKey,
+                            userId,
+                            name: userData.name || userData.username || 'Anonymous',
+                            avatar: userData.avatarUrl || '',
+                            points: TOURNAMENT_POINTS_PER_MISSION,
+                            joinedAt: now,
+                            lastUpdated: now,
+                        })
+                    }
 
                     // Dispatch points earned event for client-side handling
                     return res.status(200).json({
                         success: true,
                         status: 'completed',
                         pointsEarned: mission.payout,
+                        tournamentPoints: TOURNAMENT_POINTS_PER_MISSION,
                         newBalance: currentPoints + mission.payout,
                     })
                 }
@@ -165,3 +207,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({ error: 'Failed to update progress' })
     }
 }
+
+export default allowCors(handler)

@@ -35,6 +35,8 @@ export default function TournamentSystem({ userId, onClose }: TournamentSystemPr
     const [myRank, setMyRank] = useState<number | null>(null)
     const [rewards, setRewards] = useState<any[]>([])
     const [pendingReward, setPendingReward] = useState<any>(null)
+    const [prizePool, setPrizePool] = useState(0)
+    const [pointsPerActivity, setPointsPerActivity] = useState<Record<string, number>>({})
 
 
     useEffect(() => {
@@ -72,6 +74,8 @@ export default function TournamentSystem({ userId, onClose }: TournamentSystemPr
                 setMyRank(response.myRank)
                 setRewards(response.rewards || [])
                 setPendingReward(response.pendingReward)
+                setPrizePool(response.prizePool || 0)
+                setPointsPerActivity(response.pointsPerActivity || {})
             }
         } catch (error) {
             console.error('Error loading tournament:', error)
@@ -208,7 +212,7 @@ export default function TournamentSystem({ userId, onClose }: TournamentSystemPr
                             <Gift className="h-8 w-8 text-yellow-600" />
                             <div>
                                 <p className="text-[10px] text-yellow-800 dark:text-yellow-200 uppercase font-bold">Prize Pool</p>
-                                <p className="font-bold text-yellow-700 dark:text-yellow-400 text-sm">₦500k</p>
+                                <p className="font-bold text-yellow-700 dark:text-yellow-400 text-sm">₦{(prizePool / 1000).toFixed(0)}k</p>
                             </div>
                         </CardContent>
                     </Card>
@@ -289,7 +293,7 @@ export default function TournamentSystem({ userId, onClose }: TournamentSystemPr
 
             {/* RULES MODAL */}
             <Dialog open={showRules} onOpenChange={setShowRules}>
-                <DialogContent>
+                <DialogContent className="max-h-[80vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>🏆 How to Win</DialogTitle>
                         <DialogDescription>
@@ -298,43 +302,65 @@ export default function TournamentSystem({ userId, onClose }: TournamentSystemPr
                     </DialogHeader>
                     <div className="space-y-4 pt-2">
                         <div className="space-y-2">
-                            <h4 className="font-semibold text-sm">Point System:</h4>
+                            <h4 className="font-semibold text-sm">Earn Tournament Points:</h4>
                             <div className="grid grid-cols-2 gap-2 text-sm">
                                 <div className="bg-muted p-2 rounded flex justify-between">
-                                    <span>Survey</span>
-                                    <span className="font-bold text-green-600">+500 pts</span>
-                                </div>
-                                <div className="bg-muted p-2 rounded flex justify-between">
                                     <span>Referral</span>
-                                    <span className="font-bold text-green-600">+100 pts</span>
+                                    <span className="font-bold text-green-600">+{pointsPerActivity.referral || 100} pts</span>
                                 </div>
                                 <div className="bg-muted p-2 rounded flex justify-between">
-                                    <span>Challenge</span>
-                                    <span className="font-bold text-green-600">+50 pts</span>
+                                    <span>Survey</span>
+                                    <span className="font-bold text-green-600">+{pointsPerActivity.survey || 50} pts</span>
+                                </div>
+                                <div className="bg-muted p-2 rounded flex justify-between">
+                                    <span>Offerwall</span>
+                                    <span className="font-bold text-green-600">+{pointsPerActivity.offerwall || 30} pts</span>
+                                </div>
+                                <div className="bg-muted p-2 rounded flex justify-between">
+                                    <span>Mission</span>
+                                    <span className="font-bold text-green-600">+{pointsPerActivity.mission || 20} pts</span>
+                                </div>
+                                <div className="bg-muted p-2 rounded flex justify-between">
+                                    <span>Trivia</span>
+                                    <span className="font-bold text-green-600">+{pointsPerActivity.trivia || 20} pts</span>
                                 </div>
                                 <div className="bg-muted p-2 rounded flex justify-between">
                                     <span>Ad Watch</span>
-                                    <span className="font-bold text-green-600">+10 pts</span>
+                                    <span className="font-bold text-green-600">+{pointsPerActivity.adWatch || 10} pts</span>
+                                </div>
+                                <div className="bg-muted p-2 rounded flex justify-between">
+                                    <span>News Read</span>
+                                    <span className="font-bold text-green-600">+{pointsPerActivity.newsRead || 5} pts</span>
                                 </div>
                             </div>
                         </div>
 
                         <div className="space-y-2">
                             <h4 className="font-semibold text-sm">Weekly Prizes:</h4>
-                            <div className="space-y-1 text-sm">
-                                <div className="flex justify-between items-center p-2 border rounded-lg bg-yellow-50 dark:bg-yellow-900/10 border-yellow-200 dark:border-yellow-800">
-                                    <span className="flex items-center gap-2"><Crown className="h-4 w-4 text-yellow-600" /> Rank 1</span>
-                                    <span className="font-bold">₦100,000</span>
-                                </div>
-                                <div className="flex justify-between items-center p-2 border rounded-lg">
-                                    <span className="flex items-center gap-2"><Medal className="h-4 w-4 text-gray-400" /> Rank 2-10</span>
-                                    <span className="font-bold">₦25,000</span>
-                                </div>
-                                <div className="flex justify-between items-center p-2 border rounded-lg">
-                                    <span className="flex items-center gap-2"><Star className="h-4 w-4 text-orange-400" /> Rank 11-100</span>
-                                    <span className="font-bold">₦5,000</span>
-                                </div>
+                            <div className="space-y-1 text-sm max-h-48 overflow-y-auto">
+                                {rewards.slice(0, 3).map((reward, index) => (
+                                    <div key={index} className="flex justify-between items-center p-2 border rounded-lg bg-yellow-50 dark:bg-yellow-900/10 border-yellow-200 dark:border-yellow-800">
+                                        <span className="flex items-center gap-2">
+                                            {index === 0 && <Crown className="h-4 w-4 text-yellow-600" />}
+                                            {index === 1 && <Medal className="h-4 w-4 text-gray-400" />}
+                                            {index === 2 && <Medal className="h-4 w-4 text-orange-400" />}
+                                            {reward.label || `Rank ${reward.rank}`}
+                                        </span>
+                                        <span className="font-bold">₦{(reward.nairaValue || reward.points).toLocaleString()}</span>
+                                    </div>
+                                ))}
+                                {rewards.length > 3 && (
+                                    <div className="flex justify-between items-center p-2 border rounded-lg">
+                                        <span className="flex items-center gap-2"><Star className="h-4 w-4 text-indigo-500" /> Rank 4-10</span>
+                                        <span className="font-bold">₦{(rewards[3]?.nairaValue || rewards[3]?.points || 10000).toLocaleString()}+</span>
+                                    </div>
+                                )}
                             </div>
+                        </div>
+
+                        <div className="bg-indigo-50 dark:bg-indigo-900/20 p-3 rounded-lg text-sm">
+                            <p className="font-medium text-indigo-700 dark:text-indigo-300">💡 Pro Tip</p>
+                            <p className="text-indigo-600 dark:text-indigo-400 text-xs mt-1">Referrals and surveys give the highest tournament points. Complete daily activities to climb the leaderboard!</p>
                         </div>
                     </div>
                 </DialogContent>
