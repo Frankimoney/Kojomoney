@@ -5,12 +5,21 @@
 
 const getApiBase = (): string => {
   if (typeof window === 'undefined') {
-    // Server-side: use Render backend
-    return 'https://kojomoney-app.onrender.com'
+    // Server-side: use relative path (same origin)
+    return ''
   }
 
-  // Always use Render backend for all environments
-  // (CORS is now configured on the backend)
+  // Check if running locally (development mode)
+  const isLocalhost = window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1'
+
+  // For local development, use relative paths (same origin)
+  // For production/mobile apps, use Render backend
+  if (isLocalhost) {
+    return '' // Uses same origin (localhost:3000)
+  }
+
+  // Production/mobile: use Render backend
   return 'https://kojomoney-app.onrender.com'
 }
 

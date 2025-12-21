@@ -280,6 +280,40 @@ function parseProviderCallback(provider: OfferProvider, rawPayload: any): Callba
                     signature: rawPayload.hash || rawPayload.signature || rawPayload.sig,
                 }
 
+            case 'Kiwiwall':
+                // Kiwiwall callback format
+                // Documentation: https://kiwiwall.com/publishers/postback-integration
+                // 
+                // Parameters:
+                // - status: 1 = success, 2 = reversal/chargeback
+                // - trans_id: Unique transaction ID from Kiwiwall
+                // - sub_id: Your user ID (passed when opening the offerwall)
+                // - sub_id_2 to sub_id_5: Additional tracking parameters (optional)
+                // - amount: Points/payout amount
+                // - gross: Gross payout in dollars (optional)
+                // - offer_id: Kiwiwall's offer ID
+                // - offer_name: Name of the offer completed
+                // - category: Offer category (Offer, Mobile, CC, Video)
+                // - os: Operating system (android/ios)
+                // - ip_address: User's IP address
+                // - signature: MD5(sub_id:amount:secret_key)
+                //
+                // IP Whitelist: 34.193.235.172
+                //
+                // Example postback URL to set in Kiwiwall dashboard:
+                // https://your-domain.com/api/offers/callback?provider=Kiwiwall&status={status}&trans_id={trans_id}&sub_id={sub_id}&amount={amount}&offer_id={offer_id}&offer_name={offer_name}&signature={signature}&ip_address={ip_address}
+                return {
+                    provider,
+                    trackingId: rawPayload.trans_id || rawPayload.transid || rawPayload.tid,
+                    userId: rawPayload.sub_id || rawPayload.subid || rawPayload.uid || rawPayload.user_id,
+                    offerId: rawPayload.offer_id || rawPayload.offerid,
+                    transactionId: rawPayload.trans_id || rawPayload.transid || Date.now().toString(),
+                    payout: parseInt(rawPayload.amount) || parseInt(rawPayload.payout) || parseInt(rawPayload.points) || 0,
+                    // Kiwiwall status: 1 = success, 2 = reversal
+                    status: rawPayload.status === '2' || rawPayload.status === 2 || rawPayload.status === 'reversed' ? 'reversed' : 'completed',
+                    signature: rawPayload.signature || rawPayload.sig,
+                }
+
             case 'CPX':
             case 'TheoremReach':
             case 'BitLabs':

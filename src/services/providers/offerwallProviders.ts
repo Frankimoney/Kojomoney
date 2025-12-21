@@ -244,6 +244,127 @@ export class CPXResearchProvider implements IOfferwallProvider {
 
 
 // =============================================================================
+// Kiwiwall Integration
+// =============================================================================
+
+/**
+ * Kiwiwall Offerwall Provider
+ * Documentation: https://kiwiwall.com/publishers/postback-integration
+ * 
+ * Required Environment Variables:
+ * - KIWIWALL_APP_ID: Your app ID from Kiwiwall dashboard
+ * - KIWIWALL_SECRET_KEY: Your secret key for signature verification
+ * 
+ * IP Whitelist: 34.193.235.172 (must be whitelisted for postbacks)
+ * 
+ * Postback URL Format:
+ * https://your-domain.com/api/offers/callback?
+ *   provider=Kiwiwall&
+ *   status={status}&
+ *   trans_id={trans_id}&
+ *   sub_id={sub_id}&
+ *   amount={amount}&
+ *   offer_id={offer_id}&
+ *   offer_name={offer_name}&
+ *   signature={signature}&
+ *   ip_address={ip_address}
+ * 
+ * Signature Verification: MD5(sub_id:amount:secret_key)
+ */
+export class KiwiwallProvider implements IOfferwallProvider {
+    readonly name: OfferProvider = 'Kiwiwall'
+    private appId: string = ''
+    private secretKey: string = ''
+    private isInitialized: boolean = false
+
+    // Kiwiwall's IP address for postback validation
+    static readonly KIWIWALL_IP = '34.193.235.172'
+
+    async initialize(config: ProviderInitConfig): Promise<void> {
+        this.appId = config.appId || process.env.KIWIWALL_APP_ID || ''
+        this.secretKey = config.apiSecret || process.env.KIWIWALL_SECRET_KEY || ''
+
+        if (!this.appId) {
+            throw new Error('Kiwiwall: Missing App ID')
+        }
+
+        this.isInitialized = true
+        console.log('Kiwiwall provider initialized')
+    }
+
+    async fetchOffers(userId: string, options?: ProviderFetchOptions): Promise<Offer[]> {
+        if (!this.isInitialized) {
+            throw new Error('Kiwiwall provider not initialized')
+        }
+
+        // Kiwiwall typically uses iframe/webview for displaying offers
+        // Server-side offer fetching may require additional API access
+        // For now, return empty - offers are shown via iframe
+        console.log('Kiwiwall offers are shown via iframe/webview')
+        return []
+    }
+
+    getTrackingUrl(offerId: string, userId: string): string {
+        // Kiwiwall wall URL with user tracking
+        // The sub_id parameter is used to track your users
+        const params = new URLSearchParams({
+            app_id: this.appId,
+            sub_id: userId,
+            // Optional: sub_id_2 through sub_id_5 for additional tracking
+        })
+        return `https://www.kiwiwall.com/wall/${this.appId}?${params.toString()}`
+    }
+
+    /**
+     * Validate Kiwiwall postback signature
+     * Signature = MD5(sub_id:amount:secret_key)
+     */
+    validateCallback(payload: any, signature?: string): boolean {
+        if (!this.secretKey) {
+            console.warn('Kiwiwall: No secret key configured, skipping signature validation')
+            return true
+        }
+
+        const subId = payload.sub_id || payload.uid || ''
+        const amount = payload.amount || payload.payout || ''
+
+        // Create expected signature: MD5(sub_id:amount:secret_key)
+        const crypto = require('crypto')
+        const expectedSignature = crypto
+            .createHash('md5')
+            .update(`${subId}:${amount}:${this.secretKey}`)
+            .digest('hex')
+
+        const providedSignature = signature || payload.signature || ''
+
+        if (expectedSignature !== providedSignature) {
+            console.error('Kiwiwall signature mismatch:', {
+                expected: expectedSignature,
+                received: providedSignature
+            })
+            return false
+        }
+
+        return true
+    }
+
+    /**
+     * Validate that the request comes from Kiwiwall's IP
+     */
+    static validateIP(requestIP: string): boolean {
+        // Handle forwarded IPs (common with proxies/load balancers)
+        const cleanIP = requestIP.split(',')[0].trim()
+        return cleanIP === KiwiwallProvider.KIWIWALL_IP
+    }
+
+    isAvailable(country: string): boolean {
+        // Kiwiwall is available globally
+        return true
+    }
+}
+
+
+// =============================================================================
 // Provider Factory
 // =============================================================================
 
@@ -265,6 +386,9 @@ export async function createProvider(
             break
         case 'CPX':
             provider = new CPXResearchProvider()
+            break
+        case 'Kiwiwall':
+            provider = new KiwiwallProvider()
             break
         default:
             throw new Error(`Unknown provider: ${providerName}`)

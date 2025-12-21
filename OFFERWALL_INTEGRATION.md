@@ -169,6 +169,7 @@ https://your-domain.com/api/offers/callback?provider=NewProvider&tid={TRACKING_I
 | Pollfish | Template Ready | Surveys |
 | TheoremReach | Template Ready | Surveys |
 | BitLabs | Template Ready | Surveys |
+| Kiwiwall | **Fully Integrated** | Surveys & Offers with global reach |
 
 ## Affiliate Compliance
 
@@ -254,3 +255,92 @@ CPX_APP_ID=
 2. **Provider Integration**: Complete SDK integration for one provider
 3. **Real Postbacks**: Set up and test real callback handling
 4. **Analytics**: Add dashboards for conversion tracking
+
+---
+
+## Kiwiwall Integration Guide
+
+Kiwiwall is a global offerwall provider with a good mix of surveys and offers. Here's how to set it up:
+
+### Step 1: Create Kiwiwall Account
+
+1. Go to [https://kiwiwall.com/publishers](https://kiwiwall.com/publishers)
+2. Sign up for a publisher account
+3. Create a new app/placement in your dashboard
+4. Note your **App ID** and **Secret Key**
+
+### Step 2: Configure Environment Variables
+
+Add these to your `.env.local` and `.env.production` files:
+
+```env
+KIWIWALL_APP_ID=your-app-id
+KIWIWALL_SECRET_KEY=your-secret-key
+```
+
+### Step 3: Configure Postback URL in Kiwiwall Dashboard
+
+In your Kiwiwall publisher dashboard, set the postback URL to:
+
+```
+https://your-domain.com/api/offers/callback?provider=Kiwiwall&status={status}&trans_id={trans_id}&sub_id={sub_id}&amount={amount}&offer_id={offer_id}&offer_name={offer_name}&signature={signature}&ip_address={ip_address}
+```
+
+**Available Parameters:**
+| Parameter | Description |
+|-----------|-------------|
+| `{status}` | 1 = success, 2 = reversal/chargeback |
+| `{trans_id}` | Unique transaction ID |
+| `{sub_id}` | Your user ID (passed when opening offerwall) |
+| `{sub_id_2}` - `{sub_id_5}` | Additional tracking parameters |
+| `{amount}` | Points/payout in your configured rate |
+| `{gross}` | Gross payout in dollars |
+| `{offer_id}` | Kiwiwall's offer ID |
+| `{offer_name}` | Name of completed offer |
+| `{category}` | Category (Offer, Mobile, CC, Video) |
+| `{os}` | Operating system (android/ios) |
+| `{signature}` | MD5 hash for verification |
+| `{ip_address}` | User's IP address |
+
+### Step 4: Whitelist Kiwiwall's IP
+
+Kiwiwall sends postbacks from a single IP address. For security, you should whitelist:
+
+```
+34.193.235.172
+```
+
+### Step 5: Signature Verification
+
+Kiwiwall signs all postbacks using MD5:
+
+```
+signature = MD5(sub_id:amount:secret_key)
+```
+
+The integration automatically validates this signature using your `KIWIWALL_SECRET_KEY`.
+
+### Step 6: Display the Offerwall
+
+Use the Kiwiwall wall URL in your frontend:
+
+```typescript
+const kiwiwallUrl = `https://www.kiwiwall.com/wall/${KIWIWALL_APP_ID}?sub_id=${userId}`
+```
+
+Or use the provider helper:
+
+```typescript
+import { KiwiwallProvider } from '@/services/providers/offerwallProviders'
+
+const kiwiwall = new KiwiwallProvider()
+await kiwiwall.initialize({ appId: process.env.KIWIWALL_APP_ID })
+const url = kiwiwall.getTrackingUrl('', userId)
+```
+
+### Testing Your Integration
+
+1. Open your offerwall with a test user ID
+2. Complete a test offer (Kiwiwall provides test offers in sandbox mode)
+3. Check your server logs for the postback
+4. Verify the user's points were credited in Firestore

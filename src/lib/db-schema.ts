@@ -48,6 +48,7 @@ export type OfferProvider =
     | 'Wannads'    // Good African market coverage
     | 'Adgate'     // Adgate Media - works in Africa
     | 'Monlix'     // Global including Africa
+    | 'Kiwiwall'   // Global offerwall with good survey/offer mix
     | 'Internal'   // For custom offers managed by admin
     | 'Other'
 
@@ -161,7 +162,7 @@ export interface Transaction {
     userId: string
     type: 'credit' | 'debit'
     amount: number
-    source: 'offerwall' | 'survey' | 'mission' | 'referral' | 'tournament' | 'daily_challenge' | 'ad_watch' | 'trivia' | 'bonus' | 'withdrawal'
+    source: 'offerwall' | 'survey' | 'mission' | 'referral' | 'tournament' | 'daily_challenge' | 'ad_watch' | 'trivia' | 'bonus' | 'withdrawal' | 'game' | 'admin_adjustment'
     sourceId?: string // Reference to specific offer, survey, etc.
     status: 'pending' | 'completed' | 'failed' | 'reversed'
     metadata?: Record<string, any>

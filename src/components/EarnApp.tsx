@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { Home, Coins, Wallet, User, Play, BookOpen, Brain, Clock, TrendingUp, Gift, Settings, Share2, Bell, Moon, LogOut, Users, Trophy, Medal, ArrowLeft, FileText } from 'lucide-react'
+import { Home, Coins, Wallet, User, Play, BookOpen, Brain, Clock, TrendingUp, Gift, Settings, Share2, Bell, Moon, LogOut, Users, Trophy, Medal, ArrowLeft, FileText, Gamepad2 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { useTheme } from 'next-themes'
 import { Toaster } from '@/components/ui/toaster'
@@ -106,6 +106,13 @@ const LegalPages = dynamic(() => import('./LegalPages'), {
     ssr: false,
     loading: () => <div>Loading legal pages...</div>
 })
+
+// Dynamically import GameRewardSystem
+const GameRewardSystem = dynamic(() => import('./GameRewardSystem'), {
+    ssr: false,
+    loading: () => <div>Loading games...</div>
+})
+
 
 // Dedicated Page Components for focused activity experience
 interface DedicatedPageProps {
@@ -447,7 +454,8 @@ interface EarnTabProps {
 
 function EarnTab({ user, userPoints, setUserPoints, setActiveView }: EarnTabProps) {
     const [adCooldown, setAdCooldown] = useState(0)
-    const [view, setView] = useState<'list' | 'offerwall' | 'africa-offerwalls' | 'surveys' | 'missions' | 'referrals' | 'challenges' | 'tournament'>('list')
+    const [view, setView] = useState<'list' | 'offerwall' | 'africa-offerwalls' | 'surveys' | 'missions' | 'referrals' | 'challenges' | 'tournament' | 'games'>('list')
+
 
     // Africa Offerwalls (Wannads, Adgate, Monlix) - PRIMARY offerwall option
     if (view === 'offerwall' || view === 'africa-offerwalls') {
@@ -473,6 +481,10 @@ function EarnTab({ user, userPoints, setUserPoints, setActiveView }: EarnTabProp
 
     if (view === 'tournament') {
         return <TournamentSystem userId={user?.id} onClose={() => setView('list')} />
+    }
+
+    if (view === 'games') {
+        return <GameRewardSystem userId={user?.id} onClose={() => setView('list')} />
     }
 
     return (
@@ -562,6 +574,28 @@ function EarnTab({ user, userPoints, setUserPoints, setActiveView }: EarnTabProp
                         </Button>
                         <p className="text-xs text-violet-100">
                             Earn ₦1,000 for every 10 invites
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-pink-500 to-rose-600 text-white border-none shadow-lg transform transition-all hover:scale-[1.02] cursor-pointer" onClick={() => setView('games')}>
+                    <CardHeader>
+                        <CardTitle className="flex items-center space-x-2">
+                            <Gamepad2 className="h-5 w-5 text-yellow-300" />
+                            <span>Play Games</span>
+                        </CardTitle>
+                        <CardDescription className="text-pink-100">Win up to 1000 pts</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <span>Skill & Quiz</span>
+                            <Badge variant="secondary" className="bg-white/20 hover:bg-white/30 text-white border-0">Fun</Badge>
+                        </div>
+                        <Button className="w-full bg-white text-pink-600 hover:bg-white/90">
+                            Play Now
+                        </Button>
+                        <p className="text-xs text-pink-100">
+                            Games, Quizzes & Playtime
                         </p>
                     </CardContent>
                 </Card>
