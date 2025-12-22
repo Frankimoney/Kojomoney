@@ -8,6 +8,7 @@
  */
 
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -24,13 +25,18 @@ import {
 } from 'lucide-react'
 import { apiCall } from '@/lib/api-client'
 
+// Lazy load MiniGamesSystem
+const MiniGamesSystem = dynamic(() => import('@/components/MiniGamesSystem'), {
+    loading: () => <div className="min-h-screen flex items-center justify-center">Loading...</div>
+})
+
 interface GameRewardSystemProps {
     userId?: string
     onClose?: () => void
 }
 
 interface GameProvider {
-    id: 'gamezop' | 'adjoe' | 'qureka'
+    id: 'mini-games' | 'gamezop' | 'adjoe' | 'qureka'
     name: string
     description: string
     color: string
@@ -43,8 +49,19 @@ interface GameProvider {
 export default function GameRewardSystem({ userId, onClose }: GameRewardSystemProps) {
     const [isLoading, setIsLoading] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
+    const [showMiniGames, setShowMiniGames] = useState(false)
 
     const providers: GameProvider[] = [
+        {
+            id: 'mini-games',
+            name: 'Practice Games',
+            description: 'Play fun mini-games and earn bonus points instantly!',
+            color: 'bg-amber-500',
+            icon: <Sparkles className="h-6 w-6 text-white" />,
+            features: ['Instant Play', 'No Install', 'Bonus Points'],
+            actionText: 'Play Now',
+            isNew: true
+        },
         {
             id: 'adjoe',
             name: 'Playtime Rewards',
@@ -53,7 +70,6 @@ export default function GameRewardSystem({ userId, onClose }: GameRewardSystemPr
             icon: <Clock className="h-6 w-6 text-white" />,
             features: ['Earn per minute', 'Huge variety', 'Auto-credit'],
             actionText: 'Start Playing',
-            isNew: true
         },
         {
             id: 'gamezop',
@@ -68,7 +84,7 @@ export default function GameRewardSystem({ userId, onClose }: GameRewardSystemPr
             id: 'qureka',
             name: 'Quiz & Trivia',
             description: 'Test your knowledge with fun quizzes and earn coins.',
-            color: 'bg-amber-500',
+            color: 'bg-purple-500',
             icon: <Trophy className="h-6 w-6 text-white" />,
             features: ['Live Quizzes', 'Cricket Trivia', 'Instant Rewards'],
             actionText: 'Start Quiz'
@@ -77,6 +93,12 @@ export default function GameRewardSystem({ userId, onClose }: GameRewardSystemPr
 
     const handleLaunchGame = async (providerId: string, gameId: string = 'default') => {
         if (!userId) return
+
+        // Handle mini-games separately - show embedded component
+        if (providerId === 'mini-games') {
+            setShowMiniGames(true)
+            return
+        }
 
         setIsLoading(providerId)
         setError(null)
@@ -130,6 +152,16 @@ export default function GameRewardSystem({ userId, onClose }: GameRewardSystemPr
         } finally {
             setIsLoading(null)
         }
+    }
+
+    // Show Mini Games System when selected
+    if (showMiniGames) {
+        return (
+            <MiniGamesSystem
+                userId={userId}
+                onClose={() => setShowMiniGames(false)}
+            />
+        )
     }
 
     return (

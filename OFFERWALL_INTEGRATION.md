@@ -480,16 +480,18 @@ Timewall.io offers micro-tasks, pay-to-click offers, and survey offerwalls. Here
 
 1. Go to [https://timewall.io](https://timewall.io)
 2. Sign up for a publisher account
-3. Create a new offerwall placement in your dashboard
-4. Note your **Placement ID** and **Secret Key**
+3. Create a new offerwall site in your dashboard
+4. Note your **Site ID** and **Secret Key**
 
 ### Step 2: Configure Environment Variables
 
 Add these to your `.env.local` and `.env.production` files:
 
 ```env
-TIMEWALL_PLACEMENT_ID=your-placement-id
+TIMEWALL_SITE_ID=your-site-id
 TIMEWALL_SECRET_KEY=your-secret-key
+# Public site ID for frontend iFrame
+NEXT_PUBLIC_TIMEWALL_SITE_ID=your-site-id
 ```
 
 ### Step 3: Configure Postback URL in Timewall Dashboard

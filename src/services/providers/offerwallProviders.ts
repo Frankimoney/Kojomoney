@@ -325,7 +325,7 @@ export class CPXResearchProvider implements IOfferwallProvider {
  * Timewall offers micro-tasks, pay-to-click offers, and survey offerwalls.
  * 
  * Required Environment Variables:
- * - TIMEWALL_PLACEMENT_ID: Your placement/app ID from Timewall dashboard
+ * - TIMEWALL_SITE_ID: Your site ID from Timewall dashboard
  * - TIMEWALL_SECRET_KEY: Your secret key for hash validation
  * 
  * Postback URL Format (set in Timewall dashboard):
@@ -346,16 +346,16 @@ export class CPXResearchProvider implements IOfferwallProvider {
  */
 export class TimewallProvider implements IOfferwallProvider {
     readonly name: OfferProvider = 'Timewall'
-    private placementId: string = ''
+    private siteId: string = ''
     private secretKey: string = ''
     private isInitialized: boolean = false
 
     async initialize(config: ProviderInitConfig): Promise<void> {
-        this.placementId = config.appId || process.env.TIMEWALL_PLACEMENT_ID || ''
+        this.siteId = config.appId || process.env.TIMEWALL_SITE_ID || ''
         this.secretKey = config.apiSecret || process.env.TIMEWALL_SECRET_KEY || ''
 
-        if (!this.placementId) {
-            throw new Error('Timewall: Missing Placement ID')
+        if (!this.siteId) {
+            throw new Error('Timewall: Missing Site ID')
         }
 
         this.isInitialized = true
@@ -377,7 +377,7 @@ export class TimewallProvider implements IOfferwallProvider {
         // Timewall offerwall URL with user tracking
         // Note: Exact URL format should be verified in your Timewall dashboard
         const params = new URLSearchParams({
-            placement_id: this.placementId,
+            site_id: this.siteId,
             user_id: userId,
         })
         return `https://timewall.io/offerwall?${params.toString()}`

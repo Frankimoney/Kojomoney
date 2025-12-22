@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { DollarSign, Clock, Star, Zap, ChevronRight, X, ExternalLink, Filter, Trophy, ArrowLeft, Globe, Lock, RefreshCw, Gamepad2, ClipboardList, ShoppingCart, Wallet, PlayCircle, Download, Share2 } from 'lucide-react'
+import { DollarSign, Clock, Star, Zap, ChevronRight, X, ExternalLink, Filter, Trophy, ArrowLeft, Globe, Lock, RefreshCw, Gamepad2, ClipboardList, ShoppingCart, Wallet, PlayCircle, Download, Share2, Sparkles, AlertCircle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Offer, OfferCategory } from '@/lib/db-schema'
 import { fetchOffers, startOffer, getOfferStats, getDifficultyColor, OfferFilters, OfferStats } from '@/services/offerwallService'
@@ -17,7 +18,26 @@ interface OfferwallSystemProps {
     onClose?: () => void
 }
 
+// External provider configuration
+const EXTERNAL_PROVIDERS = {
+    kiwiwall: {
+        name: 'Kiwiwall',
+        description: 'Games, Apps & Offers',
+        color: 'from-green-500 to-emerald-600',
+        appId: process.env.NEXT_PUBLIC_KIWIWALL_APP_ID || 'wx1ott1hqeh4em25n4bfkd03roptngq7',
+        getUrl: (userId: string) => `https://www.kiwiwall.com/wall/${process.env.NEXT_PUBLIC_KIWIWALL_APP_ID || 'wx1ott1hqeh4em25n4bfkd03roptngq7'}/${userId}`,
+    },
+    timewall: {
+        name: 'Timewall',
+        description: 'Micro-tasks & Surveys',
+        color: 'from-blue-500 to-indigo-600',
+        siteId: process.env.NEXT_PUBLIC_TIMEWALL_SITE_ID || '',
+        getUrl: (userId: string) => `https://timewall.io/offerwall?site_id=${process.env.NEXT_PUBLIC_TIMEWALL_SITE_ID || ''}&user_id=${userId}`,
+    },
+}
+
 export default function OfferwallSystem({ userId, onClose }: OfferwallSystemProps) {
+    const [activeTab, setActiveTab] = useState<'internal' | 'kiwiwall' | 'timewall'>('kiwiwall')
     const [tasks, setTasks] = useState<Offer[]>([])
     const [filter, setFilter] = useState('All')
     const [selectedTask, setSelectedTask] = useState<Offer | null>(null)
@@ -26,6 +46,7 @@ export default function OfferwallSystem({ userId, onClose }: OfferwallSystemProp
     const [isLoading, setIsLoading] = useState(true)
     const [isStarting, setIsStarting] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [externalWallLoading, setExternalWallLoading] = useState(true)
     const [stats, setStats] = useState<OfferStats>({
         todayEarnings: 0,
         todayGoal: 500,
@@ -129,6 +150,14 @@ export default function OfferwallSystem({ userId, onClose }: OfferwallSystemProp
         }
     }
 
+    const getExternalWallUrl = (provider: 'kiwiwall' | 'timewall') => {
+        const uid = userId || 'anonymous'
+        if (provider === 'kiwiwall') {
+            return EXTERNAL_PROVIDERS.kiwiwall.getUrl(uid)
+        }
+        return EXTERNAL_PROVIDERS.timewall.getUrl(uid)
+    }
+
     return (
         <div className="min-h-screen bg-gray-50/50 dark:bg-gray-900/50 pb-20 relative overflow-hidden">
             {/* IN-APP BROWSER OVERLAY */}
@@ -206,211 +235,275 @@ export default function OfferwallSystem({ userId, onClose }: OfferwallSystemProp
             </AlertDialog>
 
 
-            <div className="p-4 space-y-6 max-w-md mx-auto">
-                {/* Header / Banner */}
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                            {onClose && (
-                                <Button size="icon" variant="ghost" onClick={onClose} className="h-8 w-8 -ml-2">
-                                    <ArrowLeft className="h-5 w-5" />
-                                </Button>
-                            )}
-                            <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-500 bg-clip-text text-transparent">
-                                Offerwall
-                            </h2>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => loadOffers()}
-                                disabled={isLoading}
-                                className="h-8 w-8"
-                            >
-                                <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <div className="p-4 space-y-4 max-w-md mx-auto">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                        {onClose && (
+                            <Button size="icon" variant="ghost" onClick={onClose} className="h-8 w-8 -ml-2">
+                                <ArrowLeft className="h-5 w-5" />
                             </Button>
-                            <Badge variant="outline" className="text-xs">
-                                <Zap className="h-3 w-3 mr-1 fill-yellow-400 text-yellow-500" />
-                                2x Bonus Active
-                            </Badge>
-                        </div>
+                        )}
+                        <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-500 bg-clip-text text-transparent">
+                            Offerwall
+                        </h2>
                     </div>
-
-                    <Card className="bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 border-none text-white shadow-lg overflow-hidden relative">
-                        <div className="absolute top-0 right-0 p-4 opacity-10">
-                            <Trophy className="h-24 w-24" />
-                        </div>
-                        <CardContent className="p-5">
-                            <h3 className="font-bold text-lg mb-1">How it works</h3>
-                            <p className="text-indigo-100 text-sm mb-4">
-                                Complete simple tasks like playing games or surveys to earn massive points.
-                            </p>
-                            <div className="flex items-center gap-2 text-xs font-medium text-pink-100 bg-white/10 p-2 rounded-lg w-fit backdrop-blur-sm">
-                                <Clock className="h-3 w-3" />
-                                Average payout time: 24h
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <Badge variant="outline" className="text-xs">
+                        <Zap className="h-3 w-3 mr-1 fill-yellow-400 text-yellow-500" />
+                        2x Bonus Active
+                    </Badge>
                 </div>
 
-                {/* Floating Earnings Progress */}
-                <div className="sticky top-2 z-10">
-                    <Card className="shadow-md bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm border-indigo-100 dark:border-indigo-900">
-                        <CardContent className="p-3">
-                            <div className="flex justify-between items-end mb-2">
-                                <div>
-                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Today's Earnings</p>
-                                    <p className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
-                                        {stats.todayEarnings} <span className="text-sm font-normal text-muted-foreground">/ {stats.todayGoal} pts</span>
+                {/* Earnings Progress */}
+                <Card className="shadow-md bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm border-indigo-100 dark:border-indigo-900">
+                    <CardContent className="p-3">
+                        <div className="flex justify-between items-end mb-2">
+                            <div>
+                                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Today's Earnings</p>
+                                <p className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
+                                    {stats.todayEarnings} <span className="text-sm font-normal text-muted-foreground">/ {stats.todayGoal} pts</span>
+                                </p>
+                            </div>
+                            <div className="text-right">
+                                {stats.pendingPayouts > 0 && (
+                                    <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                                        +{stats.pendingPayouts} pending
                                     </p>
-                                </div>
-                                <div className="text-right">
-                                    {stats.pendingPayouts > 0 && (
-                                        <p className="text-xs text-yellow-600 dark:text-yellow-400">
-                                            +{stats.pendingPayouts} pending
-                                        </p>
-                                    )}
-                                    <Trophy className={`h-6 w-6 ${stats.todayEarnings >= stats.todayGoal ? 'text-yellow-500' : 'text-muted-foreground/30'}`} />
-                                </div>
+                                )}
+                                <Trophy className={`h-6 w-6 ${stats.todayEarnings >= stats.todayGoal ? 'text-yellow-500' : 'text-muted-foreground/30'}`} />
                             </div>
-                            <Progress
-                                value={(stats.todayEarnings / stats.todayGoal) * 100}
-                                className="h-2 bg-indigo-100 dark:bg-indigo-950 [&>div]:bg-gradient-to-r [&>div]:from-indigo-500 [&>div]:to-purple-500"
-                            />
-                        </CardContent>
-                    </Card>
-                </div>
+                        </div>
+                        <Progress
+                            value={(stats.todayEarnings / stats.todayGoal) * 100}
+                            className="h-2 bg-indigo-100 dark:bg-indigo-950 [&>div]:bg-gradient-to-r [&>div]:from-indigo-500 [&>div]:to-purple-500"
+                        />
+                    </CardContent>
+                </Card>
 
-                {/* Error Message */}
-                {error && (
-                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-sm text-red-600 dark:text-red-400">
-                        {error}
-                        <Button
-                            variant="link"
-                            size="sm"
-                            onClick={() => loadOffers()}
-                            className="text-red-600 dark:text-red-400 p-0 h-auto ml-2"
-                        >
-                            Try again
-                        </Button>
-                    </div>
-                )}
+                {/* Provider Tabs */}
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="w-full">
+                    <TabsList className="w-full grid grid-cols-3 h-12 bg-muted/50">
+                        <TabsTrigger value="kiwiwall" className="text-xs sm:text-sm data-[state=active]:bg-green-500 data-[state=active]:text-white">
+                            <Sparkles className="h-3 w-3 mr-1" />
+                            Kiwiwall
+                        </TabsTrigger>
+                        <TabsTrigger value="timewall" className="text-xs sm:text-sm data-[state=active]:bg-blue-500 data-[state=active]:text-white">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Timewall
+                        </TabsTrigger>
+                        <TabsTrigger value="internal" className="text-xs sm:text-sm data-[state=active]:bg-indigo-500 data-[state=active]:text-white">
+                            <Star className="h-3 w-3 mr-1" />
+                            Featured
+                        </TabsTrigger>
+                    </TabsList>
 
-                {/* Filters */}
-                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
-                    {['All', 'High Paying', 'Easy', 'New'].map((f) => (
-                        <Button
-                            key={f}
-                            variant={filter === f ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => handleFilterChange(f)}
-                            className={`rounded-full px-4 whitespace-nowrap ${filter === f ? 'bg-indigo-600 hover:bg-indigo-700' : ''}`}
-                        >
-                            {f === 'High Paying' && <DollarSign className="h-3 w-3 mr-1" />}
-                            {f === 'Easy' && <Star className="h-3 w-3 mr-1" />}
-                            {f === 'New' && <Zap className="h-3 w-3 mr-1" />}
-                            {f}
-                        </Button>
-                    ))}
-                </div>
-
-                {/* Task List */}
-                <div className="space-y-3 pb-8">
-                    {isLoading ? (
-                        // Loading skeletons
-                        [...Array(4)].map((_, i) => (
-                            <Card key={i} className="overflow-hidden">
-                                <CardContent className="p-0">
-                                    <div className="p-4 flex gap-4">
-                                        <Skeleton className="h-16 w-16 rounded-xl" />
-                                        <div className="flex-1 space-y-2">
-                                            <Skeleton className="h-5 w-3/4" />
-                                            <Skeleton className="h-4 w-full" />
-                                            <div className="flex gap-2">
-                                                <Skeleton className="h-4 w-16" />
-                                                <Skeleton className="h-4 w-20" />
-                                            </div>
-                                        </div>
+                    {/* Kiwiwall Tab */}
+                    <TabsContent value="kiwiwall" className="mt-4">
+                        <Card className="overflow-hidden border-green-200 dark:border-green-900">
+                            <CardHeader className="bg-gradient-to-r from-green-500 to-emerald-600 text-white p-4">
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <Sparkles className="h-5 w-5" />
+                                    Kiwiwall Offers
+                                </CardTitle>
+                                <CardDescription className="text-green-100">
+                                    Complete offers, install apps, and earn points automatically!
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                {!userId ? (
+                                    <div className="p-8 text-center">
+                                        <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                                        <p className="text-muted-foreground">Please log in to see offers</p>
                                     </div>
-                                </CardContent>
-                            </Card>
-                        ))
-                    ) : (
-                        tasks.map((task, idx) => (
-                            <motion.div
-                                key={task.id}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: idx * 0.05 }}
-                            >
-                                <Card
-                                    className="overflow-hidden cursor-pointer hover:shadow-md transition-all active:scale-[0.99] border-muted"
-                                    onClick={() => openTask(task)}
-                                >
-                                    <CardContent className="p-0">
-                                        <div className="p-4 flex gap-4">
-                                            <div className="h-16 w-16 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center flex-shrink-0">
-                                                {task.logoUrl ? (
-                                                    <img
-                                                        src={task.logoUrl}
-                                                        alt={task.title}
-                                                        className="h-10 w-10 object-contain rounded-md"
-                                                        onError={(e) => (e.target as any).style.display = 'none'}
-                                                    />
-                                                ) : (
-                                                    getCategoryIcon(task.category)
-                                                )}
+                                ) : (
+                                    <div className="relative w-full" style={{ height: '500px' }}>
+                                        {externalWallLoading && (
+                                            <div className="absolute inset-0 flex items-center justify-center bg-background">
+                                                <RefreshCw className="h-8 w-8 animate-spin text-green-500" />
                                             </div>
-                                            <div className="flex-1 space-y-1 min-w-0">
-                                                <div className="flex items-start justify-between">
-                                                    <h4 className="font-semibold text-base truncate pr-2">{task.title}</h4>
-                                                    <Badge variant="secondary" className="font-bold text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400 shrink-0">
-                                                        +{task.payout}
-                                                    </Badge>
+                                        )}
+                                        <iframe
+                                            src={getExternalWallUrl('kiwiwall')}
+                                            className="w-full h-full border-none"
+                                            title="Kiwiwall Offerwall"
+                                            onLoad={() => setExternalWallLoading(false)}
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                            sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-top-navigation"
+                                        />
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    {/* Timewall Tab */}
+                    <TabsContent value="timewall" className="mt-4">
+                        <Card className="overflow-hidden border-blue-200 dark:border-blue-900">
+                            <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white p-4">
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <Clock className="h-5 w-5" />
+                                    Timewall Tasks
+                                </CardTitle>
+                                <CardDescription className="text-blue-100">
+                                    Micro-tasks, surveys, and easy offers to earn points!
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                {!userId ? (
+                                    <div className="p-8 text-center">
+                                        <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                                        <p className="text-muted-foreground">Please log in to see offers</p>
+                                    </div>
+                                ) : !EXTERNAL_PROVIDERS.timewall.siteId ? (
+                                    <div className="p-8 text-center">
+                                        <AlertCircle className="h-12 w-12 mx-auto text-yellow-500 mb-3" />
+                                        <p className="text-muted-foreground">Timewall is being configured...</p>
+                                        <p className="text-xs text-muted-foreground mt-1">Check back soon!</p>
+                                    </div>
+                                ) : (
+                                    <div className="relative w-full" style={{ height: '500px' }}>
+                                        {externalWallLoading && (
+                                            <div className="absolute inset-0 flex items-center justify-center bg-background">
+                                                <RefreshCw className="h-8 w-8 animate-spin text-blue-500" />
+                                            </div>
+                                        )}
+                                        <iframe
+                                            src={getExternalWallUrl('timewall')}
+                                            className="w-full h-full border-none"
+                                            title="Timewall Offerwall"
+                                            onLoad={() => setExternalWallLoading(false)}
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                            sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-top-navigation"
+                                        />
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    {/* Internal/Featured Offers Tab */}
+                    <TabsContent value="internal" className="mt-4 space-y-4">
+                        {/* Error Message */}
+                        {error && (
+                            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-sm text-red-600 dark:text-red-400">
+                                {error}
+                                <Button
+                                    variant="link"
+                                    size="sm"
+                                    onClick={() => loadOffers()}
+                                    className="text-red-600 dark:text-red-400 p-0 h-auto ml-2"
+                                >
+                                    Try again
+                                </Button>
+                            </div>
+                        )}
+
+                        {/* Filters */}
+                        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                            {['All', 'High Paying', 'Easy', 'New'].map((f) => (
+                                <Button
+                                    key={f}
+                                    variant={filter === f ? 'default' : 'outline'}
+                                    size="sm"
+                                    onClick={() => handleFilterChange(f)}
+                                    className={`rounded-full px-4 whitespace-nowrap ${filter === f ? 'bg-indigo-600 hover:bg-indigo-700' : ''}`}
+                                >
+                                    {f === 'High Paying' && <DollarSign className="h-3 w-3 mr-1" />}
+                                    {f === 'Easy' && <Star className="h-3 w-3 mr-1" />}
+                                    {f === 'New' && <Zap className="h-3 w-3 mr-1" />}
+                                    {f}
+                                </Button>
+                            ))}
+                        </div>
+
+                        {/* Task List */}
+                        <div className="space-y-3 pb-8">
+                            {isLoading ? (
+                                [...Array(3)].map((_, i) => (
+                                    <Card key={i} className="overflow-hidden">
+                                        <CardContent className="p-4">
+                                            <div className="flex gap-4">
+                                                <Skeleton className="w-16 h-16 rounded-xl" />
+                                                <div className="flex-1 space-y-2">
+                                                    <Skeleton className="h-4 w-3/4" />
+                                                    <Skeleton className="h-3 w-1/2" />
+                                                    <Skeleton className="h-3 w-1/3" />
                                                 </div>
-                                                <p className="text-xs text-muted-foreground truncate">{task.description}</p>
-                                                <div className="flex items-center gap-3 pt-1">
-                                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${getDifficultyColor(task.difficulty)}`}>
-                                                        {task.difficulty}
-                                                    </span>
-                                                    <div className="flex items-center text-[10px] text-muted-foreground">
-                                                        <Clock className="h-3 w-3 mr-1" />
-                                                        {task.estimatedTime}
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                ))
+                            ) : (
+                                tasks.map((task, index) => (
+                                    <motion.div
+                                        key={task.id}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: index * 0.05 }}
+                                    >
+                                        <Card
+                                            className="overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-200 border-l-4 border-l-indigo-500"
+                                            onClick={() => openTask(task)}
+                                        >
+                                            <CardContent className="p-0">
+                                                <div className="p-4">
+                                                    <div className="flex gap-4">
+                                                        <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 flex items-center justify-center shrink-0">
+                                                            {getCategoryIcon(task.category)}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-start justify-between gap-2 mb-1">
+                                                                <h3 className="font-semibold text-sm leading-tight line-clamp-2">{task.title}</h3>
+                                                                <Badge variant="secondary" className={`shrink-0 text-xs ${getDifficultyColor(task.difficulty)}`}>
+                                                                    {task.difficulty}
+                                                                </Badge>
+                                                            </div>
+                                                            <p className="text-xs text-muted-foreground line-clamp-1 mb-2">{task.description}</p>
+                                                            <div className="flex items-center gap-3 text-xs">
+                                                                <span className="font-bold text-green-600 dark:text-green-400 flex items-center">
+                                                                    <DollarSign className="h-3 w-3" />
+                                                                    {task.payout} pts
+                                                                </span>
+                                                                <span className="text-muted-foreground flex items-center">
+                                                                    <Clock className="h-3 w-3 mr-1" />
+                                                                    {task.estimatedTime}
+                                                                </span>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        </div>
-                                        <div className="bg-muted/30 px-4 py-2 flex items-center justify-between border-t border-muted/50">
-                                            <span className="text-xs text-muted-foreground font-medium">{task.provider}</span>
-                                            <div className="flex items-center text-indigo-600 dark:text-indigo-400 text-xs font-semibold">
-                                                {isStarting && selectedTask?.id === task.id ? (
-                                                    <>Starting...</>
-                                                ) : (
-                                                    <>START TASK <ChevronRight className="h-3 w-3 ml-1" /></>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </motion.div>
-                        ))
-                    )}
+                                                <div className="bg-muted/30 px-4 py-2 flex items-center justify-between border-t border-muted/50">
+                                                    <span className="text-xs text-muted-foreground font-medium">{task.provider}</span>
+                                                    <div className="flex items-center text-indigo-600 dark:text-indigo-400 text-xs font-semibold">
+                                                        {isStarting && selectedTask?.id === task.id ? (
+                                                            <>Starting...</>
+                                                        ) : (
+                                                            <>START TASK <ChevronRight className="h-3 w-3 ml-1" /></>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    </motion.div>
+                                ))
+                            )}
 
-                    {!isLoading && tasks.length === 0 && (
-                        <div className="text-center py-10 opacity-50">
-                            <Zap className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
-                            <p>No tasks found for this filter.</p>
-                            <Button
-                                variant="link"
-                                onClick={() => handleFilterChange('All')}
-                                className="mt-2"
-                            >
-                                View all tasks
-                            </Button>
+                            {!isLoading && tasks.length === 0 && (
+                                <div className="text-center py-10 opacity-50">
+                                    <Zap className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
+                                    <p>No tasks found for this filter.</p>
+                                    <Button
+                                        variant="link"
+                                        onClick={() => handleFilterChange('All')}
+                                        className="mt-2"
+                                    >
+                                        View all tasks
+                                    </Button>
+                                </div>
+                            )}
                         </div>
-                    )}
-                </div>
+                    </TabsContent>
+                </Tabs>
             </div>
         </div>
     )

@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { Home, Coins, Wallet, User, Play, BookOpen, Brain, Clock, TrendingUp, Gift, Settings, Share2, Bell, Moon, LogOut, Users, Trophy, Medal, ArrowLeft, FileText, Gamepad2 } from 'lucide-react'
+import { Home, Coins, Wallet, User, Play, BookOpen, Brain, Clock, TrendingUp, Gift, Settings, Share2, Bell, Moon, LogOut, Users, Trophy, Medal, ArrowLeft, FileText, Gamepad2, CheckCircle } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { useTheme } from 'next-themes'
 import { Toaster } from '@/components/ui/toaster'
@@ -41,6 +41,7 @@ interface User {
     adPoints: number
     newsPoints: number
     triviaPoints: number
+    gamePoints?: number
     dailyStreak: number
     lastActiveDate?: string
     referralRewards?: any[]
@@ -898,7 +899,10 @@ interface WalletTabProps {
 }
 
 function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
-    const [transactions, setTransactions] = useState<any[]>([])
+    const [withdrawals, setWithdrawals] = useState<any[]>([])
+    const [earnings, setEarnings] = useState<any[]>([])
+    const [earningSummary, setEarningSummary] = useState<any>(null)
+    const [historyTab, setHistoryTab] = useState<'earnings' | 'withdrawals'>('earnings')
     const [withdrawalForm, setWithdrawalForm] = useState({
         amount: '',
         bankName: '',
@@ -906,15 +910,33 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
         accountName: ''
     })
     const [isLoadingWithdrawal, setIsLoadingWithdrawal] = useState(false)
+    const [isLoadingEarnings, setIsLoadingEarnings] = useState(false)
 
-    const fetchTransactions = async () => {
+    const fetchWithdrawals = async () => {
         try {
             const response = await fetch(`/api/withdrawal?userId=${user?.id}`)
             if (response.ok) {
                 const data = await response.json()
-                setTransactions(data.withdrawals || [])
+                setWithdrawals(data.withdrawals || [])
             }
         } catch (error) {
+            console.error('Failed to fetch withdrawals:', error)
+        }
+    }
+
+    const fetchEarnings = async () => {
+        setIsLoadingEarnings(true)
+        try {
+            const response = await fetch(`/api/user/earnings?userId=${user?.id}&limit=50`)
+            if (response.ok) {
+                const data = await response.json()
+                setEarnings(data.earnings || [])
+                setEarningSummary(data.summary || null)
+            }
+        } catch (error) {
+            console.error('Failed to fetch earnings:', error)
+        } finally {
+            setIsLoadingEarnings(false)
         }
     }
 
@@ -937,7 +959,7 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
             const data = await response.json()
             if (data.success) {
                 setWithdrawalForm({ amount: '', bankName: '', accountNumber: '', accountName: '' })
-                fetchTransactions()
+                fetchWithdrawals()
                 syncUserFromServer()
             }
         } catch (error) {
@@ -947,35 +969,92 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
     }
 
     useEffect(() => {
-        fetchTransactions()
+        fetchWithdrawals()
+        fetchEarnings()
         syncUserFromServer()
     }, [])
 
+    // Get icon and color for earning type
+    const getEarningStyle = (type: string) => {
+        switch (type) {
+            case 'ad_reward':
+            case 'ad_watch':
+                return { icon: <Play className="h-4 w-4" />, color: 'text-blue-500', bg: 'bg-blue-100' }
+            case 'news_reward':
+            case 'news_read':
+                return { icon: <BookOpen className="h-4 w-4" />, color: 'text-green-500', bg: 'bg-green-100' }
+            case 'trivia_reward':
+            case 'trivia_complete':
+                return { icon: <Brain className="h-4 w-4" />, color: 'text-purple-500', bg: 'bg-purple-100' }
+            case 'game_reward':
+                return { icon: <Gamepad2 className="h-4 w-4" />, color: 'text-pink-500', bg: 'bg-pink-100' }
+            case 'mini_game_reward':
+                return { icon: <Gamepad2 className="h-4 w-4" />, color: 'text-amber-500', bg: 'bg-amber-100' }
+            case 'offerwall':
+            case 'offer_complete':
+                return { icon: <Gift className="h-4 w-4" />, color: 'text-orange-500', bg: 'bg-orange-100' }
+            case 'survey':
+            case 'survey_complete':
+                return { icon: <CheckCircle className="h-4 w-4" />, color: 'text-teal-500', bg: 'bg-teal-100' }
+            case 'referral':
+            case 'referral_bonus':
+                return { icon: <Users className="h-4 w-4" />, color: 'text-violet-500', bg: 'bg-violet-100' }
+            default:
+                return { icon: <Coins className="h-4 w-4" />, color: 'text-gray-500', bg: 'bg-gray-100' }
+        }
+    }
+
     return (
         <div className="space-y-6">
+            {/* Balance Card */}
             <Card className="bg-gradient-to-r from-green-500 to-emerald-500 text-white">
                 <CardHeader>
                     <CardTitle className="text-2xl">Total Balance</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <p className="text-4xl font-bold mb-4">{userPoints.toLocaleString()} Points</p>
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                        <div>
-                            <p className="text-2xl font-semibold">{user?.adPoints || 0}</p>
-                            <p className="text-green-100">From Ads</p>
+
+                    {/* Earning Sources Grid */}
+                    <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                        <div className="p-2 bg-white/10 rounded-lg">
+                            <p className="text-lg font-semibold">{earningSummary?.ads || user?.adPoints || 0}</p>
+                            <p className="text-green-100">Ads</p>
                         </div>
-                        <div>
-                            <p className="text-2xl font-semibold">{user?.newsPoints || 0}</p>
-                            <p className="text-green-100">From News</p>
+                        <div className="p-2 bg-white/10 rounded-lg">
+                            <p className="text-lg font-semibold">{earningSummary?.news || user?.newsPoints || 0}</p>
+                            <p className="text-green-100">News</p>
                         </div>
-                        <div>
-                            <p className="text-2xl font-semibold">{user?.triviaPoints || 0}</p>
-                            <p className="text-green-100">From Trivia</p>
+                        <div className="p-2 bg-white/10 rounded-lg">
+                            <p className="text-lg font-semibold">{earningSummary?.trivia || user?.triviaPoints || 0}</p>
+                            <p className="text-green-100">Trivia</p>
+                        </div>
+                        <div className="p-2 bg-white/10 rounded-lg">
+                            <p className="text-lg font-semibold">{(earningSummary?.games || 0) + (earningSummary?.miniGames || 0) || user?.gamePoints || 0}</p>
+                            <p className="text-green-100">Games</p>
                         </div>
                     </div>
+
+                    {/* More sources */}
+                    {earningSummary && (earningSummary.offerwalls > 0 || earningSummary.surveys > 0 || earningSummary.referrals > 0) && (
+                        <div className="grid grid-cols-3 gap-2 text-center text-xs mt-2">
+                            <div className="p-2 bg-white/10 rounded-lg">
+                                <p className="text-lg font-semibold">{earningSummary?.offerwalls || 0}</p>
+                                <p className="text-green-100">Offers</p>
+                            </div>
+                            <div className="p-2 bg-white/10 rounded-lg">
+                                <p className="text-lg font-semibold">{earningSummary?.surveys || 0}</p>
+                                <p className="text-green-100">Surveys</p>
+                            </div>
+                            <div className="p-2 bg-white/10 rounded-lg">
+                                <p className="text-lg font-semibold">{earningSummary?.referrals || 0}</p>
+                                <p className="text-green-100">Referrals</p>
+                            </div>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 
+            {/* Withdrawal Form */}
             <Card>
                 <CardHeader>
                     <CardTitle>Withdraw Points</CardTitle>
@@ -1046,33 +1125,82 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
                 </CardContent>
             </Card>
 
+            {/* Transaction History */}
             <Card>
                 <CardHeader>
-                    <CardTitle>Withdrawal History</CardTitle>
+                    <CardTitle>Transaction History</CardTitle>
+                    <div className="flex gap-2 mt-2">
+                        <Button
+                            variant={historyTab === 'earnings' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setHistoryTab('earnings')}
+                        >
+                            Earnings ({earnings.length})
+                        </Button>
+                        <Button
+                            variant={historyTab === 'withdrawals' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setHistoryTab('withdrawals')}
+                        >
+                            Withdrawals ({withdrawals.length})
+                        </Button>
+                    </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="space-y-3">
-                        {transactions.length > 0 ? (
-                            transactions.map((transaction, index) => (
-                                <div key={index} className="flex items-center justify-between p-3 border rounded">
-                                    <div>
-                                        <p className="font-medium">Withdrawal</p>
-                                        <p className="text-sm text-muted-foreground">
-                                            {new Date(transaction.createdAt).toLocaleDateString()}
-                                        </p>
-                                    </div>
-                                    <Badge variant={
-                                        transaction.status === 'approved' ? 'default' :
-                                            transaction.status === 'rejected' ? 'destructive' : 'secondary'
-                                    }>
-                                        ₦{transaction.amount}
-                                    </Badge>
-                                </div>
-                            ))
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                        {historyTab === 'earnings' ? (
+                            isLoadingEarnings ? (
+                                <p className="text-center text-muted-foreground py-8">Loading...</p>
+                            ) : earnings.length > 0 ? (
+                                earnings.map((entry, index) => {
+                                    const style = getEarningStyle(entry.type)
+                                    return (
+                                        <div key={index} className="flex items-center justify-between p-3 border rounded">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`p-2 rounded-full ${style.bg} ${style.color}`}>
+                                                    {style.icon}
+                                                </div>
+                                                <div>
+                                                    <p className="font-medium text-sm">{entry.description}</p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {new Date(entry.createdAt).toLocaleDateString()} • {new Date(entry.createdAt).toLocaleTimeString()}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <Badge className="bg-green-100 text-green-700 hover:bg-green-100">
+                                                +{entry.amount} pts
+                                            </Badge>
+                                        </div>
+                                    )
+                                })
+                            ) : (
+                                <p className="text-center text-muted-foreground py-8">
+                                    No earnings yet. Start completing tasks to earn points!
+                                </p>
+                            )
                         ) : (
-                            <p className="text-center text-muted-foreground py-8">
-                                No withdrawals yet
-                            </p>
+                            withdrawals.length > 0 ? (
+                                withdrawals.map((transaction, index) => (
+                                    <div key={index} className="flex items-center justify-between p-3 border rounded">
+                                        <div>
+                                            <p className="font-medium">Withdrawal</p>
+                                            <p className="text-sm text-muted-foreground">
+                                                {new Date(transaction.createdAt).toLocaleDateString()}
+                                            </p>
+                                        </div>
+                                        <Badge variant={
+                                            transaction.status === 'approved' ? 'default' :
+                                                transaction.status === 'rejected' ? 'destructive' : 'secondary'
+                                        }>
+                                            ₦{transaction.amount}
+                                        </Badge>
+                                    </div>
+                                ))
+                            ) : (
+                                <p className="text-center text-muted-foreground py-8">
+                                    No withdrawals yet
+                                </p>
+                            )
                         )}
                     </div>
                 </CardContent>

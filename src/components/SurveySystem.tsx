@@ -8,9 +8,9 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Clock, DollarSign, AlertCircle, CheckCircle2, ChevronRight, X, Star, HelpCircle, RefreshCcw, ShieldCheck, Timer, ArrowLeft, FileText } from 'lucide-react'
+import { Clock, DollarSign, AlertCircle, CheckCircle2, ChevronRight, X, Star, HelpCircle, RefreshCcw, ShieldCheck, Timer, ArrowLeft, FileText, Sparkles, ClipboardList } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Survey, SurveyCompletion } from '@/lib/db-schema'
 import { fetchSurveys, updateSurveyStatus } from '@/services/surveyService'
@@ -21,8 +21,23 @@ interface SurveySystemProps {
     onClose?: () => void
 }
 
+// External survey provider configuration
+const CPX_CONFIG = {
+    appId: process.env.NEXT_PUBLIC_CPX_APP_ID || '30576',
+    getUrl: (userId: string, secureHash?: string) => {
+        const params = new URLSearchParams({
+            app_id: process.env.NEXT_PUBLIC_CPX_APP_ID || '30576',
+            ext_user_id: userId,
+        })
+        if (secureHash) {
+            params.append('secure_hash', secureHash)
+        }
+        return `https://wall.cpx-research.com/index.php?${params.toString()}`
+    }
+}
+
 export default function SurveySystem({ userId, onClose }: SurveySystemProps) {
-    const [activeTab, setActiveTab] = useState('available')
+    const [activeTab, setActiveTab] = useState<'cpx' | 'internal' | 'completed'>('cpx')
     const [surveys, setSurveys] = useState<Survey[]>([])
     const [completedSurveys, setCompletedSurveys] = useState<SurveyCompletion[]>([])
     const [isLoading, setIsLoading] = useState(true)
@@ -31,6 +46,7 @@ export default function SurveySystem({ userId, onClose }: SurveySystemProps) {
     const [showTips, setShowTips] = useState(false)
     const [webViewMode, setWebViewMode] = useState<'iframe' | 'external' | null>(null)
     const [error, setError] = useState<string | null>(null)
+    const [externalWallLoading, setExternalWallLoading] = useState(true)
 
     // For disqualification simulation
     const [isSimulatingDisq, setIsSimulatingDisq] = useState(false)
@@ -138,6 +154,10 @@ export default function SurveySystem({ userId, onClose }: SurveySystemProps) {
     const formatDate = (timestamp: number | undefined) => {
         if (!timestamp) return 'Unknown'
         return new Date(timestamp).toLocaleDateString()
+    }
+
+    const getCpxUrl = () => {
+        return CPX_CONFIG.getUrl(userId || 'anonymous')
     }
 
     return (
@@ -251,18 +271,19 @@ export default function SurveySystem({ userId, onClose }: SurveySystemProps) {
                     </div>
                 </div>
 
-                <Tabs defaultValue="available" className="w-full" onValueChange={setActiveTab}>
-                    <TabsList className="w-full justify-start rounded-none h-12 bg-transparent p-0 border-b">
-                        <TabsTrigger
-                            value="available"
-                            className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-teal-500 data-[state=active]:text-teal-600 dark:data-[state=active]:text-teal-400 bg-transparent"
-                        >
-                            Available Surveys
+                {/* Provider Tabs */}
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="w-full">
+                    <TabsList className="w-full grid grid-cols-3 h-12 rounded-none bg-muted/30">
+                        <TabsTrigger value="cpx" className="text-xs sm:text-sm data-[state=active]:bg-teal-500 data-[state=active]:text-white rounded-none">
+                            <Sparkles className="h-3 w-3 mr-1" />
+                            CPX Surveys
                         </TabsTrigger>
-                        <TabsTrigger
-                            value="completed"
-                            className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-teal-500 data-[state=active]:text-teal-600 dark:data-[state=active]:text-teal-400 bg-transparent"
-                        >
+                        <TabsTrigger value="internal" className="text-xs sm:text-sm data-[state=active]:bg-teal-500 data-[state=active]:text-white rounded-none">
+                            <ClipboardList className="h-3 w-3 mr-1" />
+                            More Surveys
+                        </TabsTrigger>
+                        <TabsTrigger value="completed" className="text-xs sm:text-sm data-[state=active]:bg-teal-500 data-[state=active]:text-white rounded-none">
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
                             Completed
                         </TabsTrigger>
                     </TabsList>
@@ -309,7 +330,47 @@ export default function SurveySystem({ userId, onClose }: SurveySystemProps) {
                     </div>
                 )}
 
-                {activeTab === 'available' && (
+                {/* CPX Research Tab */}
+                {activeTab === 'cpx' && (
+                    <Card className="overflow-hidden border-teal-200 dark:border-teal-900">
+                        <CardHeader className="bg-gradient-to-r from-teal-500 to-emerald-600 text-white p-4">
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                <Sparkles className="h-5 w-5" />
+                                CPX Research Surveys
+                            </CardTitle>
+                            <CardDescription className="text-teal-100">
+                                High-paying surveys from top research companies. Complete surveys to earn points automatically!
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            {!userId ? (
+                                <div className="p-8 text-center">
+                                    <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                                    <p className="text-muted-foreground">Please log in to see surveys</p>
+                                </div>
+                            ) : (
+                                <div className="relative w-full" style={{ height: '550px' }}>
+                                    {externalWallLoading && (
+                                        <div className="absolute inset-0 flex items-center justify-center bg-background">
+                                            <RefreshCcw className="h-8 w-8 animate-spin text-teal-500" />
+                                        </div>
+                                    )}
+                                    <iframe
+                                        src={getCpxUrl()}
+                                        className="w-full h-full border-none"
+                                        title="CPX Research Surveys"
+                                        onLoad={() => setExternalWallLoading(false)}
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                        sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-top-navigation"
+                                    />
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Internal Surveys Tab */}
+                {activeTab === 'internal' && (
                     <div className="space-y-4">
                         {/* Info Banner */}
                         <div className="bg-teal-50 dark:bg-teal-950/30 p-4 rounded-lg flex items-start gap-3 border border-teal-100 dark:border-teal-900">
@@ -317,7 +378,7 @@ export default function SurveySystem({ userId, onClose }: SurveySystemProps) {
                             <div>
                                 <h3 className="font-semibold text-teal-900 dark:text-teal-100 text-sm">Earn 2x Points Today!</h3>
                                 <p className="text-xs text-teal-700 dark:text-teal-300 mt-1">
-                                    Complete at least 3 surveys to unblock the daily bonus.
+                                    Complete at least 3 surveys to unlock the daily bonus.
                                 </p>
                             </div>
                         </div>
@@ -440,13 +501,14 @@ export default function SurveySystem({ userId, onClose }: SurveySystemProps) {
                     </div>
                 )}
 
+                {/* Completed Surveys Tab */}
                 {activeTab === 'completed' && (
                     <div className="space-y-3">
                         {completedSurveys.length === 0 ? (
                             <div className="text-center py-10 opacity-50 space-y-3">
                                 <FileText className="h-12 w-12 mx-auto text-muted-foreground" />
                                 <p>No completed surveys yet.</p>
-                                <Button variant="outline" onClick={() => setActiveTab('available')}>Browse Surveys</Button>
+                                <Button variant="outline" onClick={() => setActiveTab('cpx')}>Browse Surveys</Button>
                             </div>
                         ) : (
                             completedSurveys.map((s) => (

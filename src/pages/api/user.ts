@@ -53,6 +53,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             adPoints: userData.adPoints || 0,
             newsPoints: userData.newsPoints || 0,
             triviaPoints: userData.triviaPoints || 0,
+            gamePoints: userData.gamePoints || 0,
             points: userData.points || 0,
             totalEarnings: userData.totalEarnings || 0,
             referralCode: userData.referralCode,
