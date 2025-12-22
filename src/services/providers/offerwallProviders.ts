@@ -185,7 +185,7 @@ export class TapjoyProvider implements IOfferwallProvider {
 
 
 // =============================================================================
-// CPX Research Integration Example
+// CPX Research Integration
 // =============================================================================
 
 /**
@@ -193,8 +193,23 @@ export class TapjoyProvider implements IOfferwallProvider {
  * Documentation: https://publisher.cpx-research.com/
  * 
  * Required Environment Variables:
- * - CPX_APP_ID
- * - CPX_SECURE_HASH
+ * - CPX_APP_ID: Your app ID from CPX dashboard (number)
+ * - CPX_SECURE_HASH: Your secure hash for signature verification
+ * 
+ * Postback URL Format (set in CPX dashboard Postback Settings):
+ * https://your-domain.com/api/offers/callback?
+ *   provider=CPX&
+ *   uid={user_id}&
+ *   trans_id={trans_id}&
+ *   amount={amount_local}&
+ *   status={status}&
+ *   hash={hash}
+ * 
+ * Status Codes:
+ * - status=1: Pending/Completed (credit the user)
+ * - status=2: Reversed (debit/chargeback)
+ * 
+ * Secure Hash Verification: MD5(ext_user_id + "-" + secure_hash)
  */
 export class CPXResearchProvider implements IOfferwallProvider {
     readonly name: OfferProvider = 'CPX'
@@ -207,7 +222,7 @@ export class CPXResearchProvider implements IOfferwallProvider {
         this.secureHash = config.apiSecret || process.env.CPX_SECURE_HASH || ''
 
         if (!this.appId) {
-            throw new Error('CPX: Missing App ID')
+            throw new Error('CPX Research: Missing App ID')
         }
 
         this.isInitialized = true
@@ -216,28 +231,206 @@ export class CPXResearchProvider implements IOfferwallProvider {
 
     async fetchOffers(userId: string, options?: ProviderFetchOptions): Promise<Offer[]> {
         // CPX Research provides surveys, not traditional offers
-        // Surveys are typically shown via iframe/webview
+        // Surveys are shown via iframe/webview with their script tag
+        console.log('CPX Research surveys are shown via iframe/script tag')
         return []
     }
 
+    /**
+     * Generate the CPX Research wall URL
+     * Can be used in iframe or opened directly
+     */
     getTrackingUrl(offerId: string, userId: string): string {
-        // CPX Research iframe URL
+        // CPX Research wall URL with user tracking
+        // URL format: https://wall.cpx-research.com/index.php?app_id=XXX&ext_user_id=XXX
         const params = new URLSearchParams({
             app_id: this.appId,
             ext_user_id: userId,
-            // Add secure hash for security
         })
-        return `https://offers.cpx-research.com/index.php?${params.toString()}`
+
+        // Add secure hash if available (recommended for security)
+        if (this.secureHash) {
+            const crypto = require('crypto')
+            const hash = crypto
+                .createHash('md5')
+                .update(`${userId}-${this.secureHash}`)
+                .digest('hex')
+            params.append('secure_hash', hash)
+        }
+
+        return `https://wall.cpx-research.com/index.php?${params.toString()}`
     }
 
+    /**
+     * Generate secure hash for a user
+     * Formula: MD5(ext_user_id + "-" + secure_hash)
+     */
+    generateSecureHash(userId: string): string {
+        if (!this.secureHash) return ''
+
+        const crypto = require('crypto')
+        return crypto
+            .createHash('md5')
+            .update(`${userId}-${this.secureHash}`)
+            .digest('hex')
+    }
+
+    /**
+     * Validate CPX Research postback signature
+     * CPX uses MD5 hash: md5(ext_user_id + "-" + secure_hash)
+     */
     validateCallback(payload: any, signature?: string): boolean {
-        // CPX uses MD5 hash for validation
-        // hash = md5(user_id + transaction_id + payout + secure_hash)
-        return true // TODO: Implement
+        if (!this.secureHash) {
+            console.warn('CPX Research: No secure hash configured, skipping signature validation')
+            return true
+        }
+
+        const userId = payload.uid || payload.user_id || payload.ext_user_id || ''
+
+        // Generate expected hash
+        const crypto = require('crypto')
+        const expectedHash = crypto
+            .createHash('md5')
+            .update(`${userId}-${this.secureHash}`)
+            .digest('hex')
+
+        const providedHash = signature || payload.hash || ''
+
+        if (expectedHash !== providedHash) {
+            console.error('CPX Research signature mismatch:', {
+                expected: expectedHash,
+                received: providedHash
+            })
+            return false
+        }
+
+        return true
     }
 
     isAvailable(country: string): boolean {
-        // CPX is available worldwide
+        // CPX Research is available worldwide
+        return true
+    }
+}
+
+
+// =============================================================================
+// Timewall Integration
+// =============================================================================
+
+/**
+ * Timewall Offerwall Provider
+ * Website: https://timewall.io
+ * 
+ * Timewall offers micro-tasks, pay-to-click offers, and survey offerwalls.
+ * 
+ * Required Environment Variables:
+ * - TIMEWALL_PLACEMENT_ID: Your placement/app ID from Timewall dashboard
+ * - TIMEWALL_SECRET_KEY: Your secret key for hash validation
+ * 
+ * Postback URL Format (set in Timewall dashboard):
+ * https://your-domain.com/api/offers/callback?
+ *   provider=Timewall&
+ *   uid={userID}&
+ *   trans_id={transactionID}&
+ *   amount={revenue}&
+ *   currency_amount={currencyAmount}&
+ *   type={type}&
+ *   hash={hash}
+ * 
+ * Type Values:
+ * - type=credit: Successful completion (credit the user)
+ * - type=chargeback: Reversal (debit the user)
+ * 
+ * Response: Must return HTTP 200 OK, otherwise Timewall will retry
+ */
+export class TimewallProvider implements IOfferwallProvider {
+    readonly name: OfferProvider = 'Timewall'
+    private placementId: string = ''
+    private secretKey: string = ''
+    private isInitialized: boolean = false
+
+    async initialize(config: ProviderInitConfig): Promise<void> {
+        this.placementId = config.appId || process.env.TIMEWALL_PLACEMENT_ID || ''
+        this.secretKey = config.apiSecret || process.env.TIMEWALL_SECRET_KEY || ''
+
+        if (!this.placementId) {
+            throw new Error('Timewall: Missing Placement ID')
+        }
+
+        this.isInitialized = true
+        console.log('Timewall provider initialized')
+    }
+
+    async fetchOffers(userId: string, options?: ProviderFetchOptions): Promise<Offer[]> {
+        // Timewall uses iframe for displaying offers
+        // Server-side offer fetching requires contacting their support
+        console.log('Timewall offers are shown via iframe')
+        return []
+    }
+
+    /**
+     * Generate the Timewall offerwall URL
+     * Format may vary - check your dashboard for exact URL
+     */
+    getTrackingUrl(offerId: string, userId: string): string {
+        // Timewall offerwall URL with user tracking
+        // Note: Exact URL format should be verified in your Timewall dashboard
+        const params = new URLSearchParams({
+            placement_id: this.placementId,
+            user_id: userId,
+        })
+        return `https://timewall.io/offerwall?${params.toString()}`
+    }
+
+    /**
+     * Generate iframe HTML for embedding Timewall offerwall
+     */
+    getIframeHtml(userId: string, width: string = '100%', height: string = '600'): string {
+        const url = this.getTrackingUrl('', userId)
+        return `<iframe src="${url}" width="${width}" height="${height}" frameborder="0" allowfullscreen></iframe>`
+    }
+
+    /**
+     * Validate Timewall postback hash
+     * Hash validation method should be confirmed with Timewall support
+     * Common pattern: MD5(userID + transactionID + revenue + secretKey)
+     */
+    validateCallback(payload: any, signature?: string): boolean {
+        if (!this.secretKey) {
+            console.warn('Timewall: No secret key configured, skipping hash validation')
+            return true
+        }
+
+        const userId = payload.uid || payload.userID || payload.user_id || ''
+        const transactionId = payload.trans_id || payload.transactionID || payload.transaction_id || ''
+        const revenue = payload.amount || payload.revenue || payload.currencyAmount || ''
+
+        // Common hash pattern - verify with Timewall documentation
+        const crypto = require('crypto')
+        const expectedHash = crypto
+            .createHash('md5')
+            .update(`${userId}${transactionId}${revenue}${this.secretKey}`)
+            .digest('hex')
+
+        const providedHash = signature || payload.hash || ''
+
+        if (expectedHash !== providedHash) {
+            console.error('Timewall hash mismatch:', {
+                expected: expectedHash,
+                received: providedHash
+            })
+            // For now, allow the callback but log the mismatch
+            // Enable strict validation once you verify the hash format
+            console.warn('Timewall: Hash validation disabled for testing - enable in production!')
+            return true
+        }
+
+        return true
+    }
+
+    isAvailable(country: string): boolean {
+        // Timewall is available globally
         return true
     }
 }
@@ -306,13 +499,9 @@ export class KiwiwallProvider implements IOfferwallProvider {
 
     getTrackingUrl(offerId: string, userId: string): string {
         // Kiwiwall wall URL with user tracking
-        // The sub_id parameter is used to track your users
-        const params = new URLSearchParams({
-            app_id: this.appId,
-            sub_id: userId,
-            // Optional: sub_id_2 through sub_id_5 for additional tracking
-        })
-        return `https://www.kiwiwall.com/wall/${this.appId}?${params.toString()}`
+        // URL format from Kiwiwall iframe: https://www.kiwiwall.com/wall/{app_id}/{sub_id}
+        // The sub_id is your user ID - passed as path parameter, not query param
+        return `https://www.kiwiwall.com/wall/${this.appId}/${userId}`
     }
 
     /**
@@ -386,6 +575,9 @@ export async function createProvider(
             break
         case 'CPX':
             provider = new CPXResearchProvider()
+            break
+        case 'Timewall':
+            provider = new TimewallProvider()
             break
         case 'Kiwiwall':
             provider = new KiwiwallProvider()

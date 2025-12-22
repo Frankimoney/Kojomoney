@@ -49,6 +49,7 @@ export type OfferProvider =
     | 'Adgate'     // Adgate Media - works in Africa
     | 'Monlix'     // Global including Africa
     | 'Kiwiwall'   // Global offerwall with good survey/offer mix
+    | 'Timewall'   // Micro-tasks, surveys, and offerwall
     | 'Internal'   // For custom offers managed by admin
     | 'Other'
 

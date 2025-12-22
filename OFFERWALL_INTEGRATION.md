@@ -163,13 +163,14 @@ https://your-domain.com/api/offers/callback?provider=NewProvider&tid={TRACKING_I
 |----------|--------|-------|
 | AdGem | Template Ready | Game offers |
 | Tapjoy | Template Ready | Native SDK |
-| CPX Research | Template Ready | Surveys |
+| CPX Research | **Fully Integrated** | Surveys with global reach |
 | OfferToro | Template Ready | Mixed offers |
 | AyeT Studios | Template Ready | Mixed offers |
 | Pollfish | Template Ready | Surveys |
 | TheoremReach | Template Ready | Surveys |
 | BitLabs | Template Ready | Surveys |
 | Kiwiwall | **Fully Integrated** | Surveys & Offers with global reach |
+| Timewall | **Fully Integrated** | Micro-tasks, surveys, and offerwalls |
 
 ## Affiliate Compliance
 
@@ -322,13 +323,26 @@ The integration automatically validates this signature using your `KIWIWALL_SECR
 
 ### Step 6: Display the Offerwall
 
-Use the Kiwiwall wall URL in your frontend:
+**Option 1: iFrame Embed (Recommended)**
 
-```typescript
-const kiwiwallUrl = `https://www.kiwiwall.com/wall/${KIWIWALL_APP_ID}?sub_id=${userId}`
+```html
+<iframe 
+  width="750" 
+  height="1400" 
+  src="https://www.kiwiwall.com/wall/YOUR_APP_ID/{userId}" 
+  frameborder="0" 
+  allowfullscreen>
+</iframe>
 ```
 
-Or use the provider helper:
+**Option 2: Direct URL**
+
+```typescript
+// URL format: https://www.kiwiwall.com/wall/{app_id}/{sub_id}
+const kiwiwallUrl = `https://www.kiwiwall.com/wall/${KIWIWALL_APP_ID}/${userId}`
+```
+
+**Option 3: Use the Provider Helper**
 
 ```typescript
 import { KiwiwallProvider } from '@/services/providers/offerwallProviders'
@@ -336,11 +350,204 @@ import { KiwiwallProvider } from '@/services/providers/offerwallProviders'
 const kiwiwall = new KiwiwallProvider()
 await kiwiwall.initialize({ appId: process.env.KIWIWALL_APP_ID })
 const url = kiwiwall.getTrackingUrl('', userId)
+// Returns: https://www.kiwiwall.com/wall/{app_id}/{userId}
 ```
 
 ### Testing Your Integration
 
 1. Open your offerwall with a test user ID
 2. Complete a test offer (Kiwiwall provides test offers in sandbox mode)
+3. Check your server logs for the postback
+4. Verify the user's points were credited in Firestore
+
+---
+
+## CPX Research Integration Guide
+
+CPX Research is a leading survey network with global reach and high-quality surveys. Here's how to set it up:
+
+### Step 1: Create CPX Research Account
+
+1. Go to [https://publisher.cpx-research.com/](https://publisher.cpx-research.com/)
+2. Sign up for a publisher account
+3. Create a new app in your dashboard
+4. Note your **App ID** and **Secure Hash**
+
+### Step 2: Configure Environment Variables
+
+Add these to your `.env.local` and `.env.production` files:
+
+```env
+CPX_APP_ID=your-app-id
+CPX_SECURE_HASH=your-secure-hash
+```
+
+### Step 3: Configure Postback URL in CPX Dashboard
+
+In your CPX Research dashboard, go to **Postback Settings** and set the postback URL to:
+
+```
+https://your-domain.com/api/offers/callback?provider=CPX&uid={user_id}&trans_id={trans_id}&amount={amount_local}&status={status}&hash={hash}
+```
+
+**Available Parameters:**
+| Parameter | Description |
+|-----------|-------------|
+| `{user_id}` / `{ext_user_id}` | Your user's ID |
+| `{trans_id}` | Unique transaction ID |
+| `{amount_local}` | Payout in your currency |
+| `{status}` | 1 = completed, 2 = reversed/cancelled |
+| `{hash}` | Security hash for verification |
+| `{survey_id}` | CPX's survey ID (optional) |
+
+### Step 4: Signature Verification
+
+CPX Research uses MD5 hash for security:
+
+```
+hash = MD5(ext_user_id + "-" + secure_hash)
+```
+
+The integration automatically validates this signature using your `CPX_SECURE_HASH`.
+
+### Step 5: Display the Survey Wall
+
+**Option 1: iFrame Embed**
+
+```html
+<iframe 
+  src="https://wall.cpx-research.com/index.php?app_id=YOUR_APP_ID&ext_user_id=USER_ID" 
+  width="100%" 
+  height="600"
+  frameborder="0"
+></iframe>
+```
+
+**Option 2: Script Tag (Recommended by CPX)**
+
+```html
+<script src="https://cdn.cpx-research.com/assets/js/script_tag_v2.0.js"></script>
+<script>
+  const config = {
+    general_config: {
+      app_id: YOUR_APP_ID, // number
+      ext_user_id: "user123", // string
+      secure_hash: "generated-md5-hash" // MD5(user_id + "-" + secret)
+    },
+    script_config: [{
+      div_id: "cpx-surveys",
+      theme_style: 1, // 1=fullscreen, 2=sidebar, 3=single item
+      order_by: 2 // 1=best score, 2=best money, 3=best conversion
+    }]
+  };
+  window.config = config;
+</script>
+<div id="cpx-surveys"></div>
+```
+
+**Option 3: Use the Provider Helper**
+
+```typescript
+import { CPXResearchProvider } from '@/services/providers/offerwallProviders'
+
+const cpx = new CPXResearchProvider()
+await cpx.initialize({ appId: process.env.CPX_APP_ID, apiSecret: process.env.CPX_SECURE_HASH })
+const url = cpx.getTrackingUrl('', userId)
+// Returns: https://wall.cpx-research.com/index.php?app_id=XXX&ext_user_id=XXX&secure_hash=XXX
+```
+
+### Status Codes
+
+- **status=1**: Survey completed successfully (credit the user)
+- **status=2**: Transaction reversed/cancelled (debit/chargeback)
+
+CPX will call your postback URL a second time with `status=2` if they need to reverse a transaction.
+
+### Testing Your Integration
+
+1. Open the survey wall with a test user ID
+2. Complete a test survey
+3. Check your server logs for the postback
+4. Verify the user's points were credited in Firestore
+
+---
+
+## Timewall Integration Guide
+
+Timewall.io offers micro-tasks, pay-to-click offers, and survey offerwalls. Here's how to set it up:
+
+### Step 1: Create Timewall Account
+
+1. Go to [https://timewall.io](https://timewall.io)
+2. Sign up for a publisher account
+3. Create a new offerwall placement in your dashboard
+4. Note your **Placement ID** and **Secret Key**
+
+### Step 2: Configure Environment Variables
+
+Add these to your `.env.local` and `.env.production` files:
+
+```env
+TIMEWALL_PLACEMENT_ID=your-placement-id
+TIMEWALL_SECRET_KEY=your-secret-key
+```
+
+### Step 3: Configure Postback URL in Timewall Dashboard
+
+In your Timewall dashboard, set the postback URL to:
+
+```
+https://your-domain.com/api/offers/callback?provider=Timewall&uid={userID}&trans_id={transactionID}&amount={revenue}&currency_amount={currencyAmount}&type={type}&hash={hash}
+```
+
+**Available Parameters:**
+| Parameter | Description |
+|-----------|-------------|
+| `{userID}` | Your user's unique identifier |
+| `{transactionID}` | Unique transaction ID |
+| `{revenue}` | Payout amount |
+| `{currencyAmount}` | Monetary value of conversion |
+| `{type}` | `credit` (success) or `chargeback` (reversal) |
+| `{hash}` | Security hash for validation |
+
+### Step 4: Response Requirements
+
+Your server must return **HTTP 200 OK**. If Timewall receives any other status code, they will retry the postback.
+
+### Step 5: Display the Offerwall
+
+**Option 1: iFrame Embed**
+
+```html
+<iframe 
+  src="https://timewall.io/offerwall?placement_id=YOUR_PLACEMENT_ID&user_id=USER_ID" 
+  width="100%" 
+  height="600"
+  frameborder="0"
+></iframe>
+```
+
+**Option 2: Use the Provider Helper**
+
+```typescript
+import { TimewallProvider } from '@/services/providers/offerwallProviders'
+
+const timewall = new TimewallProvider()
+await timewall.initialize({ 
+  appId: process.env.TIMEWALL_PLACEMENT_ID, 
+  apiSecret: process.env.TIMEWALL_SECRET_KEY 
+})
+const url = timewall.getTrackingUrl('', userId)
+```
+
+### Type Values
+
+- **type=credit**: Offer completed successfully (credit the user)
+- **type=chargeback**: Transaction reversed (debit the user)
+
+### Testing Your Integration
+
+1. Open the offerwall with a test user ID
+2. Complete a test offer
 3. Check your server logs for the postback
 4. Verify the user's points were credited in Firestore

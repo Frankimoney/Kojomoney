@@ -280,6 +280,33 @@ function parseProviderCallback(provider: OfferProvider, rawPayload: any): Callba
                     signature: rawPayload.hash || rawPayload.signature || rawPayload.sig,
                 }
 
+            case 'Timewall':
+                // Timewall callback format
+                // Website: https://timewall.io
+                //
+                // Parameters:
+                // - userID: Your user's unique identifier
+                // - transactionID: Unique ID for the transaction
+                // - revenue: Payout amount for the offer
+                // - currencyAmount: Monetary value of conversion
+                // - hash: Security hash for validation
+                // - type: 'credit' (success) or 'chargeback' (reversal)
+                //
+                // Response: Must return HTTP 200 OK
+                //
+                // Example postback URL to set in Timewall dashboard:
+                // https://your-domain.com/api/offers/callback?provider=Timewall&uid={userID}&trans_id={transactionID}&amount={revenue}&currency_amount={currencyAmount}&type={type}&hash={hash}
+                return {
+                    provider,
+                    trackingId: rawPayload.trans_id || rawPayload.transactionID || rawPayload.transaction_id,
+                    userId: rawPayload.uid || rawPayload.userID || rawPayload.user_id,
+                    transactionId: rawPayload.trans_id || rawPayload.transactionID || rawPayload.transaction_id || Date.now().toString(),
+                    payout: parseInt(rawPayload.amount) || parseInt(rawPayload.revenue) || parseInt(rawPayload.currencyAmount) || parseInt(rawPayload.currency_amount) || 0,
+                    // Timewall type: 'credit' = success, 'chargeback' = reversal
+                    status: rawPayload.type === 'chargeback' || rawPayload.type === 'reversed' ? 'reversed' : 'completed',
+                    signature: rawPayload.hash || rawPayload.signature,
+                }
+
             case 'Kiwiwall':
                 // Kiwiwall callback format
                 // Documentation: https://kiwiwall.com/publishers/postback-integration
@@ -315,6 +342,29 @@ function parseProviderCallback(provider: OfferProvider, rawPayload: any): Callba
                 }
 
             case 'CPX':
+                // CPX Research callback format
+                // Documentation: https://publisher.cpx-research.com/
+                //
+                // Parameters:
+                // - {user_id} or {ext_user_id}: Your user's ID
+                // - {trans_id}: Unique transaction ID
+                // - {amount_local}: Payout in your currency
+                // - {status}: 1 = completed/pending, 2 = reversed/cancelled
+                // - {hash}: MD5(ext_user_id + "-" + secure_hash)
+                //
+                // Example postback URL to set in CPX dashboard:
+                // https://your-domain.com/api/offers/callback?provider=CPX&uid={user_id}&trans_id={trans_id}&amount={amount_local}&status={status}&hash={hash}
+                return {
+                    provider,
+                    trackingId: rawPayload.trans_id || rawPayload.transaction_id || rawPayload.tid,
+                    userId: rawPayload.uid || rawPayload.user_id || rawPayload.ext_user_id,
+                    transactionId: rawPayload.trans_id || rawPayload.transaction_id || Date.now().toString(),
+                    payout: parseInt(rawPayload.amount) || parseInt(rawPayload.amount_local) || parseInt(rawPayload.payout) || parseInt(rawPayload.reward) || 0,
+                    // CPX status: 1 = completed/pending, 2 = reversed
+                    status: rawPayload.status === '2' || rawPayload.status === 2 || rawPayload.status === 'reversed' ? 'reversed' : 'completed',
+                    signature: rawPayload.hash || rawPayload.signature,
+                }
+
             case 'TheoremReach':
             case 'BitLabs':
             case 'Pollfish':
@@ -325,7 +375,7 @@ function parseProviderCallback(provider: OfferProvider, rawPayload: any): Callba
                     userId: rawPayload.uid || rawPayload.user_id,
                     transactionId: rawPayload.trans_id || rawPayload.transaction_id,
                     payout: parseInt(rawPayload.payout) || parseInt(rawPayload.reward) || 0,
-                    status: rawPayload.status === 'reversed' ? 'reversed' : 'completed',
+                    status: rawPayload.status === 'reversed' || rawPayload.status === '2' || rawPayload.status === 2 ? 'reversed' : 'completed',
                     signature: rawPayload.hash || rawPayload.signature,
                 }
 
