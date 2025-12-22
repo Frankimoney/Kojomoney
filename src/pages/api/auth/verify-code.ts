@@ -5,6 +5,8 @@ export const dynamic = 'force-dynamic'
 
 import { allowCors } from '@/lib/cors'
 
+// ... imports
+
 async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' })
@@ -41,18 +43,44 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             return res.status(400).json({ error: 'Verification code has expired', success: false })
         }
 
-        // Check if code matches
-        if (verification.code !== code) {
+        // Check if code matches (loose comparison for string/number match)
+        if (String(verification.code) !== String(code)) {
             return res.status(400).json({ error: 'Invalid verification code', success: false })
         }
 
         // Mark as used
         await verificationRef.update({ used: true, usedAt: Date.now() })
 
+        // User Status Update Logic
+        let updatedUser: any = null
+        if (verification.userId) {
+            const userRef = db.collection('users').doc(verification.userId)
+            const updates: any = { updatedAt: Date.now() }
+
+            if (verification.type === 'verify_email' || verification.email) {
+                updates.emailVerified = true
+            }
+
+            if (verification.type === 'verify_phone' || verification.phone) {
+                updates.phoneVerified = true
+                if (verification.phone) {
+                    updates.phone = verification.phone // Ensure phone is saved to profile
+                }
+            }
+
+            await userRef.update(updates)
+
+            // Fetch updated user to return
+            const userSnap = await userRef.get()
+            updatedUser = { id: userSnap.id, ...userSnap.data() }
+        }
+
         return res.status(200).json({
             success: true,
-            message: 'Email verified successfully',
-            email: verification.email
+            message: 'Verified successfully',
+            email: verification.email,
+            phone: verification.phone,
+            user: updatedUser
         })
     } catch (error) {
         console.error('Verify code error:', error)

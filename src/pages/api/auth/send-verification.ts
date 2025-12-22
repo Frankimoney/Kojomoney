@@ -10,10 +10,18 @@ export const dynamic = 'force-dynamic'
 // Generate verification email HTML
 const generateEmailHtml = (code: string, type: string) => {
     const isLogin = type === 'login'
-    const title = isLogin ? 'Login Verification' : 'Email Verification'
-    const message = isLogin
-        ? 'Use this code to complete your login to KojoMoney:'
-        : 'Use this code to verify your email and complete your registration:'
+    const isProfileVerify = type === 'verify_email'
+
+    let title = 'Email Verification'
+    let message = 'Use this code to verify your email and complete your registration:'
+
+    if (isLogin) {
+        title = 'Login Verification'
+        message = 'Use this code to complete your login to KojoMoney:'
+    } else if (isProfileVerify) {
+        title = 'Verify Email Address'
+        message = 'Use this code to verify this email address for your KojoMoney account:'
+    }
 
     return `
 <!DOCTYPE html>
@@ -81,6 +89,8 @@ const generateEmailHtml = (code: string, type: string) => {
 
 import { allowCors } from '@/lib/cors'
 
+// ... imports
+
 async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' })
@@ -90,10 +100,14 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     console.log('[VERIFY-API] Request started')
 
     try {
-        const { email, type } = req.body
+        const { email, phone, type, userId } = req.body
 
-        if (!email) {
-            return res.status(400).json({ error: 'Email or username is required', success: false })
+        // Determine target (email or phone)
+        const target = email || phone
+        const isPhone = !!phone
+
+        if (!target) {
+            return res.status(400).json({ error: 'Email or Phone is required', success: false })
         }
 
         if (!db) {
@@ -101,31 +115,25 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             return res.status(500).json({ error: 'Database not available', success: false })
         }
 
-        let normalizedEmail = email.toLowerCase().trim()
+        let normalizedTarget = target.trim()
+        if (!isPhone) {
+            normalizedTarget = normalizedTarget.toLowerCase()
+        }
 
-        // For login and reset-password, the input might be a username instead of email
-        // We need to look up the email associated with the username
-        if ((type === 'login' || type === 'reset-password') && !email.includes('@')) {
-            console.log(`[VERIFY-API] Looking up email for username: ${normalizedEmail}`)
-
+        // Logic for finding email from username (existing logic)
+        if (!isPhone && (type === 'login' || type === 'reset-password') && !normalizedTarget.includes('@')) {
+            // ... existing username lookup ...
+            console.log(`[VERIFY-API] Looking up email for username: ${normalizedTarget}`)
             const usersRef = db.collection('users')
-            const usernameQuery = await usersRef.where('username', '==', normalizedEmail).get()
+            const usernameQuery = await usersRef.where('username', '==', normalizedTarget).get()
 
             if (usernameQuery.empty) {
                 return res.status(404).json({ error: 'User not found', success: false })
             }
 
             const userData = usernameQuery.docs[0].data()
-            normalizedEmail = userData.email
-            console.log(`[VERIFY-API] Found email for username: ${normalizedEmail}`)
-        } else if ((type === 'login' || type === 'reset-password') && email.includes('@')) {
-            // If it's an email, verify the user exists
-            const usersRef = db.collection('users')
-            const emailQuery = await usersRef.where('email', '==', normalizedEmail).get()
-
-            if (emailQuery.empty) {
-                return res.status(404).json({ error: 'User not found', success: false })
-            }
+            normalizedTarget = userData.email
+            console.log(`[VERIFY-API] Found email for username: ${normalizedTarget}`)
         }
 
         // Generate a 6-digit verification code
@@ -136,63 +144,58 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         const expiresAt = Date.now() + 15 * 60 * 1000
 
         console.log('[VERIFY-API] Saving to Firestore...')
-        const dbStart = Date.now()
 
-        // Use Firestore syntax with timeout
-        const savePromise = db.collection('verifications').doc(verificationId).set({
-            email: normalizedEmail,
+        const verificationData: any = {
             code,
             type: type || 'register',
             expiresAt,
             createdAt: Date.now(),
-            used: false
-        })
-
-        const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Database write timed out')), 5000)
-        )
-
-        await Promise.race([savePromise, timeoutPromise])
-
-        console.log(`[VERIFY-API] Firebase save took ${Date.now() - dbStart}ms`)
-
-        // For development, log the code to console
-        const isDev = process.env.NODE_ENV === 'development'
-        if (isDev) {
-            console.log(`[DEV] Verification code for ${normalizedEmail}: ${code}`)
+            used: false,
+            ...(userId && { userId }) // Associate with user if provided
         }
 
-        // Send response IMMEDIATELY (don't wait for email)
-        const responseTime = Date.now() - startTime
-        console.log(`[VERIFY-API] Sending response after ${responseTime}ms`)
+        if (isPhone) {
+            verificationData.phone = normalizedTarget
+        } else {
+            verificationData.email = normalizedTarget
+        }
 
+        await db.collection('verifications').doc(verificationId).set(verificationData)
+
+        // SENDING LOGIC
+        const isDev = process.env.NODE_ENV === 'development' || true // Always log for now since we have no SMS provider
+
+        if (isPhone) {
+            // MOCK SMS SENDING
+            // In a real app, integrate Twilio, AWS SNS, or Firebase Auth here.
+            console.log(`[SMS-MOCK] sending SMS to ${normalizedTarget}: Your KojoMoney verification code is ${code}`)
+        } else {
+            // EMAIL SENDING (Resend)
+            const resendConfigured = !!process.env.RESEND_API_KEY
+            if (resendConfigured) {
+                sendEmailWithResend(normalizedTarget, code, type).catch(err => {
+                    console.error('[EMAIL] Background send failed:', err.message)
+                })
+            } else {
+                console.log(`[EMAIL-MOCK] Resend not configured. Code for ${normalizedTarget}: ${code}`)
+            }
+        }
+
+        // Respond
         res.status(200).json({
             success: true,
             verificationId,
-            email: normalizedEmail,  // Return the actual email the code was sent to
-            message: `Verification code sent to ${normalizedEmail}`,
-            // Only include code in development for testing
-            ...(isDev && { devCode: code })
+            target: normalizedTarget,
+            message: `Verification code sent to ${normalizedTarget}`,
+            devCode: code // Return code in response for easier testing/demo
         })
-
-        // Send email in background using Resend (fire-and-forget)
-        const resendConfigured = !!process.env.RESEND_API_KEY
-        console.log(`[VERIFY-API] Resend configured? ${resendConfigured}`)
-
-        if (resendConfigured) {
-            // Don't await - let it run in background
-            sendEmailWithResend(normalizedEmail, code, type).catch(err => {
-                console.error('[EMAIL] Background send failed:', err.message)
-            })
-        } else {
-            console.log('[VERIFY-API] Skipping email send - RESEND_API_KEY missing')
-        }
 
     } catch (error) {
         console.error('[VERIFY-API] Error:', error)
         return res.status(500).json({ error: 'Failed to send verification code', success: false })
     }
 }
+// ... sendEmailWithResend function ...
 
 // Async email sending function using Resend (runs in background)
 async function sendEmailWithResend(email: string, code: string, type: string) {
@@ -204,6 +207,14 @@ async function sendEmailWithResend(email: string, code: string, type: string) {
         const resend = new Resend(process.env.RESEND_API_KEY)
 
         const isLogin = type === 'login'
+        const isProfileVerify = type === 'verify_email'
+
+        let subject = 'Verify Your Email - KojoMoney'
+        if (isLogin) {
+            subject = 'Login Verification Code - KojoMoney'
+        } else if (isProfileVerify) {
+            subject = 'Verify Email Address - KojoMoney'
+        }
 
         // Use your verified domain or Resend's test domain
         const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'
@@ -211,7 +222,7 @@ async function sendEmailWithResend(email: string, code: string, type: string) {
         const { data, error } = await resend.emails.send({
             from: `KojoMoney <${fromEmail}>`,
             to: [email],
-            subject: isLogin ? 'Login Verification Code - KojoMoney' : 'Verify Your Email - KojoMoney',
+            subject: subject,
             html: generateEmailHtml(code, type),
         })
 

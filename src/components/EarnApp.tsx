@@ -9,7 +9,7 @@ import { Progress } from '@/components/ui/progress'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
-import { Home, Coins, Wallet, User, Play, BookOpen, Brain, Clock, TrendingUp, Gift, Settings, Share2, Bell, Moon, LogOut, Users, Trophy, Medal, ArrowLeft, FileText, Gamepad2, CheckCircle, Sparkles, UserCircle, Shield, ChevronRight } from 'lucide-react'
+import { Home, Coins, Wallet, User, Play, BookOpen, Brain, Clock, TrendingUp, Gift, Settings, Share2, Bell, Moon, LogOut, Users, Trophy, Medal, ArrowLeft, FileText, Gamepad2, CheckCircle, Sparkles, UserCircle, Shield, ChevronRight, Landmark, Building, Bitcoin } from 'lucide-react'
 import { motion } from 'framer-motion'
 import dynamic from 'next/dynamic'
 import { useTheme } from 'next-themes'
@@ -30,6 +30,7 @@ const DailyTrivia = dynamic(() => import('./DailyTrivia'), {
 
 import AuthSystem from './AuthSystem'
 import { NotificationCenter } from '@/components/notifications/NotificationCenter'
+import { FloatingNotificationContainer } from '@/components/notifications/FloatingNotification'
 // Capacitor plugins - only available on mobile, lazy loaded
 // import { PushNotifications } from '@capacitor/push-notifications'
 // import { FirebaseAnalytics } from '@capacitor-firebase/analytics'
@@ -54,6 +55,11 @@ interface User {
         storiesRead: number
         triviaCompleted: boolean
     }
+    // Extended fields for TrustBadges
+    createdAt?: number | string
+    emailVerified?: boolean
+    phoneVerified?: boolean
+    hasWithdrawn?: boolean
 }
 
 type LegalPageType = 'privacy' | 'terms' | 'cookies' | 'gdpr'
@@ -128,6 +134,14 @@ const UserLevelDisplay = dynamic(() => import('./UserLevelDisplay'), {
 })
 
 const TrustBadges = dynamic(() => import('./TrustBadges'), {
+    ssr: false
+})
+
+const StreakDisplay = dynamic(() => import('./StreakDisplay'), {
+    ssr: false
+})
+
+const HappyHour = dynamic(() => import('./HappyHour'), {
     ssr: false
 })
 
@@ -822,7 +836,7 @@ function HomeTab({ user, userPoints, setActiveTab, setActiveView, onOpenSpin }: 
                             size="sm"
                         >
                             <Sparkles className="h-4 w-4 mr-1" />
-                            SPIN & WIN
+                            SPIN &amp; WIN
                         </Button>
                     </div>
                 </CardHeader>
@@ -842,6 +856,12 @@ function HomeTab({ user, userPoints, setActiveTab, setActiveView, onOpenSpin }: 
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Streak Multiplier Display */}
+            <StreakDisplay dailyStreak={user.dailyStreak || 0} />
+
+            {/* Happy Hour - Time-based earning boosts */}
+            <HappyHour />
 
             {/* Daily Spin Card - Retention Booster */}
             <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
@@ -962,9 +982,13 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
     const [historyTab, setHistoryTab] = useState<'earnings' | 'withdrawals'>('earnings')
     const [withdrawalForm, setWithdrawalForm] = useState({
         amount: '',
+        method: 'bank_transfer',
         bankName: '',
         accountNumber: '',
-        accountName: ''
+        accountName: '',
+        paypalEmail: '',
+        walletAddress: '',
+        cryptoNetwork: 'USDT (TRC20)'
     })
     const [isLoadingWithdrawal, setIsLoadingWithdrawal] = useState(false)
     const [isLoadingEarnings, setIsLoadingEarnings] = useState(false)
@@ -1002,24 +1026,40 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
         setIsLoadingWithdrawal(true)
 
         try {
+            // Construct payload based on method
+            const payload: any = {
+                userId: user?.id,
+                amount: parseInt(withdrawalForm.amount),
+                method: withdrawalForm.method
+            }
+
+            if (withdrawalForm.method === 'bank_transfer') {
+                payload.bankName = withdrawalForm.bankName
+                payload.accountNumber = withdrawalForm.accountNumber
+                payload.accountName = withdrawalForm.accountName
+            } else if (withdrawalForm.method === 'paypal') {
+                payload.paypalEmail = withdrawalForm.paypalEmail
+            } else if (withdrawalForm.method === 'crypto') {
+                payload.walletAddress = withdrawalForm.walletAddress
+                payload.cryptoNetwork = withdrawalForm.cryptoNetwork
+            }
+
             const response = await apiCall('/api/withdrawal', {
                 method: 'POST',
-                body: JSON.stringify({
-                    userId: user?.id,
-                    amount: parseInt(withdrawalForm.amount),
-                    bankName: withdrawalForm.bankName,
-                    accountNumber: withdrawalForm.accountNumber,
-                    accountName: withdrawalForm.accountName
-                })
+                body: JSON.stringify(payload)
             })
 
             const data = await response.json()
             if (data.success) {
-                setWithdrawalForm({ amount: '', bankName: '', accountNumber: '', accountName: '' })
+                setWithdrawalForm(prev => ({ ...prev, amount: '' })) // Keep details for convenience
                 fetchWithdrawals()
                 syncUserFromServer()
+                alert('Withdrawal request submitted successfully!')
+            } else {
+                alert(data.error || 'Failed to submit withdrawal')
             }
-        } catch (error) {
+        } catch (error: any) {
+            alert(error.message || 'An error occurred')
         } finally {
             setIsLoadingWithdrawal(false)
         }
@@ -1121,57 +1161,140 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <form onSubmit={handleWithdrawal} className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Payment Method Selector */}
+                        <div className="grid grid-cols-3 gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setWithdrawalForm(prev => ({ ...prev, method: 'bank_transfer' }))}
+                                className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${withdrawalForm.method === 'bank_transfer' ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'border-muted hover:bg-muted'}`}
+                            >
+                                <Building className={`h-6 w-6 mb-1 ${withdrawalForm.method === 'bank_transfer' ? 'text-green-600' : 'text-muted-foreground'}`} />
+                                <span className={`text-xs font-medium ${withdrawalForm.method === 'bank_transfer' ? 'text-green-700' : 'text-muted-foreground'}`}>Bank</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setWithdrawalForm(prev => ({ ...prev, method: 'paypal' }))}
+                                className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${withdrawalForm.method === 'paypal' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-muted hover:bg-muted'}`}
+                            >
+                                <span className={`text-xl font-bold mb-1 ${withdrawalForm.method === 'paypal' ? 'text-blue-600' : 'text-muted-foreground'}`}>P</span>
+                                <span className={`text-xs font-medium ${withdrawalForm.method === 'paypal' ? 'text-blue-700' : 'text-muted-foreground'}`}>PayPal</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setWithdrawalForm(prev => ({ ...prev, method: 'crypto' }))}
+                                className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${withdrawalForm.method === 'crypto' ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20' : 'border-muted hover:bg-muted'}`}
+                            >
+                                <Bitcoin className={`h-6 w-6 mb-1 ${withdrawalForm.method === 'crypto' ? 'text-orange-600' : 'text-muted-foreground'}`} />
+                                <span className={`text-xs font-medium ${withdrawalForm.method === 'crypto' ? 'text-orange-700' : 'text-muted-foreground'}`}>Crypto</span>
+                            </button>
+                        </div>
+
+                        <div>
+                            <label className="text-sm font-medium">Amount (Points)</label>
+                            <input
+                                type="number"
+                                className="w-full mt-1 px-3 py-2 border rounded-md"
+                                placeholder="Min: 1,000"
+                                min="1000"
+                                step="100"
+                                value={withdrawalForm.amount}
+                                onChange={(e) => setWithdrawalForm(prev => ({ ...prev, amount: e.target.value }))}
+                                required
+                            />
+                        </div>
+
+                        {withdrawalForm.method === 'bank_transfer' && (
+                            <>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-sm font-medium">Bank Name</label>
+                                        <select className="w-full mt-1 px-3 py-2 border rounded-md"
+                                            value={withdrawalForm.bankName}
+                                            onChange={(e) => setWithdrawalForm(prev => ({ ...prev, bankName: e.target.value }))}
+                                            required={withdrawalForm.method === 'bank_transfer'}
+                                        >
+                                            <option value="">Select Bank</option>
+                                            <option value="Access Bank">Access Bank</option>
+                                            <option value="GTBank">GTBank</option>
+                                            <option value="First Bank">First Bank</option>
+                                            <option value="UBA">UBA</option>
+                                            <option value="Zenith Bank">Zenith Bank</option>
+                                            <option value="Kuda Bank">Kuda Bank</option>
+                                            <option value="OPay">OPay</option>
+                                            <option value="PalmPay">PalmPay</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-medium">Account Number</label>
+                                        <input
+                                            type="text"
+                                            className="w-full mt-1 px-3 py-2 border rounded-md"
+                                            placeholder="0123456789"
+                                            value={withdrawalForm.accountNumber}
+                                            onChange={(e) => setWithdrawalForm(prev => ({ ...prev, accountNumber: e.target.value }))}
+                                            required={withdrawalForm.method === 'bank_transfer'}
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium">Account Name</label>
+                                    <input
+                                        type="text"
+                                        className="w-full mt-1 px-3 py-2 border rounded-md"
+                                        placeholder="Enter account name"
+                                        value={withdrawalForm.accountName}
+                                        onChange={(e) => setWithdrawalForm(prev => ({ ...prev, accountName: e.target.value }))}
+                                        required={withdrawalForm.method === 'bank_transfer'}
+                                    />
+                                </div>
+                            </>
+                        )}
+
+                        {withdrawalForm.method === 'paypal' && (
                             <div>
-                                <label className="text-sm font-medium">Amount (₦)</label>
+                                <label className="text-sm font-medium">PayPal Email Address</label>
                                 <input
-                                    type="number"
+                                    type="email"
                                     className="w-full mt-1 px-3 py-2 border rounded-md"
-                                    placeholder="Enter amount"
-                                    min="1000"
-                                    step="100"
-                                    value={withdrawalForm.amount}
-                                    onChange={(e) => setWithdrawalForm(prev => ({ ...prev, amount: e.target.value }))}
-                                    required
+                                    placeholder="your-email@example.com"
+                                    value={withdrawalForm.paypalEmail}
+                                    onChange={(e) => setWithdrawalForm(prev => ({ ...prev, paypalEmail: e.target.value }))}
+                                    required={withdrawalForm.method === 'paypal'}
                                 />
+                                <p className="text-xs text-muted-foreground mt-1">Payment will be sent in USD (converted).</p>
                             </div>
-                            <div>
-                                <label className="text-sm font-medium">Bank Name</label>
-                                <select className="w-full mt-1 px-3 py-2 border rounded-md"
-                                    value={withdrawalForm.bankName}
-                                    onChange={(e) => setWithdrawalForm(prev => ({ ...prev, bankName: e.target.value }))}
-                                    required>
-                                    <option value="">Select Bank</option>
-                                    <option value="Access Bank">Access Bank</option>
-                                    <option value="GTBank">GTBank</option>
-                                    <option value="First Bank">First Bank</option>
-                                    <option value="UBA">UBA</option>
-                                    <option value="Zenith Bank">Zenith Bank</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div>
-                            <label className="text-sm font-medium">Account Number</label>
-                            <input
-                                type="text"
-                                className="w-full mt-1 px-3 py-2 border rounded-md"
-                                placeholder="Enter account number"
-                                value={withdrawalForm.accountNumber}
-                                onChange={(e) => setWithdrawalForm(prev => ({ ...prev, accountNumber: e.target.value }))}
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="text-sm font-medium">Account Name</label>
-                            <input
-                                type="text"
-                                className="w-full mt-1 px-3 py-2 border rounded-md"
-                                placeholder="Enter account name"
-                                value={withdrawalForm.accountName}
-                                onChange={(e) => setWithdrawalForm(prev => ({ ...prev, accountName: e.target.value }))}
-                                required
-                            />
-                        </div>
+                        )}
+
+                        {withdrawalForm.method === 'crypto' && (
+                            <>
+                                <div>
+                                    <label className="text-sm font-medium">Network</label>
+                                    <select
+                                        className="w-full mt-1 px-3 py-2 border rounded-md"
+                                        value={withdrawalForm.cryptoNetwork}
+                                        onChange={(e) => setWithdrawalForm(prev => ({ ...prev, cryptoNetwork: e.target.value }))}
+                                    >
+                                        <option value="USDT (TRC20)">USDT (TRC20)</option>
+                                        <option value="USDT (BEP20)">USDT (BEP20)</option>
+                                        <option value="Bitcoin (BTC)">Bitcoin (BTC)</option>
+                                        <option value="LTC (Litecoin)">LTC (Litecoin)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium">Wallet Address</label>
+                                    <input
+                                        type="text"
+                                        className="w-full mt-1 px-3 py-2 border rounded-md"
+                                        placeholder="Start with T... (for TRC20)"
+                                        value={withdrawalForm.walletAddress}
+                                        onChange={(e) => setWithdrawalForm(prev => ({ ...prev, walletAddress: e.target.value }))}
+                                        required={withdrawalForm.method === 'crypto'}
+                                    />
+                                    <p className="text-xs text-muted-foreground mt-1">Ensure the network matches your address!</p>
+                                </div>
+                            </>
+                        )}
+
                         <Button type="submit" className="w-full" disabled={isLoadingWithdrawal || userPoints < 1000}>
                             {isLoadingWithdrawal ? 'Processing...' : 'Request Withdrawal'}
                         </Button>
@@ -1275,19 +1398,45 @@ interface ProfileTabProps {
     setTheme: (t: string) => void
     onLogout: () => void
     onShowLegal: (page: LegalPageType) => void
+    syncUserFromServer: () => Promise<void>
 }
 
-function ProfileTab({ user, setUser, resolvedTheme, setTheme, onLogout, onShowLegal }: ProfileTabProps) {
+function ProfileTab({ user, setUser, resolvedTheme, setTheme, onLogout, onShowLegal, syncUserFromServer }: ProfileTabProps) {
     const [profileForm, setProfileForm] = useState({
         name: user?.name || '',
         phone: user?.phone || '',
         email: user?.email || ''
     })
     const [isEditing, setIsEditing] = useState(false)
+    const [notificationsEnabled, setNotificationsEnabled] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('notifications_enabled') !== 'false'
+        }
+        return true
+    })
     const [referralStats, setReferralStats] = useState({
         totalReferrals: 0,
         pointsEarned: 0
     })
+
+    const handleToggleNotifications = async () => {
+        const newValue = !notificationsEnabled
+        setNotificationsEnabled(newValue)
+        localStorage.setItem('notifications_enabled', String(newValue))
+
+        // If enabling, request permission
+        if (newValue && typeof window !== 'undefined' && 'Notification' in window) {
+            try {
+                const permission = await Notification.requestPermission()
+                if (permission !== 'granted') {
+                    setNotificationsEnabled(false)
+                    localStorage.setItem('notifications_enabled', 'false')
+                }
+            } catch (e) {
+                console.log('Notification permission error:', e)
+            }
+        }
+    }
 
     const handleProfileUpdate = async () => {
         try {
@@ -1385,7 +1534,7 @@ function ProfileTab({ user, setUser, resolvedTheme, setTheme, onLogout, onShowLe
             {/* User Level & Trust Section */}
             <div className="grid grid-cols-1 gap-4">
                 <UserLevelDisplay points={user.totalPoints || 0} />
-                <TrustBadges user={user} />
+                <TrustBadges user={user} onVerificationComplete={syncUserFromServer} />
             </div>
 
             {/* Menu Sections */}
@@ -1440,11 +1589,18 @@ function ProfileTab({ user, setUser, resolvedTheme, setTheme, onLogout, onShowLe
                                 </div>
                                 <div className="text-left">
                                     <p className="font-medium">Notifications</p>
-                                    <p className="text-xs text-muted-foreground">Manage push alerts</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {notificationsEnabled ? 'Push alerts enabled' : 'Push alerts disabled'}
+                                    </p>
                                 </div>
                             </div>
-                            <button className="relative inline-flex h-6 w-11 items-center rounded-full bg-muted">
-                                <span className="inline-block h-4 w-4 transform rounded-full bg-background transition translate-x-1 shadow-sm"></span>
+                            <button
+                                onClick={handleToggleNotifications}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${notificationsEnabled ? 'bg-primary' : 'bg-muted'}`}
+                            >
+                                <span
+                                    className={`inline-block h-4 w-4 transform rounded-full bg-background shadow-sm transition ${notificationsEnabled ? 'translate-x-6' : 'translate-x-1'}`}
+                                ></span>
                             </button>
                         </div>
 
@@ -1807,6 +1963,7 @@ export default function EarnApp() {
                                 setTheme={setTheme}
                                 onLogout={handleLogout}
                                 onShowLegal={setActiveLegalPage}
+                                syncUserFromServer={syncUserFromServer}
                             />
                         )}
                     </TabsContent>
@@ -1822,6 +1979,9 @@ export default function EarnApp() {
                     }}
                 />
             )}
+
+            {/* Floating notifications overlay */}
+            <FloatingNotificationContainer />
         </div>
     )
 }

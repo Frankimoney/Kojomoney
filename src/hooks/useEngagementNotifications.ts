@@ -2,10 +2,13 @@ import { useEffect, useRef } from 'react';
 import { User } from '@/types';
 import { useNotificationStore } from '@/lib/notificationStore';
 import { toast } from 'sonner';
+import { FloatingNotifications } from '@/components/notifications/FloatingNotification';
+import { getStreakMultiplier, getNextStreakTier } from '@/lib/points-config';
 
 export function useEngagementNotifications(user: User | null) {
     const { addNotification } = useNotificationStore();
     const processedRef = useRef<{ [key: string]: boolean }>({});
+    const hasShownSpinReminder = useRef(false);
 
     // 1. Daily Reset Check
     useEffect(() => {
@@ -24,10 +27,12 @@ export function useEngagementNotifications(user: User | null) {
                     actionUrl: '/earn'
                 });
 
-                // If checking for the first time today, show a toast
-                toast.info('Daily Tasks Reset!', {
-                    description: 'Start earning points now.'
-                });
+                // Show floating notification for better visibility
+                FloatingNotifications.reward(
+                    'Good Morning! ☀️',
+                    'Daily tasks reset. Time to earn!',
+                    { label: 'Start Earning', onClick: () => window.dispatchEvent(new CustomEvent('switch-tab', { detail: 'earn' })) }
+                );
 
                 localStorage.setItem('last_daily_reset_check', today);
             }
@@ -36,37 +41,76 @@ export function useEngagementNotifications(user: User | null) {
         checkDailyReset();
     }, [user?.id, addNotification]);
 
-    // 2. Survey/Offer Availability Simulator (or Real Check)
+    // 2. Spin Reminder - Show once per session if spin available
+    useEffect(() => {
+        if (!user || hasShownSpinReminder.current) return;
+
+        // Check if user hasn't spun today (would need backend data for this)
+        // For now, show reminder after 5 seconds on startup
+        const timer = setTimeout(() => {
+            if (!hasShownSpinReminder.current) {
+                FloatingNotifications.spinReady(() => {
+                    window.dispatchEvent(new CustomEvent('open-spin'));
+                });
+                hasShownSpinReminder.current = true;
+            }
+        }, 5000);
+
+        return () => clearTimeout(timer);
+    }, [user?.id]);
+
+    // 3. Streak Celebration
     useEffect(() => {
         if (!user) return;
 
-        // Mock check for new opportunities every 2 minutes
-        // In a real app, this would poll an endpoint or listen to a socket
+        const streakKey = `streak_celebrated_${user.dailyStreak}`;
+        const { multiplier, tier } = getStreakMultiplier(user.dailyStreak || 0);
+
+        // Celebrate when reaching new streak milestones
+        if (user.dailyStreak >= 3 && !processedRef.current[streakKey]) {
+            const nextTier = getNextStreakTier(user.dailyStreak || 0);
+
+            if (tier.minDays === user.dailyStreak) {
+                // User just hit a milestone
+                FloatingNotifications.streak(user.dailyStreak);
+            }
+
+            processedRef.current[streakKey] = true;
+        }
+    }, [user?.dailyStreak]);
+
+    // 4. Survey/Offer Availability Simulator
+    useEffect(() => {
+        if (!user) return;
+
         const checkOpportunities = setInterval(() => {
             const random = Math.random();
-            const key = `opp_${Date.now()}`;
 
-            // 5% chance of a new survey every interval
-            if (random > 0.95) {
+            // 3% chance of a new survey every 2 minutes
+            if (random > 0.97) {
                 addNotification({
                     title: 'New Survey Available! 📋',
-                    body: 'A high-paying survey just became available. Take it before it expires!',
+                    body: 'A high-paying survey just became available.',
                     type: 'reward',
                     actionUrl: '/earn/surveys',
                     data: { points: 500 }
                 });
-                toast.success('New Survey Available! (+500 pts)');
+
+                FloatingNotifications.reward(
+                    '💰 New Survey!',
+                    'Earn 500+ points in 5 minutes',
+                    { label: 'Take Survey', onClick: () => { } }
+                );
             }
 
-            // 5% chance of a special offer
-            else if (random < 0.05) {
+            // 2% chance of a special offer
+            else if (random < 0.02) {
                 addNotification({
-                    title: 'Boosted Offer Detected 🚀',
-                    body: 'One of our partners boosted their rewards. Check the offerwall now.',
+                    title: 'Boosted Offer! 🚀',
+                    body: 'One of our partners boosted their rewards.',
                     type: 'reward',
                     actionUrl: '/earn/offerwall'
                 });
-                toast.success('New Boosted Offer!');
             }
 
         }, 120000); // Check every 2 minutes
@@ -74,31 +118,38 @@ export function useEngagementNotifications(user: User | null) {
         return () => clearInterval(checkOpportunities);
     }, [user?.id, addNotification]);
 
-    // 3. Streak Reminder
+    // 5. Streak at Risk Warning (if no activity by late afternoon)
     useEffect(() => {
         if (!user) return;
 
-        // If user hasn't completed trivia today, remind them
-        const hasDoneTrivia = user.todayProgress?.triviaCompleted;
-        const key = `trivia_remind_${new Date().toISOString().split('T')[0]}`;
+        const checkStreakRisk = () => {
+            const hour = new Date().getHours();
+            const hasDoneTrivia = user.todayProgress?.triviaCompleted;
+            const key = `streak_warning_${new Date().toISOString().split('T')[0]}`;
 
-        if (!hasDoneTrivia && !processedRef.current[key]) {
-            // Only remind if it's "later" in the day? 
-            // For now, just remind once per session if not done.
-            // We use a timeout to not annoy immediately on load
-            const timer = setTimeout(() => {
-                if (!processedRef.current[key]) {
-                    addNotification({
-                        title: 'Don\'t lose your streak! 🔥',
-                        body: 'You haven\'t played today\'s trivia yet. Complete it to keep your streak alive.',
-                        type: 'warning',
-                        actionUrl: '/earn/trivia'
-                    });
-                    processedRef.current[key] = true;
-                }
-            }, 60000); // 1 minute after load
+            // If it's after 6pm and no trivia done, warn about streak
+            if (hour >= 18 && !hasDoneTrivia && !processedRef.current[key] && user.dailyStreak >= 2) {
+                FloatingNotifications.warning(
+                    "🔥 Don't Lose Your Streak!",
+                    `You have a ${user.dailyStreak}-day streak. Complete trivia to keep it!`
+                );
 
-            return () => clearTimeout(timer);
-        }
+                addNotification({
+                    title: "Don't lose your streak! 🔥",
+                    body: `You haven't played today's trivia yet. Your ${user.dailyStreak}-day streak is at risk.`,
+                    type: 'warning',
+                    actionUrl: '/earn/trivia'
+                });
+
+                processedRef.current[key] = true;
+            }
+        };
+
+        // Check immediately and then every 30 minutes
+        checkStreakRisk();
+        const interval = setInterval(checkStreakRisk, 30 * 60 * 1000);
+
+        return () => clearInterval(interval);
     }, [user, addNotification]);
 }
+

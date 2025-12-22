@@ -60,10 +60,29 @@ class NotificationService {
         try {
             const { token } = await FirebaseMessaging.getToken();
             console.log('Push Token:', token);
-            // TODO: Send token to backend
-            // await apiCall('/api/notifications/register', { token });
+
+            // Get userId from localStorage
+            const savedUser = localStorage.getItem('kojomoneyUser');
+            const userId = savedUser ? JSON.parse(savedUser)?.id : null;
+
+            if (userId && token) {
+                // Register token with backend
+                const platform = Capacitor.getPlatform() as 'ios' | 'android' | 'web';
+
+                const response = await fetch('/api/notifications/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId, token, platform })
+                });
+
+                if (response.ok) {
+                    console.log('Push token registered with backend');
+                } else {
+                    console.error('Failed to register push token with backend');
+                }
+            }
         } catch (error) {
-            console.error('Error getting token:', error);
+            console.error('Error getting/registering token:', error);
         }
     }
 

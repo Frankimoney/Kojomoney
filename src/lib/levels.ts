@@ -8,6 +8,7 @@ export interface LevelConfig {
     textColor: string
     bgColor: string
     perk: string
+    earningBonus: number  // Multiplier for earnings (1.0 = base, 1.1 = +10%)
 }
 
 export const LEVELS: LevelConfig[] = [
@@ -18,43 +19,58 @@ export const LEVELS: LevelConfig[] = [
         color: 'text-gray-500',
         textColor: 'text-gray-700',
         bgColor: 'bg-gray-100',
-        perk: 'Access to basic tasks'
+        perk: 'Access to basic tasks',
+        earningBonus: 1.0
     },
     {
         name: 'Bronze',
-        minPoints: 1000,
+        minPoints: 10000,  // Updated from 1000 to match economic plan
         icon: Shield,
         color: 'text-orange-600',
         textColor: 'text-orange-800',
         bgColor: 'bg-orange-100',
-        perk: '+5% Bonus on Surveys'
+        perk: '+10% Bonus on all earnings',
+        earningBonus: 1.10
     },
     {
         name: 'Silver',
-        minPoints: 5000,
+        minPoints: 50000,  // Updated from 5000
         icon: Medal,
         color: 'text-slate-400',
         textColor: 'text-slate-600',
         bgColor: 'bg-slate-100',
-        perk: 'Faster Withdrawals'
+        perk: '+15% Bonus + Faster Withdrawals',
+        earningBonus: 1.15
     },
     {
         name: 'Gold',
-        minPoints: 20000,
+        minPoints: 200000,  // Updated from 20000
         icon: Trophy,
         color: 'text-yellow-500',
         textColor: 'text-yellow-700',
         bgColor: 'bg-yellow-100',
-        perk: 'Exclusive Gold Tasks'
+        perk: '+20% Bonus + Exclusive Tasks',
+        earningBonus: 1.20
     },
     {
         name: 'Platinum',
-        minPoints: 50000,
+        minPoints: 500000,  // Updated from 50000
         icon: Crown,
         color: 'text-purple-600',
         textColor: 'text-purple-800',
         bgColor: 'bg-purple-100',
-        perk: 'VIP Support + No Ads'
+        perk: '+30% Bonus + VIP Support',
+        earningBonus: 1.30
+    },
+    {
+        name: 'Diamond',
+        minPoints: 1000000,  // NEW: Top tier
+        icon: Crown,
+        color: 'text-cyan-400',
+        textColor: 'text-cyan-600',
+        bgColor: 'bg-gradient-to-r from-cyan-100 to-blue-100',
+        perk: '+50% Bonus + Ultimate Perks',
+        earningBonus: 1.50
     }
 ]
 

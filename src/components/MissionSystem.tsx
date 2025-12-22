@@ -19,6 +19,7 @@ import {
     getFTCComplianceWarning,
     MissionWithProgress
 } from '@/services/missionService'
+import SocialFollowMissions from './SocialFollowMissions'
 
 interface MissionSystemProps {
     userId?: string
@@ -308,6 +309,20 @@ export default function MissionSystem({ userId, onClose }: MissionSystemProps) {
             {/* MISSION LIST */}
             {!selectedMission && (
                 <div className="p-4 space-y-4 max-w-md mx-auto">
+                    {/* Social Follow Missions - Featured at top */}
+                    {userId && (
+                        <SocialFollowMissions userId={userId} />
+                    )}
+
+                    {/* Divider */}
+                    {!isLoading && missions.length > 0 && (
+                        <div className="flex items-center gap-2 pt-2">
+                            <div className="flex-1 h-px bg-border" />
+                            <span className="text-xs text-muted-foreground">Other Missions</span>
+                            <div className="flex-1 h-px bg-border" />
+                        </div>
+                    )}
+
                     {isLoading ? (
                         [...Array(4)].map((_, i) => (
                             <Card key={i} className="overflow-hidden border-l-4 border-l-gray-200">
