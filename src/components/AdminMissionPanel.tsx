@@ -35,6 +35,11 @@ interface Mission {
     proofRequired: boolean
     active: boolean
     expiresAt?: number
+    // Product info fields
+    logoUrl?: string
+    brandName?: string
+    productCategory?: string
+    originalUrl?: string
 }
 
 interface Offer {
@@ -62,6 +67,9 @@ const DEFAULT_MISSION: Mission = {
     steps: [{ id: '1', instruction: '', order: 1 }],
     proofRequired: true,
     active: true,
+    logoUrl: '',
+    brandName: '',
+    productCategory: '',
 }
 
 const DEFAULT_OFFER: Offer = {
@@ -91,6 +99,9 @@ export default function AdminMissionPanel() {
     const [copied, setCopied] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState<string | null>(null)
+    const [deletingMission, setDeletingMission] = useState<Mission | null>(null)
+    const [isDeleting, setIsDeleting] = useState(false)
+    const [isFetchingMeta, setIsFetchingMeta] = useState(false)
 
     const authApiCall = (path: string, options: any = {}) => {
         const token = getAdminToken()
@@ -205,6 +216,74 @@ export default function AdminMissionPanel() {
         })
     }
 
+    const fetchUrlMetadata = async () => {
+        if (!formData.affiliateUrl) {
+            setError('Please enter an affiliate URL first')
+            return
+        }
+
+        setIsFetchingMeta(true)
+        setError(null)
+
+        try {
+            const response = await authApiCall('/api/admin/fetch-url-meta', {
+                method: 'POST',
+                body: JSON.stringify({ url: formData.affiliateUrl }),
+            })
+
+            if (response.ok) {
+                const data = await response.json()
+                const meta = data.metadata
+
+                // Auto-fill form with fetched metadata
+                setFormData(prev => ({
+                    ...prev,
+                    title: prev.title || meta.title || '',
+                    description: prev.description || meta.description || '',
+                    logoUrl: meta.image || meta.favicon || prev.logoUrl || '',
+                    brandName: meta.siteName || prev.brandName || '',
+                    originalUrl: meta.url || prev.originalUrl || '',
+                }))
+
+                setSuccess('Product info fetched! Review and adjust as needed.')
+            } else {
+                const data = await response.json()
+                setError(data.error || 'Failed to fetch URL metadata')
+            }
+        } catch (err) {
+            setError('Failed to fetch URL metadata. You can enter product info manually.')
+        } finally {
+            setIsFetchingMeta(false)
+        }
+    }
+
+    const handleDeleteMission = async () => {
+        if (!deletingMission?.id) return
+
+        setIsDeleting(true)
+        setError(null)
+
+        try {
+            const response = await authApiCall('/api/admin/missions', {
+                method: 'DELETE',
+                body: JSON.stringify({ id: deletingMission.id }),
+            })
+
+            if (response.ok) {
+                setSuccess('Mission deleted!')
+                setDeletingMission(null)
+                loadData()
+            } else {
+                const data = await response.json()
+                setError(data.error || 'Failed to delete mission')
+            }
+        } catch (err) {
+            setError('Failed to delete mission')
+        } finally {
+            setIsDeleting(false)
+        }
+    }
+
     // Offer handlers
     const handleAddOffer = () => {
         setOfferFormData(DEFAULT_OFFER)
@@ -295,9 +374,53 @@ export default function AdminMissionPanel() {
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <TabsList>
                         <TabsTrigger value="missions">Missions (Affiliate Links)</TabsTrigger>
+                        <TabsTrigger value="social">Social Follow</TabsTrigger>
                         <TabsTrigger value="offers">Offerwall Items</TabsTrigger>
                         <TabsTrigger value="help">Setup Guide</TabsTrigger>
                     </TabsList>
+
+                    {/* SOCIAL FOLLOW TAB */}
+                    <TabsContent value="social" className="space-y-4">
+                        <Card className="bg-gradient-to-r from-sky-50 to-blue-50 dark:from-sky-950/30 dark:to-blue-950/30 border-sky-200 dark:border-sky-800">
+                            <CardContent className="p-6">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <div className="h-12 w-12 rounded-xl bg-sky-500 flex items-center justify-center">
+                                            <Share2 className="h-6 w-6 text-white" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-lg">Social Follow Missions</h3>
+                                            <p className="text-sm text-muted-foreground">
+                                                Create Telegram/TikTok follow missions & review proof screenshots
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <Button onClick={() => window.location.href = '/admin/social-proofs'}>
+                                        <ExternalLink className="h-4 w-4 mr-2" />
+                                        Open Panel
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <div className="grid md:grid-cols-2 gap-4">
+                            <Card>
+                                <CardContent className="p-4">
+                                    <h4 className="font-semibold mb-2">✨ Create Missions</h4>
+                                    <p className="text-sm text-muted-foreground">
+                                        Add Telegram, TikTok, Twitter, or Instagram follow missions with points rewards.
+                                    </p>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardContent className="p-4">
+                                    <h4 className="font-semibold mb-2">📸 Review Screenshots</h4>
+                                    <p className="text-sm text-muted-foreground">
+                                        Approve or reject user-submitted proof screenshots to credit points.
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </TabsContent>
 
                     {/* MISSIONS TAB */}
                     <TabsContent value="missions" className="space-y-4">
@@ -346,9 +469,12 @@ export default function AdminMissionPanel() {
                                                 <span className="text-xs text-muted-foreground truncate max-w-[200px]">
                                                     {(mission as any).affiliateUrl || 'No URL set'}
                                                 </span>
-                                                <div className="flex gap-2">
+                                                <div className="flex gap-1">
                                                     <Button size="sm" variant="ghost" onClick={() => handleEditMission(mission)}>
                                                         <Edit className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => setDeletingMission(mission)}>
+                                                        <Trash2 className="h-4 w-4" />
                                                     </Button>
                                                     {(mission as any).affiliateUrl && (
                                                         <Button size="sm" variant="ghost" onClick={() => window.open((mission as any).affiliateUrl, '_blank')}>
@@ -591,14 +717,82 @@ export default function AdminMissionPanel() {
 
                             <div className="space-y-2">
                                 <Label>Affiliate URL *</Label>
-                                <Input
-                                    placeholder="https://partner.example.com/ref=your-code"
-                                    value={formData.affiliateUrl}
-                                    onChange={(e) => setFormData({ ...formData, affiliateUrl: e.target.value })}
-                                />
+                                <div className="flex gap-2">
+                                    <Input
+                                        placeholder="https://partner.example.com/ref=your-code"
+                                        value={formData.affiliateUrl}
+                                        onChange={(e) => setFormData({ ...formData, affiliateUrl: e.target.value })}
+                                        className="flex-1"
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={fetchUrlMetadata}
+                                        disabled={isFetchingMeta || !formData.affiliateUrl}
+                                    >
+                                        {isFetchingMeta ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Link className="h-4 w-4 mr-2" />}
+                                        Fetch Info
+                                    </Button>
+                                </div>
                                 <p className="text-xs text-muted-foreground">
-                                    Paste your full affiliate or referral link here
+                                    Paste your affiliate link and click "Fetch Info" to auto-fill product details
                                 </p>
+                            </div>
+
+                            {/* Product Info Section */}
+                            <div className="p-4 bg-muted/50 rounded-lg border space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <Label className="text-sm font-medium">Product Information</Label>
+                                    {formData.logoUrl && (
+                                        <div className="h-10 w-10 rounded-lg overflow-hidden border bg-white">
+                                            <img
+                                                src={formData.logoUrl}
+                                                alt="Product logo"
+                                                className="h-full w-full object-cover"
+                                                onError={(e) => {
+                                                    (e.target as HTMLImageElement).style.display = 'none'
+                                                }}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="grid md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label className="text-xs">Brand Name</Label>
+                                        <Input
+                                            placeholder="e.g., Binance, Shopify"
+                                            value={formData.brandName || ''}
+                                            onChange={(e) => setFormData({ ...formData, brandName: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-xs">Category</Label>
+                                        <Select
+                                            value={formData.productCategory || ''}
+                                            onValueChange={(v) => setFormData({ ...formData, productCategory: v })}
+                                        >
+                                            <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="finance">Finance & Banking</SelectItem>
+                                                <SelectItem value="crypto">Cryptocurrency</SelectItem>
+                                                <SelectItem value="shopping">Shopping</SelectItem>
+                                                <SelectItem value="gaming">Gaming</SelectItem>
+                                                <SelectItem value="entertainment">Entertainment</SelectItem>
+                                                <SelectItem value="productivity">Productivity</SelectItem>
+                                                <SelectItem value="social">Social Media</SelectItem>
+                                                <SelectItem value="other">Other</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-xs">Logo/Image URL</Label>
+                                    <Input
+                                        placeholder="https://example.com/logo.png"
+                                        value={formData.logoUrl || ''}
+                                        onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
+                                    />
+                                </div>
                             </div>
 
                             <div className="space-y-2">
@@ -694,6 +888,29 @@ export default function AdminMissionPanel() {
                     </DialogContent>
                 </Dialog>
             </div>
+
+            {/* DELETE CONFIRMATION DIALOG */}
+            <AlertDialog open={!!deletingMission} onOpenChange={() => setDeletingMission(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Mission</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete <strong>{deletingMission?.title}</strong>? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDeleteMission}
+                            disabled={isDeleting}
+                            className="bg-red-600 hover:bg-red-700"
+                        >
+                            {isDeleting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }

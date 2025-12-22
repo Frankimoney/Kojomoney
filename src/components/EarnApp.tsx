@@ -145,6 +145,10 @@ const HappyHour = dynamic(() => import('./HappyHour'), {
     ssr: false
 })
 
+const SocialProofTicker = dynamic(() => import('./SocialProofTicker'), {
+    ssr: false
+})
+
 
 // Dedicated Page Components for focused activity experience
 interface DedicatedPageProps {
@@ -1979,6 +1983,9 @@ export default function EarnApp() {
                     }}
                 />
             )}
+
+            {/* Social proof ticker - shows recent activity */}
+            <SocialProofTicker />
 
             {/* Floating notifications overlay */}
             <FloatingNotificationContainer />

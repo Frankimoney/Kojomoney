@@ -12,6 +12,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { db } from '@/lib/firebase-admin'
 import { OfferProvider } from '@/lib/db-schema'
+import { addTournamentPoints } from '@/lib/tournament-helper'
 
 export const dynamic = 'force-dynamic'
 
@@ -147,6 +148,9 @@ async function processCallback(
                 },
                 createdAt: Date.now(),
             })
+
+            // Add tournament points (30 for offerwall completion)
+            await addTournamentPoints(userId, 'offerwall')
         }
 
         console.log(`Credited ${payout} points to user ${userId} for offer completion ${completionId}`)
@@ -192,6 +196,7 @@ async function processCallback(
         console.log(`Reversed offer completion ${completionId}`)
     }
 }
+
 
 function parseProviderCallback(provider: OfferProvider, rawPayload: any): CallbackPayload | null {
     try {

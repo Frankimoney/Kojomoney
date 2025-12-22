@@ -48,6 +48,8 @@ interface User {
     country?: string
     deviceType?: string
     status: 'active' | 'suspended' | 'banned'
+    isBanned?: boolean
+    bannedReason?: string
 }
 
 interface Withdrawal {
@@ -99,6 +101,14 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     const [success, setSuccess] = useState<string | null>(null)
     const [isExporting, setIsExporting] = useState(false)
     const [adminEmail, setAdminEmail] = useState<string | null>(null)
+    const [selectedUser, setSelectedUser] = useState<User | null>(null)
+    const [showBanDialog, setShowBanDialog] = useState(false)
+    const [banReason, setBanReason] = useState('')
+    const [processingBan, setProcessingBan] = useState(false)
+    const [showEmailDialog, setShowEmailDialog] = useState(false)
+    const [emailSubject, setEmailSubject] = useState('')
+    const [emailMessage, setEmailMessage] = useState('')
+    const [sendingEmail, setSendingEmail] = useState(false)
 
     const authApiCall = (path: string, options: any = {}) => {
         const token = getAdminToken()
@@ -230,6 +240,72 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
             setError('Failed to export reports')
         } finally {
             setIsExporting(false)
+        }
+    }
+
+    const handleBanUser = async (action: 'ban' | 'unban') => {
+        if (!selectedUser) return
+
+        setProcessingBan(true)
+        try {
+            const response = await authApiCall('/api/admin/users', {
+                method: 'POST',
+                body: JSON.stringify({
+                    userId: selectedUser.id,
+                    action,
+                    reason: banReason || undefined,
+                }),
+            })
+
+            if (response.ok) {
+                setSuccess(`User ${action === 'ban' ? 'banned' : 'unbanned'} successfully`)
+                setShowBanDialog(false)
+                setSelectedUser(null)
+                setBanReason('')
+                loadUsers()
+            } else {
+                const data = await response.json()
+                setError(data.error || `Failed to ${action} user`)
+            }
+        } catch (err) {
+            setError(`Failed to ${action} user`)
+        } finally {
+            setProcessingBan(false)
+        }
+    }
+
+    const handleSendEmail = async () => {
+        if (!selectedUser || !emailSubject || !emailMessage) {
+            setError('Subject and message are required')
+            return
+        }
+
+        setSendingEmail(true)
+        try {
+            const response = await authApiCall('/api/admin/send-email', {
+                method: 'POST',
+                body: JSON.stringify({
+                    to: selectedUser.email,
+                    subject: emailSubject,
+                    message: emailMessage,
+                    userName: selectedUser.displayName,
+                }),
+            })
+
+            if (response.ok) {
+                setSuccess(`Email sent to ${selectedUser.email}`)
+                setShowEmailDialog(false)
+                setSelectedUser(null)
+                setEmailSubject('')
+                setEmailMessage('')
+            } else {
+                const data = await response.json()
+                setError(data.error || 'Failed to send email')
+            }
+        } catch (err) {
+            setError('Failed to send email')
+        } finally {
+            setSendingEmail(false)
         }
     }
 
@@ -636,8 +712,8 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                                                     {formatDate(user.createdAt)}
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Badge variant={user.status === 'active' ? 'default' : 'destructive'}>
-                                                        {user.status || 'active'}
+                                                    <Badge variant={user.isBanned || user.status === 'banned' ? 'destructive' : 'default'}>
+                                                        {user.isBanned || user.status === 'banned' ? 'Banned' : 'Active'}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
@@ -645,8 +721,31 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                                                         <Button size="sm" variant="ghost">
                                                             <Eye className="h-4 w-4" />
                                                         </Button>
-                                                        <Button size="sm" variant="ghost">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                            onClick={() => {
+                                                                setSelectedUser(user)
+                                                                setEmailSubject('')
+                                                                setEmailMessage('')
+                                                                setShowEmailDialog(true)
+                                                            }}
+                                                        >
                                                             <Mail className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className={user.isBanned || user.status === 'banned'
+                                                                ? 'text-green-600 hover:text-green-700 hover:bg-green-50'
+                                                                : 'text-red-600 hover:text-red-700 hover:bg-red-50'}
+                                                            onClick={() => {
+                                                                setSelectedUser(user)
+                                                                setShowBanDialog(true)
+                                                            }}
+                                                        >
+                                                            <Ban className="h-4 w-4" />
                                                         </Button>
                                                     </div>
                                                 </TableCell>
@@ -800,6 +899,148 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                         >
                             {processingAction ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
                             Approve
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* User Ban Dialog */}
+            <Dialog open={showBanDialog} onOpenChange={setShowBanDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>
+                            {selectedUser?.isBanned || selectedUser?.status === 'banned'
+                                ? 'Unban User'
+                                : 'Ban User'}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {selectedUser?.isBanned || selectedUser?.status === 'banned'
+                                ? 'This will restore the user\'s access to the platform.'
+                                : 'This will prevent the user from accessing the platform.'}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {selectedUser && (
+                        <div className="space-y-4">
+                            <div className="p-4 bg-muted rounded-lg">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+                                        {selectedUser.displayName?.charAt(0) || selectedUser.email?.charAt(0) || '?'}
+                                    </div>
+                                    <div>
+                                        <p className="font-medium">{selectedUser.displayName || 'Anonymous'}</p>
+                                        <p className="text-sm text-muted-foreground">{selectedUser.email}</p>
+                                    </div>
+                                </div>
+                                <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                                    <div>
+                                        <span className="text-muted-foreground">Points:</span>{' '}
+                                        <span className="font-medium">{selectedUser.points?.toLocaleString()}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-muted-foreground">Referral:</span>{' '}
+                                        <code className="text-xs bg-background px-1 rounded">{selectedUser.referralCode}</code>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {!(selectedUser.isBanned || selectedUser.status === 'banned') && (
+                                <div className="space-y-2">
+                                    <Label>Ban Reason (optional)</Label>
+                                    <Input
+                                        placeholder="e.g., Fraudulent activity, Terms violation"
+                                        value={banReason}
+                                        onChange={(e) => setBanReason(e.target.value)}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <DialogFooter className="gap-2">
+                        <Button variant="outline" onClick={() => setShowBanDialog(false)}>
+                            Cancel
+                        </Button>
+                        {selectedUser?.isBanned || selectedUser?.status === 'banned' ? (
+                            <Button
+                                className="bg-green-600 hover:bg-green-700"
+                                onClick={() => handleBanUser('unban')}
+                                disabled={processingBan}
+                            >
+                                {processingBan ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
+                                Unban User
+                            </Button>
+                        ) : (
+                            <Button
+                                variant="destructive"
+                                onClick={() => handleBanUser('ban')}
+                                disabled={processingBan}
+                            >
+                                {processingBan ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Ban className="h-4 w-4 mr-2" />}
+                                Ban User
+                            </Button>
+                        )}
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Send Email Dialog */}
+            <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Send Email to User</DialogTitle>
+                        <DialogDescription>
+                            Send a personalized email to this user using your configured SMTP.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {selectedUser && (
+                        <div className="space-y-4">
+                            <div className="p-3 bg-muted rounded-lg flex items-center gap-3">
+                                <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold">
+                                    {selectedUser.displayName?.charAt(0) || selectedUser.email?.charAt(0) || '?'}
+                                </div>
+                                <div>
+                                    <p className="font-medium">{selectedUser.displayName || 'Anonymous'}</p>
+                                    <p className="text-sm text-muted-foreground">{selectedUser.email}</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Subject *</Label>
+                                <Input
+                                    placeholder="e.g., Important Update About Your Account"
+                                    value={emailSubject}
+                                    onChange={(e) => setEmailSubject(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Message *</Label>
+                                <textarea
+                                    className="flex min-h-[150px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                    placeholder="Write your personalized message here..."
+                                    value={emailMessage}
+                                    onChange={(e) => setEmailMessage(e.target.value)}
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    The email will include a styled header and the user's name as greeting.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    <DialogFooter className="gap-2">
+                        <Button variant="outline" onClick={() => setShowEmailDialog(false)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleSendEmail}
+                            disabled={sendingEmail || !emailSubject || !emailMessage}
+                            className="bg-blue-600 hover:bg-blue-700"
+                        >
+                            {sendingEmail ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Mail className="h-4 w-4 mr-2" />}
+                            Send Email
                         </Button>
                     </DialogFooter>
                 </DialogContent>

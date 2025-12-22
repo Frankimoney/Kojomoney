@@ -160,15 +160,76 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
         }
 
         // Combine mission data with user progress
-        const missionsWithProgress = missions.map(mission => {
+        const missionsWithProgress = await Promise.all(missions.map(async (mission) => {
             const progress = missionProgress[mission.id]
+
+            // Special handling for referral missions - sync with actual referral data
+            if (mission.type === 'referral' && userIdStr) {
+                const referralsSnapshot = await db!.collection('referrals')
+                    .where('referrerId', '==', userIdStr)
+                    .get()
+
+                const referralCount = referralsSnapshot.size
+
+                // Auto-complete steps based on actual referral count
+                const completedSteps: string[] = ['s1'] // Always mark "share link" as done
+                if (referralCount >= 1) completedSteps.push('s2')
+                if (referralCount >= 2) completedSteps.push('s3')
+                if (referralCount >= 3) completedSteps.push('s4')
+
+                // Determine status
+                let status: 'available' | 'in_progress' | 'completed' = 'available'
+                if (referralCount >= 3) {
+                    status = 'completed'
+                    // Auto-credit points if not already credited
+                    if (!progress || progress.status !== 'completed') {
+                        const existingProgress = await db!.collection('mission_progress')
+                            .where('userId', '==', userIdStr)
+                            .where('missionId', '==', mission.id)
+                            .where('status', '==', 'completed')
+                            .limit(1)
+                            .get()
+
+                        if (existingProgress.empty) {
+                            // Credit points for completing referral mission
+                            await db!.collection('mission_progress').add({
+                                userId: userIdStr,
+                                missionId: mission.id,
+                                status: 'completed',
+                                completedSteps,
+                                startedAt: Date.now(),
+                                completedAt: Date.now(),
+                            })
+
+                            // Add points to user
+                            const userRef = db!.collection('users').doc(userIdStr)
+                            const { FieldValue } = await import('firebase-admin/firestore')
+                            await userRef.update({
+                                totalPoints: FieldValue.increment(mission.payout),
+                                referralPoints: FieldValue.increment(mission.payout),
+                            })
+                        }
+                    }
+                } else if (referralCount > 0) {
+                    status = 'in_progress'
+                }
+
+                return {
+                    ...mission,
+                    userProgress: progress || null,
+                    status,
+                    completedSteps,
+                    referralCount, // Expose for UI
+                }
+            }
+
             return {
                 ...mission,
                 userProgress: progress || null,
                 status: progress?.status || 'available',
                 completedSteps: progress?.completedSteps || [],
             }
-        })
+        }))
 
         // Filter by status if provided
         let filteredMissions = missionsWithProgress

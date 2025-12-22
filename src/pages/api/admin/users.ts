@@ -2,6 +2,7 @@
  * Admin Users API Endpoint
  * 
  * GET /api/admin/users - Get list of users with search
+ * POST /api/admin/users - Ban/unban a user
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next'
@@ -11,22 +12,26 @@ import { requireAdmin } from '@/lib/admin-auth'
 export const dynamic = 'force-dynamic'
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
-    if (req.method !== 'GET') {
-        return res.status(405).json({ error: 'Method not allowed' })
-    }
-
     if (!db) {
         return res.status(500).json({ error: 'Database not available' })
     }
 
-    // TODO: Add admin authentication check
+    if (req.method === 'GET') {
+        return handleGet(req, res)
+    } else if (req.method === 'POST') {
+        return handleBan(req, res)
+    } else {
+        return res.status(405).json({ error: 'Method not allowed' })
+    }
+}
 
+async function handleGet(req: NextApiRequest, res: NextApiResponse) {
     try {
         const { search, limit = '50' } = req.query
         const limitNum = Math.min(parseInt(limit as string) || 50, 100)
 
         // Fetch all users and filter/sort client-side to avoid index requirements
-        const snapshot = await db.collection('users').get()
+        const snapshot = await db!.collection('users').get()
 
         let users: any[] = []
         snapshot.forEach(doc => {
@@ -46,6 +51,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
                 country: data.country,
                 deviceType: data.deviceType,
                 status: data.status || 'active',
+                isBanned: data.isBanned || false,
+                bannedAt: data.bannedAt,
+                bannedReason: data.bannedReason,
             })
         })
 
@@ -76,4 +84,56 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 }
 
+async function handleBan(req: NextApiRequest, res: NextApiResponse) {
+    try {
+        const { userId, action, reason } = req.body
+
+        if (!userId || !action) {
+            return res.status(400).json({ error: 'userId and action are required' })
+        }
+
+        if (!['ban', 'unban'].includes(action)) {
+            return res.status(400).json({ error: 'action must be ban or unban' })
+        }
+
+        const userRef = db!.collection('users').doc(userId)
+        const userDoc = await userRef.get()
+
+        if (!userDoc.exists) {
+            return res.status(404).json({ error: 'User not found' })
+        }
+
+        if (action === 'ban') {
+            await userRef.update({
+                isBanned: true,
+                status: 'banned',
+                bannedAt: Date.now(),
+                bannedReason: reason || 'Banned by admin',
+            })
+
+            return res.status(200).json({
+                success: true,
+                message: 'User banned successfully',
+            })
+        } else {
+            await userRef.update({
+                isBanned: false,
+                status: 'active',
+                bannedAt: null,
+                bannedReason: null,
+                unbannedAt: Date.now(),
+            })
+
+            return res.status(200).json({
+                success: true,
+                message: 'User unbanned successfully',
+            })
+        }
+    } catch (error) {
+        console.error('Error updating user ban status:', error)
+        return res.status(500).json({ error: 'Failed to update user' })
+    }
+}
+
 export default requireAdmin(handler)
+
