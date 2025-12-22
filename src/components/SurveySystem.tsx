@@ -36,8 +36,16 @@ const CPX_CONFIG = {
     }
 }
 
+const TIMEWALL_CONFIG = {
+    oid: process.env.NEXT_PUBLIC_TIMEWALL_SITE_ID || '',
+    getUrl: (userId: string) => {
+        const oid = process.env.NEXT_PUBLIC_TIMEWALL_SITE_ID
+        return oid ? `https://timewall.io/users/login?oid=${oid}&uid=${userId}` : ''
+    }
+}
+
 export default function SurveySystem({ userId, onClose }: SurveySystemProps) {
-    const [activeTab, setActiveTab] = useState<'cpx' | 'internal' | 'completed'>('cpx')
+    const [activeTab, setActiveTab] = useState<'cpx' | 'timewall' | 'internal' | 'completed'>('cpx')
     const [surveys, setSurveys] = useState<Survey[]>([])
     const [completedSurveys, setCompletedSurveys] = useState<SurveyCompletion[]>([])
     const [isLoading, setIsLoading] = useState(true)
@@ -160,6 +168,10 @@ export default function SurveySystem({ userId, onClose }: SurveySystemProps) {
         return CPX_CONFIG.getUrl(userId || 'anonymous')
     }
 
+    const getTimewallUrl = () => {
+        return TIMEWALL_CONFIG.getUrl(userId || 'anonymous')
+    }
+
     return (
         <div className="min-h-screen bg-gray-50/50 dark:bg-zinc-900/50 pb-20 relative font-sans">
 
@@ -273,18 +285,22 @@ export default function SurveySystem({ userId, onClose }: SurveySystemProps) {
 
                 {/* Provider Tabs */}
                 <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="w-full">
-                    <TabsList className="w-full grid grid-cols-3 h-12 rounded-none bg-muted/30">
+                    <TabsList className="w-full grid grid-cols-4 h-12 rounded-none bg-muted/30">
                         <TabsTrigger value="cpx" className="text-xs sm:text-sm data-[state=active]:bg-teal-500 data-[state=active]:text-white rounded-none">
                             <Sparkles className="h-3 w-3 mr-1" />
-                            CPX Surveys
+                            CPX
+                        </TabsTrigger>
+                        <TabsTrigger value="timewall" className="text-xs sm:text-sm data-[state=active]:bg-indigo-500 data-[state=active]:text-white rounded-none">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Timewall
                         </TabsTrigger>
                         <TabsTrigger value="internal" className="text-xs sm:text-sm data-[state=active]:bg-teal-500 data-[state=active]:text-white rounded-none">
                             <ClipboardList className="h-3 w-3 mr-1" />
-                            More Surveys
+                            More
                         </TabsTrigger>
                         <TabsTrigger value="completed" className="text-xs sm:text-sm data-[state=active]:bg-teal-500 data-[state=active]:text-white rounded-none">
                             <CheckCircle2 className="h-3 w-3 mr-1" />
-                            Completed
+                            Done
                         </TabsTrigger>
                     </TabsList>
                 </Tabs>
@@ -363,6 +379,57 @@ export default function SurveySystem({ userId, onClose }: SurveySystemProps) {
                                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                         sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-top-navigation"
                                     />
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Timewall Tab */}
+                {activeTab === 'timewall' && (
+                    <Card className="overflow-hidden border-indigo-200 dark:border-indigo-900">
+                        <CardHeader className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white p-4">
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                <Clock className="h-5 w-5" />
+                                Timewall Surveys
+                            </CardTitle>
+                            <CardDescription className="text-indigo-100">
+                                Quick surveys and micro-tasks. Complete simple tasks to earn points fast!
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-6">
+                            {!userId ? (
+                                <div className="p-8 text-center">
+                                    <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                                    <p className="text-muted-foreground">Please log in to see surveys</p>
+                                </div>
+                            ) : !TIMEWALL_CONFIG.oid ? (
+                                <div className="p-8 text-center">
+                                    <AlertCircle className="h-12 w-12 mx-auto text-yellow-500 mb-3" />
+                                    <p className="text-muted-foreground">Timewall is being configured...</p>
+                                    <p className="text-xs text-muted-foreground mt-1">Check back soon!</p>
+                                </div>
+                            ) : (
+                                <div className="text-center space-y-4">
+                                    <div className="w-20 h-20 mx-auto bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center">
+                                        <Clock className="h-10 w-10 text-white" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-lg">Timewall Surveys & Tasks</h3>
+                                        <p className="text-sm text-muted-foreground mt-1">
+                                            Complete quick surveys and micro-tasks to earn points. Opens in a new window for the best experience.
+                                        </p>
+                                    </div>
+                                    <Button
+                                        size="lg"
+                                        className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700"
+                                        onClick={() => window.open(getTimewallUrl(), '_blank')}
+                                    >
+                                        Open Timewall Surveys
+                                    </Button>
+                                    <p className="text-xs text-muted-foreground">
+                                        💡 Complete surveys honestly to avoid account restrictions
+                                    </p>
                                 </div>
                             )}
                         </CardContent>

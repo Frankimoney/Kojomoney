@@ -56,13 +56,26 @@ async function handler(
     }
 
     try {
-        // Fetch transactions from the transactions collection
-        const snapshot = await db
-            .collection('transactions')
-            .where('userId', '==', userId)
-            .orderBy('createdAt', 'desc')
-            .limit(parseInt(limit as string))
-            .get()
+        let snapshot;
+        const limitNum = parseInt(limit as string)
+
+        // Try the indexed query first
+        try {
+            snapshot = await db
+                .collection('transactions')
+                .where('userId', '==', userId)
+                .orderBy('createdAt', 'desc')
+                .limit(limitNum)
+                .get()
+        } catch (indexError: any) {
+            // If index doesn't exist, fall back to unordered query
+            console.warn('Firestore index may be missing, falling back to simple query:', indexError.message)
+            snapshot = await db
+                .collection('transactions')
+                .where('userId', '==', userId)
+                .limit(limitNum * 2) // Get more since we'll sort and slice
+                .get()
+        }
 
         const earnings: EarningEntry[] = []
         const summary = {
@@ -132,13 +145,17 @@ async function handler(
             }
         })
 
+        // Sort by createdAt descending and limit (in case fallback was used)
+        earnings.sort((a, b) => b.createdAt - a.createdAt)
+        const limitedEarnings = earnings.slice(0, limitNum)
+
         return res.status(200).json({
             success: true,
-            earnings,
+            earnings: limitedEarnings,
             summary,
         })
-    } catch (error) {
-        console.error('Failed to fetch earnings:', error)
+    } catch (error: any) {
+        console.error('Failed to fetch earnings:', error.message, error.code)
         return res.status(500).json({
             success: false,
             error: 'Failed to fetch earnings',

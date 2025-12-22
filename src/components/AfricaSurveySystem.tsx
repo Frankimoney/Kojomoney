@@ -1,15 +1,13 @@
 'use client'
 
 /**
- * Africa Survey System
+ * Survey System
  * 
- * This component displays SURVEYS from Africa-friendly providers:
- * - Wannads Surveys (High-paying market research)
- * - Adgate Surveys (Quick surveys)
- * - Monlix Surveys (High volume surveys)
+ * This component displays SURVEYS from CPX Research:
+ * - CPX Research (Premium paid surveys)
  * 
  * NOTE: This is for SURVEYS only, NOT offerwalls (games, apps).
- * For offerwalls, see AfricaOfferwallSystem.
+ * For offerwalls, see OfferwallSystem.
  */
 
 import { useState, useEffect, useCallback } from 'react'
@@ -101,23 +99,13 @@ export default function AfricaSurveySystem({ userId, onClose }: AfricaSurveySyst
     // Get provider color classes
     const getProviderColorClasses = (provider: string, isSelected: boolean) => {
         const colors: Record<string, { bg: string, text: string, border: string }> = {
-            'Wannads': {
-                bg: isSelected ? 'bg-indigo-500' : 'bg-indigo-50 dark:bg-indigo-950/50',
-                text: isSelected ? 'text-white' : 'text-indigo-700 dark:text-indigo-300',
-                border: 'border-indigo-200 dark:border-indigo-800',
-            },
-            'Adgate': {
-                bg: isSelected ? 'bg-emerald-500' : 'bg-emerald-50 dark:bg-emerald-950/50',
-                text: isSelected ? 'text-white' : 'text-emerald-700 dark:text-emerald-300',
-                border: 'border-emerald-200 dark:border-emerald-800',
-            },
-            'Monlix': {
-                bg: isSelected ? 'bg-amber-500' : 'bg-amber-50 dark:bg-amber-950/50',
-                text: isSelected ? 'text-white' : 'text-amber-700 dark:text-amber-300',
-                border: 'border-amber-200 dark:border-amber-800',
+            'CPX': {
+                bg: isSelected ? 'bg-teal-500' : 'bg-teal-50 dark:bg-teal-950/50',
+                text: isSelected ? 'text-white' : 'text-teal-700 dark:text-teal-300',
+                border: 'border-teal-200 dark:border-teal-800',
             },
         }
-        return colors[provider] || colors['Wannads']
+        return colors[provider] || colors['CPX']
     }
 
     const selectedSurveyWall = surveyWalls.find(s => s.provider === selectedProvider)
@@ -177,7 +165,7 @@ export default function AfricaSurveySystem({ userId, onClose }: AfricaSurveySyst
                         <div className="flex gap-2 mt-3">
                             <Badge className="bg-white/20 text-white border-0 text-xs">
                                 <Globe className="h-3 w-3 mr-1" />
-                                Works in Africa
+                                Global Access
                             </Badge>
                             <Badge className="bg-white/20 text-white border-0 text-xs">
                                 <Clock className="h-3 w-3 mr-1" />

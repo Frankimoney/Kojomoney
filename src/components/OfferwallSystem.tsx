@@ -32,7 +32,7 @@ const EXTERNAL_PROVIDERS = {
         description: 'Micro-tasks & Surveys',
         color: 'from-blue-500 to-indigo-600',
         siteId: process.env.NEXT_PUBLIC_TIMEWALL_SITE_ID || '',
-        getUrl: (userId: string) => `https://timewall.io/offerwall?site_id=${process.env.NEXT_PUBLIC_TIMEWALL_SITE_ID || ''}&user_id=${userId}`,
+        getUrl: (userId: string) => `https://timewall.io/users/login?oid=${process.env.NEXT_PUBLIC_TIMEWALL_SITE_ID || ''}&uid=${userId}&tab=tasks`,
     },
 }
 
@@ -245,7 +245,7 @@ export default function OfferwallSystem({ userId, onClose }: OfferwallSystemProp
                             </Button>
                         )}
                         <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-500 bg-clip-text text-transparent">
-                            Offerwall
+                            Offerwalls & Tasks
                         </h2>
                     </div>
                     <Badge variant="outline" className="text-xs">
@@ -348,7 +348,7 @@ export default function OfferwallSystem({ userId, onClose }: OfferwallSystemProp
                                     Micro-tasks, surveys, and easy offers to earn points!
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent className="p-0">
+                            <CardContent className="p-6">
                                 {!userId ? (
                                     <div className="p-8 text-center">
                                         <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
@@ -361,20 +361,26 @@ export default function OfferwallSystem({ userId, onClose }: OfferwallSystemProp
                                         <p className="text-xs text-muted-foreground mt-1">Check back soon!</p>
                                     </div>
                                 ) : (
-                                    <div className="relative w-full" style={{ height: '500px' }}>
-                                        {externalWallLoading && (
-                                            <div className="absolute inset-0 flex items-center justify-center bg-background">
-                                                <RefreshCw className="h-8 w-8 animate-spin text-blue-500" />
-                                            </div>
-                                        )}
-                                        <iframe
-                                            src={getExternalWallUrl('timewall')}
-                                            className="w-full h-full border-none"
-                                            title="Timewall Offerwall"
-                                            onLoad={() => setExternalWallLoading(false)}
-                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                            sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-top-navigation"
-                                        />
+                                    <div className="text-center space-y-4">
+                                        <div className="w-20 h-20 mx-auto bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center">
+                                            <Clock className="h-10 w-10 text-white" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-lg">Timewall Offers & Tasks</h3>
+                                            <p className="text-sm text-muted-foreground mt-1">
+                                                Complete micro-tasks, watch videos, and install apps to earn points. Opens in a new window for the best experience.
+                                            </p>
+                                        </div>
+                                        <Button
+                                            size="lg"
+                                            className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
+                                            onClick={() => window.open(getExternalWallUrl('timewall'), '_blank')}
+                                        >
+                                            Open Timewall Tasks
+                                        </Button>
+                                        <p className="text-xs text-muted-foreground">
+                                            💡 Points are credited automatically after completing tasks
+                                        </p>
                                     </div>
                                 )}
                             </CardContent>

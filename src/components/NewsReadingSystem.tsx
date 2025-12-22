@@ -119,7 +119,7 @@ const NewsReadingSystem = ({ userId }: NewsReadingSystemProps) => {
 
             if (data?.error || !Array.isArray(data?.stories) || data.stories.length === 0) {
                 try {
-                    response = await apiCall('/api/news?url=https://guardian.ng/feed/&limit=10&points=10')
+                    response = await apiCall('/api/news?url=https://feeds.bbci.co.uk/news/world/rss.xml&limit=10&points=10')
                     data = await response.json()
                 } catch (e) { }
             }

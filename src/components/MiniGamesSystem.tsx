@@ -55,6 +55,7 @@ interface GameConfig {
     rewardPerSession: number
     dailyCap: number
     minDurationSeconds: number
+    cooldownSeconds?: number
 }
 
 // Emoji-based thumbnails since we don't have image files
@@ -64,6 +65,9 @@ const GAME_ICONS: Record<string, string> = {
     memory: '🃏',
     shooter: '🚀',
     puzzle: '🧩',
+    '2048': '🔢',
+    tetris: '🏗️',
+    pong: '🎾',
 }
 
 export default function MiniGamesSystem({ userId, onClose }: MiniGamesSystemProps) {
@@ -85,6 +89,7 @@ export default function MiniGamesSystem({ userId, onClose }: MiniGamesSystemProp
 
     const iframeRef = useRef<HTMLIFrameElement>(null)
     const timerRef = useRef<NodeJS.Timeout | null>(null)
+    const isCompletingRef = useRef(false) // Guard against multiple completion calls
 
     // Calculate min duration early for use in effects
     const minDuration = config?.minDurationSeconds || 120
@@ -148,7 +153,13 @@ export default function MiniGamesSystem({ userId, onClose }: MiniGamesSystemProp
                 setPlayTime(currentTime)
 
                 // Auto-complete when game finished and minimum time reached
-                if (gameFinished && currentTime >= minDuration) {
+                // Only call if not already completing
+                if (gameFinished && currentTime >= minDuration && !isCompletingRef.current) {
+                    // Clear timer immediately to prevent multiple calls
+                    if (timerRef.current) {
+                        clearInterval(timerRef.current)
+                        timerRef.current = null
+                    }
                     completeSession(currentTime)
                 }
             }, 1000)
@@ -215,7 +226,13 @@ export default function MiniGamesSystem({ userId, onClose }: MiniGamesSystemProp
     }
 
     const completeSession = async (duration: number) => {
-        if (!sessionToken) return
+        // Prevent multiple simultaneous completion calls
+        if (!sessionToken || isCompletingRef.current) {
+            console.log('[MiniGames] Skipping duplicate complete call')
+            return
+        }
+
+        isCompletingRef.current = true
 
         try {
             const response = await apiCall('/api/mini-games/complete', {
@@ -224,6 +241,30 @@ export default function MiniGamesSystem({ userId, onClose }: MiniGamesSystemProp
             })
 
             const data = await response.json()
+            console.log('[MiniGames] Complete response:', data)
+
+            // Update stats immediately with the response data (before loadData can overwrite)
+            if (data.success && data.pointsAwarded >= 0) {
+                const newDailyTotal = data.dailyTotal ?? (stats?.todayPoints || 0) + data.pointsAwarded
+                const newCapRemaining = data.dailyCapRemaining ?? Math.max(0, (stats?.dailyCapRemaining || 0) - data.pointsAwarded)
+
+                console.log('[MiniGames] Updating stats:', {
+                    oldPoints: stats?.todayPoints,
+                    newPoints: newDailyTotal,
+                    pointsAwarded: data.pointsAwarded
+                })
+
+                // Update local state immediately
+                setStats(prev => prev ? {
+                    ...prev,
+                    todayPoints: newDailyTotal,
+                    todaySessionCount: prev.todaySessionCount + 1,
+                    dailyCapRemaining: newCapRemaining,
+                    canPlay: newCapRemaining > 0,
+                    cooldownRemaining: config?.cooldownSeconds || 300,
+                    lastSessionAt: Date.now(),
+                } : null)
+            }
 
             if (data.pointsAwarded > 0) {
                 setLastReward({
@@ -231,15 +272,51 @@ export default function MiniGamesSystem({ userId, onClose }: MiniGamesSystemProp
                     dailyTotal: data.dailyTotal || 0,
                 })
                 setShowRewardModal(true)
+
+                // Dispatch events to update global user balance
+                if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new Event('kojo:user:update'))
+                    window.dispatchEvent(new CustomEvent('kojo:points:earned', {
+                        detail: {
+                            source: 'mini_game',
+                            points: data.pointsAwarded,
+                            gameId: activeGame?.id,
+                        }
+                    }))
+
+                    // Sync user data
+                    setTimeout(async () => {
+                        try {
+                            if (userId) {
+                                const res = await fetch(`/api/user?userId=${encodeURIComponent(userId)}`)
+                                const userData = await res.json()
+                                if (userData?.user) {
+                                    localStorage.setItem('kojomoneyUser', JSON.stringify(userData.user))
+                                    window.dispatchEvent(new Event('kojo:user:update'))
+                                }
+                            }
+                        } catch (syncError) {
+                            console.error('Error syncing user after game:', syncError)
+                        }
+                    }, 400)
+                }
             } else if (data.error && !data.error.includes('cap')) {
                 setError(data.error)
             }
 
-            // Cleanup
+            // Cleanup game UI
             closeGame()
-            loadData()
+
+            // NOTE: Do NOT call loadData() here - it would overwrite our optimistic update
+            // with potentially stale data from the database
+            console.log('[MiniGames] State update complete, not calling loadData')
         } catch (err) {
             console.error('Failed to complete session:', err)
+        } finally {
+            // Reset the completing flag after a delay to prevent immediate re-trigger
+            setTimeout(() => {
+                isCompletingRef.current = false
+            }, 1000)
         }
     }
 

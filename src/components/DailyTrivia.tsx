@@ -82,7 +82,8 @@ const DailyTrivia = ({ userId, dailyStreak }: DailyTriviaProps) => {
 
     const fetchDailyTrivia = async () => {
         try {
-            const url = `/api/trivia?region=africa${userId ? `&userId=${encodeURIComponent(userId)}` : ''}`
+            // Region defaults to 'auto' (handled by backend based on IP)
+            const url = `/api/trivia?userId=${userId ? encodeURIComponent(userId) : ''}`
             const response = await fetch(url)
             const data = await response.json()
             setTriviaState(prev => ({
@@ -186,7 +187,7 @@ const DailyTrivia = ({ userId, dailyStreak }: DailyTriviaProps) => {
                                     localStorage.setItem('kojomoneyUser', JSON.stringify(data.user))
                                 }
                             }
-                        } catch {}
+                        } catch { }
                         window.dispatchEvent(new Event('kojo:user:update'))
                     }, 400)
                 }

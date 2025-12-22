@@ -35,10 +35,28 @@ function getCurrentWeekKey(): string {
 }
 
 // RSS Feed URLs to aggregate
-const RSS_FEEDS = [
+// African Country Codes (ISO 3166-1 alpha-2)
+const AFRICA_CODES = new Set([
+    'NG', 'GH', 'KE', 'ZA', 'EG', 'MA', 'DZ', 'TN', 'ET', 'UG',
+    'TZ', 'RW', 'CM', 'CI', 'SN', 'ZW', 'ZM', 'AO', 'MZ', 'MG',
+    'NA', 'BW', 'LR', 'SL', 'BJ', 'TG', 'BF', 'NE', 'ML', 'GM'
+])
+
+// RSS Feed Configurations
+const GLOBAL_FEEDS = [
+    { url: 'https://feeds.bbci.co.uk/news/world/rss.xml', source: 'BBC News' },
+    { url: 'https://rss.nytimes.com/services/xml/rss/nyt/World.xml', source: 'NY Times' },
+    { url: 'https://www.aljazeera.com/xml/rss/all.xml', source: 'Al Jazeera' },
+    { url: 'https://www.huffpost.com/section/front-page/feed', source: 'HuffPost' },
+    { url: 'https://feeds.reuters.com/reuters/U.S.news', source: 'Reuters' }
+]
+
+const AFRICA_FEEDS = [
     { url: 'https://guardian.ng/feed/', source: 'The Guardian Nigeria' },
     { url: 'https://punchng.com/feed/', source: 'Punch Nigeria' },
     { url: 'https://www.premiumtimesng.com/feed', source: 'Premium Times' },
+    { url: 'https://allafrica.com/tools/headlines/v2/crackers/latest/headlines.xml', source: 'AllAfrica' },
+    { url: 'https://www.news24.com/news24/partner/feed', source: 'News24 South Africa' }
 ]
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -62,7 +80,8 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
             points = '10',
             reads,
             userId,
-            action
+            action,
+            region: regionParam
         } = req.query
 
         const limitNum = parseInt(Array.isArray(limit) ? limit[0] : limit) || 10
@@ -72,6 +91,22 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
         const urlStr = Array.isArray(url) ? url[0] : url
         const actionStr = Array.isArray(action) ? action[0] : action
 
+        // Detect Region
+        // Detect Region
+        let isAfrica = false
+        // Development fallback: Default to Nigeria (Africa) if running locally and no header present
+        const isDev = process.env.NODE_ENV === 'development'
+
+        if (regionParam === 'africa') {
+            isAfrica = true
+        } else if (regionParam === 'global') {
+            isAfrica = false
+        } else {
+            // Auto-detect
+            const country = (req.headers['x-vercel-ip-country'] as string)?.toUpperCase() || (isDev ? 'NG' : '')
+            isAfrica = country ? AFRICA_CODES.has(country) : false // Default to global if unknown
+        }
+
         // Handle ingest action (admin only)
         if (actionStr === 'ingest') {
             return handleIngest(req, res, limitNum, pointsNum)
@@ -79,29 +114,49 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
 
         let stories: NewsStory[] = []
 
-        // Try to fetch from database first
-        if (db) {
-            try {
-                const storiesSnapshot = await db.collection('news_stories')
-                    .orderBy('publishedAt', 'desc')
-                    .limit(limitNum)
-                    .get()
+        // Try to fetch from database first (if we were ingesting)
+        // For now, we'll skip DB priority if we want absolute daily freshness from RSS
+        // or we can query DB with a date filter.
+        // Let's rely on RSS fallbacks for now to ensure "changes every day" behavior without heavy DB management.
 
-                stories = storiesSnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data(),
-                    points: pointsNum
-                })) as NewsStory[]
-            } catch (e) {
-                console.error('Error fetching from db:', e)
-            }
-        }
-
-        // If no stories in DB, try to fetch from RSS
+        // Fetch from RSS
         if (stories.length === 0) {
-            if (sourceStr === 'rss' || urlStr) {
-                const feedUrl = urlStr || RSS_FEEDS[0].url
-                stories = await fetchFromRSS(feedUrl as string, limitNum, pointsNum)
+            if (sourceStr === 'rss' || !sourceStr) {
+                const feedUrl = urlStr
+
+                if (feedUrl) {
+                    // Direct URL override
+                    stories = await fetchFromRSS(feedUrl as string, limitNum, pointsNum)
+                } else {
+                    // Daily Rotation & Mixing Logic
+                    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000)
+
+                    if (isAfrica) {
+                        // For Africa: MIX strategy (Priority Local + Global Variety)
+                        // Split limit: 70% Local, 30% Global
+                        const localLimit = Math.ceil(limitNum * 0.7)
+                        const globalLimit = limitNum - localLimit
+
+                        const localIndex = dayOfYear % AFRICA_FEEDS.length
+                        const globalIndex = dayOfYear % GLOBAL_FEEDS.length
+
+                        const localFeed = AFRICA_FEEDS[localIndex]
+                        const globalFeed = GLOBAL_FEEDS[globalIndex]
+
+                        // Fetch in parallel
+                        const [localStories, globalStories] = await Promise.all([
+                            fetchFromRSS(localFeed.url, localLimit, pointsNum, localFeed.source),
+                            fetchFromRSS(globalFeed.url, globalLimit, pointsNum, globalFeed.source)
+                        ])
+
+                        stories = [...localStories, ...globalStories]
+                    } else {
+                        // For Global: Rotate Global Feeds
+                        const feedIndex = dayOfYear % GLOBAL_FEEDS.length
+                        const selectedFeed = GLOBAL_FEEDS[feedIndex]
+                        stories = await fetchFromRSS(selectedFeed.url, limitNum, pointsNum, selectedFeed.source)
+                    }
+                }
             }
         }
 
@@ -307,7 +362,8 @@ async function handleIngest(
     let updated = 0
     let processed = 0
 
-    for (const feed of RSS_FEEDS) {
+    const ALL_FEEDS = [...GLOBAL_FEEDS, ...AFRICA_FEEDS]
+    for (const feed of ALL_FEEDS) {
         try {
             const stories = await fetchFromRSS(feed.url, limit, points, feed.source)
 
@@ -410,7 +466,14 @@ async function fetchFromRSS(
                 title: typeof title === 'string' ? title : String(title),
                 summary: cleanSummary || 'Read more...',
                 imageUrl,
-                category: item.category || 'News',
+                category: (() => {
+                    const c = item.category
+                    if (!c) return 'News'
+                    const v = Array.isArray(c) ? c[0] : c
+                    if (typeof v === 'string') return v
+                    if (typeof v === 'object' && v['#text']) return v['#text']
+                    return 'News'
+                })(),
                 points,
                 publishedAt: new Date(pubDate).toISOString(),
                 isExternal: true,

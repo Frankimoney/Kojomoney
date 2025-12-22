@@ -125,6 +125,30 @@ export const MINI_GAMES: MiniGame[] = [
         path: '/mini-games/puzzle.html',
         color: 'bg-amber-500',
     },
+    {
+        id: '2048',
+        name: '2048 Challenge',
+        description: 'Join the numbers to reach 2048!',
+        thumbnail: '/mini-games/thumbnails/2048.png',
+        path: '/mini-games/2048.html',
+        color: 'bg-pink-500',
+    },
+    {
+        id: 'tetris',
+        name: 'Block Stack',
+        description: 'Complete lines to score points!',
+        thumbnail: '/mini-games/thumbnails/tetris.png',
+        path: '/mini-games/tetris.html',
+        color: 'bg-cyan-600',
+    },
+    {
+        id: 'pong',
+        name: 'Paddle Battle',
+        description: 'Classic tennis duel against AI!',
+        thumbnail: '/mini-games/thumbnails/pong.png',
+        path: '/mini-games/pong.html',
+        color: 'bg-indigo-600',
+    },
 ]
 
 // =============================================================================
@@ -146,19 +170,23 @@ export async function getUserMiniGameStats(userId: string): Promise<MiniGameUser
     if (db) {
         try {
             // Get today's completed sessions
+            // Note: Querying by userId only and filtering in memory to avoid requiring a composite index
+            // (userId + status + completedAt) which might be missing.
             const sessionsSnapshot = await db
                 .collection('mini_game_sessions')
                 .where('userId', '==', userId)
-                .where('status', '==', 'completed')
-                .where('completedAt', '>=', todayStart)
                 .get()
 
             sessionsSnapshot.forEach((doc) => {
                 const session = doc.data() as MiniGameSession
-                todayPoints += session.pointsAwarded || 0
-                todaySessionCount++
-                if (!lastSessionAt || (session.completedAt && session.completedAt > lastSessionAt)) {
-                    lastSessionAt = session.completedAt || null
+
+                // Filter in memory
+                if (session.status === 'completed' && session.completedAt && session.completedAt >= todayStart) {
+                    todayPoints += session.pointsAwarded || 0
+                    todaySessionCount++
+                    if (!lastSessionAt || (session.completedAt && session.completedAt > lastSessionAt)) {
+                        lastSessionAt = session.completedAt || null
+                    }
                 }
             })
         } catch (err) {

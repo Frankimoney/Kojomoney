@@ -6,7 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { Home, Coins, Wallet, User, Play, BookOpen, Brain, Clock, TrendingUp, Gift, Settings, Share2, Bell, Moon, LogOut, Users, Trophy, Medal, ArrowLeft, FileText, Gamepad2, CheckCircle } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Separator } from '@/components/ui/separator'
+import { Home, Coins, Wallet, User, Play, BookOpen, Brain, Clock, TrendingUp, Gift, Settings, Share2, Bell, Moon, LogOut, Users, Trophy, Medal, ArrowLeft, FileText, Gamepad2, CheckCircle, Sparkles, UserCircle, Shield, ChevronRight } from 'lucide-react'
+import { motion } from 'framer-motion'
 import dynamic from 'next/dynamic'
 import { useTheme } from 'next-themes'
 import { Toaster } from '@/components/ui/toaster'
@@ -112,6 +116,19 @@ const LegalPages = dynamic(() => import('./LegalPages'), {
 const GameRewardSystem = dynamic(() => import('./GameRewardSystem'), {
     ssr: false,
     loading: () => <div>Loading games...</div>
+})
+
+const LuckySpin = dynamic(() => import('./LuckySpin'), {
+    ssr: false,
+    loading: () => null
+})
+
+const UserLevelDisplay = dynamic(() => import('./UserLevelDisplay'), {
+    ssr: false
+})
+
+const TrustBadges = dynamic(() => import('./TrustBadges'), {
+    ssr: false
 })
 
 
@@ -784,31 +801,71 @@ interface HomeTabProps {
     userPoints: number
     setActiveTab: (val: string) => void
     setActiveView: (val: 'news' | 'trivia' | 'ads' | null) => void
+    onOpenSpin: () => void
 }
 
-function HomeTab({ user, userPoints, setActiveTab, setActiveView }: HomeTabProps) {
+function HomeTab({ user, userPoints, setActiveTab, setActiveView, onOpenSpin }: HomeTabProps) {
     return (
         <div className="space-y-6">
             <Card className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
                 <CardHeader>
-                    <CardTitle className="text-2xl">Welcome back, {user.name || user.email}!</CardTitle>
-                    <CardDescription className="text-purple-100">
-                        Ready to earn more points today?
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex items-center justify-between">
+                    <div className="flex justify-between items-start">
                         <div>
-                            <p className="text-3xl font-bold">{userPoints.toLocaleString()}</p>
-                            <p className="text-purple-100">Total Points</p>
+                            <CardTitle className="text-2xl">Welcome back, {user.name || user.email}!</CardTitle>
+                            <CardDescription className="text-purple-100">
+                                Ready to earn more points today?
+                            </CardDescription>
                         </div>
-                        <div className="text-right">
-                            <p className="text-xl font-semibold">{user.dailyStreak} days</p>
-                            <p className="text-purple-100">Daily Streak</p>
+                        <Button
+                            onClick={onOpenSpin}
+                            className="bg-yellow-400 hover:bg-yellow-500 text-black border-2 border-yellow-600 font-bold shadow-lg animate-pulse"
+                            size="sm"
+                        >
+                            <Sparkles className="h-4 w-4 mr-1" />
+                            SPIN & WIN
+                        </Button>
+                    </div>
+                </CardHeader>
+
+                <CardContent className="space-y-4">
+                    <UserLevelDisplay points={userPoints} />
+
+                    <div className="grid grid-cols-2 gap-4 mt-2">
+                        <div className="bg-white/20 rounded-lg p-3 text-center backdrop-blur-sm">
+                            <p className="text-2xl font-bold">{userPoints.toLocaleString()}</p>
+                            <p className="text-xs text-purple-100 uppercase tracking-wider">Total Points</p>
+                        </div>
+                        <div className="bg-white/20 rounded-lg p-3 text-center backdrop-blur-sm">
+                            <p className="text-2xl font-bold">{user.dailyStreak} Days</p>
+                            <p className="text-xs text-purple-100 uppercase tracking-wider">Current Streak</p>
                         </div>
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Daily Spin Card - Retention Booster */}
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Card
+                    className="bg-gradient-to-r from-yellow-100 to-amber-100 dark:from-yellow-900/20 dark:to-amber-900/20 border-yellow-200 dark:border-yellow-700 cursor-pointer overflow-hidden relative"
+                    onClick={onOpenSpin}
+                >
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-400/20 rounded-full blur-2xl -mr-10 -mt-10" />
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="h-12 w-12 rounded-full bg-yellow-100 dark:bg-yellow-900/50 flex items-center justify-center border-2 border-yellow-400">
+                                <span className="text-2xl">🎰</span>
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-lg text-amber-800 dark:text-amber-200">Daily Lucky Spin</h3>
+                                <p className="text-sm text-amber-600 dark:text-amber-400">Win up to 500 bonus points daily!</p>
+                            </div>
+                        </div>
+                        <Button size="icon" className="rounded-full bg-yellow-500 hover:bg-yellow-600 text-white shadow-md">
+                            <Play className="h-5 w-5 fill-current" />
+                        </Button>
+                    </CardContent>
+                </Card>
+            </motion.div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setActiveView('ads')}>
@@ -888,7 +945,7 @@ function HomeTab({ user, userPoints, setActiveTab, setActiveView }: HomeTabProps
                     </div>
                 </CardContent>
             </Card>
-        </div>
+        </div >
     )
 }
 
@@ -1282,187 +1339,201 @@ function ProfileTab({ user, setUser, resolvedTheme, setTheme, onLogout, onShowLe
         fetchReferralStats()
     }, [user?.id])
 
+    const getInitials = (name?: string) => {
+        if (!name) return 'U'
+        return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+    }
+
     return (
-        <div className="space-y-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                        <User className="h-5 w-5" />
-                        <span>Profile Information</span>
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-sm font-medium">Full Name</label>
-                            <input
-                                type="text"
-                                className="w-full mt-1 px-3 py-2 border rounded-md"
-                                placeholder="Enter your name"
-                                value={profileForm.name}
-                                onChange={(e) => setProfileForm(prev => ({ ...prev, name: e.target.value }))}
-                                disabled={!isEditing}
-                            />
+        <div className="space-y-6 pb-20">
+            {/* Aesthetic Header */}
+            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-purple-600 via-violet-600 to-indigo-600 p-6 text-white shadow-xl">
+                <div className="absolute top-0 right-0 -mr-16 -mt-16 h-64 w-64 rounded-full bg-white/10 blur-3xl"></div>
+                <div className="absolute bottom-0 left-0 -ml-16 -mb-16 h-64 w-64 rounded-full bg-black/10 blur-3xl"></div>
+
+                <div className="relative flex flex-col items-center">
+                    <div className="mb-4 rounded-full border-4 border-white/20 p-1 shadow-2xl">
+                        <Avatar className="h-24 w-24 border-4 border-white">
+                            <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.id}`} />
+                            <AvatarFallback className="text-2xl font-bold bg-indigo-100 text-indigo-700">
+                                {getInitials(user?.name || user?.email)}
+                            </AvatarFallback>
+                        </Avatar>
+                    </div>
+                    <div className="text-center">
+                        <h2 className="text-2xl font-bold tracking-tight">{user?.name || 'Kojo User'}</h2>
+                        <p className="text-purple-200 font-medium">{'Member since ' + new Date(user?.createdAt || Date.now()).getFullYear()}</p>
+                    </div>
+
+                    <div className="mt-6 flex w-full justify-center gap-8">
+                        <div className="text-center">
+                            <p className="text-2xl font-bold">{user.totalPoints.toLocaleString()}</p>
+                            <p className="text-xs uppercase tracking-wider text-purple-200">Points</p>
                         </div>
-                        <div>
-                            <label className="text-sm font-medium">Phone Number</label>
-                            <input
-                                type="tel"
-                                className="w-full mt-1 px-3 py-2 border rounded-md"
-                                placeholder="+234..."
-                                value={profileForm.phone}
-                                onChange={(e) => setProfileForm(prev => ({ ...prev, phone: e.target.value }))}
-                                disabled={!isEditing}
-                            />
+                        <div className="text-center">
+                            <p className="text-2xl font-bold">{user.dailyStreak || 0}</p>
+                            <p className="text-xs uppercase tracking-wider text-purple-200">Day Streak</p>
                         </div>
+                        <div className="text-center">
+                            <p className="text-2xl font-bold">{referralStats.totalReferrals}</p>
+                            <p className="text-xs uppercase tracking-wider text-purple-200">Friends</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* User Level & Trust Section */}
+            <div className="grid grid-cols-1 gap-4">
+                <UserLevelDisplay points={user.totalPoints || 0} />
+                <TrustBadges user={user} />
+            </div>
+
+            {/* Menu Sections */}
+            <Card className="overflow-hidden border-none shadow-md">
+                <CardContent className="p-0">
+                    <div className="bg-muted/30 p-4">
+                        <h3 className="font-semibold text-muted-foreground text-sm uppercase tracking-wider ml-1">Account & Settings</h3>
                     </div>
                     <div>
-                        <label className="text-sm font-medium">Email</label>
-                        <input
-                            type="email"
-                            className="w-full mt-1 px-3 py-2 border rounded-md"
-                            placeholder="Enter your email"
-                            value={profileForm.email}
-                            onChange={(e) => setProfileForm(prev => ({ ...prev, email: e.target.value }))}
-                            disabled={!isEditing}
-                        />
-                    </div>
-                    <div className="flex space-x-2">
-                        {isEditing ? (
-                            <>
-                                <Button onClick={handleProfileUpdate}>Save Changes</Button>
-                                <Button variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
-                            </>
-                        ) : (
-                            <Button onClick={() => setIsEditing(true)}>Edit Profile</Button>
+                        <button
+                            onClick={() => setIsEditing(!isEditing)}
+                            className="flex w-full items-center justify-between p-4 hover:bg-muted/50 transition-colors border-b last:border-0"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full text-blue-600">
+                                    <UserCircle className="h-5 w-5" />
+                                </div>
+                                <div className="text-left">
+                                    <p className="font-medium">Personal Information</p>
+                                    <p className="text-xs text-muted-foreground">{user?.email}</p>
+                                </div>
+                            </div>
+                            <ChevronRight className={`h-5 w-5 text-muted-foreground transition-transform ${isEditing ? 'rotate-90' : ''}`} />
+                        </button>
+
+                        {isEditing && (
+                            <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                className="bg-muted/20 px-4 pb-4"
+                            >
+                                <div className="space-y-3 pt-2">
+                                    <div>
+                                        <label className="text-xs font-semibold uppercase text-muted-foreground">Full Name</label>
+                                        <Input
+                                            value={profileForm.name}
+                                            onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+                                            className="mt-1 bg-white dark:bg-black/20"
+                                        />
+                                    </div>
+                                    <div className="flex gap-2 justify-end pt-2">
+                                        <Button size="sm" onClick={handleProfileUpdate}>Save Changes</Button>
+                                    </div>
+                                </div>
+                            </motion.div>
                         )}
+
+                        <div className="flex w-full items-center justify-between p-4 border-b hover:bg-muted/50 transition-colors">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-full text-purple-600">
+                                    <Bell className="h-5 w-5" />
+                                </div>
+                                <div className="text-left">
+                                    <p className="font-medium">Notifications</p>
+                                    <p className="text-xs text-muted-foreground">Manage push alerts</p>
+                                </div>
+                            </div>
+                            <button className="relative inline-flex h-6 w-11 items-center rounded-full bg-muted">
+                                <span className="inline-block h-4 w-4 transform rounded-full bg-background transition translate-x-1 shadow-sm"></span>
+                            </button>
+                        </div>
+
+                        <div className="flex w-full items-center justify-between p-4 hover:bg-muted/50 transition-colors">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-600">
+                                    <Moon className="h-5 w-5" />
+                                </div>
+                                <div className="text-left">
+                                    <p className="font-medium">Dark Mode</p>
+                                    <p className="text-xs text-muted-foreground">Toggle theme</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${resolvedTheme === 'dark' ? 'bg-primary' : 'bg-muted'}`}
+                            >
+                                <span
+                                    className={`inline-block h-4 w-4 transform rounded-full bg-background shadow-sm transition ${resolvedTheme === 'dark' ? 'translate-x-6' : 'translate-x-1'}`}
+                                ></span>
+                            </button>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                        <Share2 className="h-5 w-5" />
-                        <span>Referral Program</span>
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="p-4 bg-muted rounded-lg">
-                        <p className="text-sm font-medium mb-2">Your Referral Code</p>
-                        <div className="flex items-center space-x-2">
-                            <code className="flex-1 px-3 py-2 bg-background border rounded">{user?.referralCode || 'N/A'}</code>
-                            <Button variant="outline" size="sm" onClick={copyReferralCode}>Copy</Button>
-                        </div>
+            <Card className="overflow-hidden border-none shadow-md">
+                <CardContent className="p-0">
+                    <div className="bg-muted/30 p-4">
+                        <h3 className="font-semibold text-muted-foreground text-sm uppercase tracking-wider ml-1">Referral Program</h3>
                     </div>
-                    <div className="p-4 bg-muted rounded-lg">
-                        <p className="text-sm font-medium mb-2">Share Referral Link</p>
-                        <div className="flex items-center space-x-2">
-                            <code className="flex-1 px-3 py-2 bg-background border rounded">
-                                {typeof window !== 'undefined' && user?.referralCode ? `${window.location.origin}/?ref=${user.referralCode}` : 'N/A'}
-                            </code>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={async () => {
-                                    if (!user?.referralCode) return
-                                    const origin = typeof window !== 'undefined' ? window.location.origin : ''
-                                    const link = `${origin}/?ref=${encodeURIComponent(user.referralCode)}`
-                                    try {
-                                        if (navigator.share) {
-                                            await navigator.share({ title: 'Join Kojomoney', text: 'Sign up and earn with my referral!', url: link })
-                                        } else {
-                                            await navigator.clipboard.writeText(link)
-                                            alert('Referral link copied to clipboard!')
-                                        }
-                                    } catch (_) {
-                                        try {
-                                            await navigator.clipboard.writeText(link)
-                                            alert('Referral link copied to clipboard!')
-                                        } catch (e) {
-                                            alert(`Referral link: ${link}`)
-                                        }
-                                    }
-                                }}
-                            >
-                                Share
+                    <div className="p-4 space-y-4">
+                        <div className="flex items-center justify-between p-3 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/10 dark:to-amber-900/10 rounded-xl border border-orange-100 dark:border-orange-800/30">
+                            <div>
+                                <p className="text-xs font-bold text-orange-600 uppercase">Your Code</p>
+                                <p className="text-xl font-mono font-bold tracking-widest">{user?.referralCode || '----'}</p>
+                            </div>
+                            <Button size="sm" variant="outline" onClick={copyReferralCode} className="h-9">
+                                Copy
                             </Button>
                         </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 text-center">
-                        <div>
-                            <p className="text-2xl font-bold">{referralStats.totalReferrals}</p>
-                            <p className="text-sm text-muted-foreground">Total Referrals</p>
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold">{referralStats.pointsEarned}</p>
-                            <p className="text-sm text-muted-foreground">Points Earned</p>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                        <Settings className="h-5 w-5" />
-                        <span>Settings</span>
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                            <Bell className="h-4 w-4" />
-                            <span>Push Notifications</span>
-                        </div>
-                        <button className="relative inline-flex h-6 w-11 items-center rounded-full bg-primary">
-                            <span className="inline-block h-4 w-4 transform rounded-full bg-background transition translate-x-6"></span>
-                        </button>
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                            <Moon className="h-4 w-4" />
-                            <span>Dark Mode</span>
-                        </div>
-                        <button
-                            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${resolvedTheme === 'dark' ? 'bg-primary' : 'bg-muted'}`}
-                        >
-                            <span
-                                className={`inline-block h-4 w-4 transform rounded-full bg-background transition ${resolvedTheme === 'dark' ? 'translate-x-6' : 'translate-x-1'}`}
-                            ></span>
-                        </button>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                        <FileText className="h-5 w-5" />
-                        <span>Legal & Privacy</span>
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Button variant="outline" className="justify-start" onClick={() => onShowLegal('privacy')}>
-                            Privacy Policy
-                        </Button>
-                        <Button variant="outline" className="justify-start" onClick={() => onShowLegal('terms')}>
-                            Terms of Service
-                        </Button>
-                        <Button variant="outline" className="justify-start" onClick={() => onShowLegal('cookies')}>
-                            Cookie Policy
-                        </Button>
-                        <Button variant="outline" className="justify-start" onClick={() => onShowLegal('gdpr')}>
-                            GDPR & Data Rights
+                        <Button className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg" onClick={() => {
+                            if (user?.referralCode) {
+                                const link = `${window.location.origin}/?ref=${user.referralCode}`
+                                navigator.share?.({ title: 'Join Kojomoney', url: link }).catch(() => navigator.clipboard.writeText(link))
+                            }
+                        }}>
+                            <Share2 className="h-4 w-4 mr-2" />
+                            Invite Friends
                         </Button>
                     </div>
                 </CardContent>
             </Card>
 
-            <Button variant="destructive" className="w-full" onClick={onLogout}>
-                <LogOut className="h-4 w-4 mr-2" />
+            <Card className="overflow-hidden border-none shadow-md">
+                <CardContent className="p-0">
+                    <div className="bg-muted/30 p-4">
+                        <h3 className="font-semibold text-muted-foreground text-sm uppercase tracking-wider ml-1">Support & Legal</h3>
+                    </div>
+                    <div>
+                        {[
+                            { label: 'Privacy Policy', action: 'privacy', icon: Shield },
+                            { label: 'Terms of Service', action: 'terms', icon: FileText },
+                            { label: 'Cookie Policy', action: 'cookies', icon: FileText }
+                        ].map((item, i) => (
+                            <button
+                                key={i}
+                                onClick={() => onShowLegal(item.action as any)}
+                                className="flex w-full items-center justify-between p-4 hover:bg-muted/50 transition-colors border-b last:border-0"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-gray-100 dark:bg-zinc-800 rounded-full text-gray-600">
+                                        <item.icon className="h-4 w-4" />
+                                    </div>
+                                    <span className="font-medium">{item.label}</span>
+                                </div>
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            </button>
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Button
+                variant="ghost"
+                className="w-full text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 h-12 font-semibold"
+                onClick={onLogout}
+            >
+                <LogOut className="h-5 w-5 mr-2" />
                 Sign Out
             </Button>
         </div>
@@ -1477,6 +1548,7 @@ export default function EarnApp() {
     const [userPoints, setUserPoints] = useState(0)
     const [isClient, setIsClient] = useState(false)
     const { resolvedTheme, setTheme } = useTheme()
+    const [showLuckySpin, setShowLuckySpin] = useState(false)
 
     useEffect(() => {
         setIsClient(true)
@@ -1667,6 +1739,8 @@ export default function EarnApp() {
         )
     }
 
+
+
     return (
         <div className="min-h-screen bg-background">
             <div className="container mx-auto px-4 py-6 max-w-6xl">
@@ -1702,7 +1776,13 @@ export default function EarnApp() {
 
                     <TabsContent value="home" className="space-y-4">
                         {user && (
-                            <HomeTab user={user} userPoints={userPoints} setActiveTab={setActiveTab} setActiveView={setActiveView} />
+                            <HomeTab
+                                user={user}
+                                userPoints={userPoints}
+                                setActiveTab={setActiveTab}
+                                setActiveView={setActiveView}
+                                onOpenSpin={() => setShowLuckySpin(true)}
+                            />
                         )}
                     </TabsContent>
 
@@ -1732,6 +1812,16 @@ export default function EarnApp() {
                     </TabsContent>
                 </Tabs>
             </div>
+
+            {showLuckySpin && (
+                <LuckySpin
+                    userId={user.id}
+                    onClose={() => {
+                        setShowLuckySpin(false)
+                        syncUserFromServer()
+                    }}
+                />
+            )}
         </div>
     )
 }

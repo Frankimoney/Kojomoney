@@ -217,7 +217,7 @@ function PrivacyPolicy() {
                     <p>For privacy-related questions, contact us at:</p>
                     <p className="mt-2">
                         <strong>Email:</strong> privacy@kojomoney.com<br />
-                        <strong>Address:</strong> KojoMoney Limited, Lagos, Nigeria
+                        <strong>Address:</strong> KojoMoney Limited (Global HQ)
                     </p>
                 </CardContent>
             </Card>
@@ -251,7 +251,7 @@ function TermsOfService() {
                     <ul className="list-disc pl-5 space-y-1">
                         <li>Be at least 18 years old</li>
                         <li>Have a valid email address</li>
-                        <li>Be located in a supported country (Nigeria and other African countries)</li>
+                        <li>Be located in a supported country (Global access)</li>
                         <li>Not have been previously banned from our platform</li>
                     </ul>
                 </CardContent>
@@ -366,7 +366,7 @@ function TermsOfService() {
                     <CardTitle className="text-lg">11. Governing Law</CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm text-muted-foreground">
-                    <p>These terms are governed by the laws of Nigeria. Any disputes shall be resolved in the courts of Lagos, Nigeria.</p>
+                    <p>These terms are governed by international laws and regulations. Any disputes shall be resolved through binding arbitration.</p>
                 </CardContent>
             </Card>
         </div>

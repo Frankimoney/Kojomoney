@@ -1,0 +1,410 @@
+'use client'
+
+import { useState, useEffect, useRef } from 'react'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { motion, useAnimation, useSpring } from 'framer-motion'
+import confetti from 'canvas-confetti'
+import { Trophy, Star, Sparkles, Clock } from 'lucide-react'
+import { apiCall } from '@/lib/api-client'
+import { Badge } from '@/components/ui/badge'
+
+interface LuckySpinProps {
+    userId?: string
+    onClose?: () => void
+}
+
+interface SpinSegment {
+    id: number
+    label: string
+    value: number
+    color: string
+    probability: number // 0-1
+}
+
+const SEGMENTS: SpinSegment[] = [
+    { id: 1, label: '50 Pts', value: 50, color: '#ef4444', probability: 0.3 },   // Red
+    { id: 2, label: '10 Pts', value: 10, color: '#3b82f6', probability: 0.4 },   // Blue
+    { id: 3, label: '100 Pts', value: 100, color: '#eab308', probability: 0.15 }, // Yellow
+    { id: 4, label: '20 Pts', value: 20, color: '#22c55e', probability: 0.25 },  // Green
+    { id: 5, label: '500 Pts', value: 500, color: '#a855f7', probability: 0.05 }, // Purple (Jackpot)
+    { id: 6, label: 'TRY AGAIN', value: 0, color: '#64748b', probability: 0.1 }, // Gray
+]
+
+export default function LuckySpin({ userId, onClose }: LuckySpinProps) {
+    const [isSpinning, setIsSpinning] = useState(false)
+    const [canSpin, setCanSpin] = useState(false) // Default to false until loaded
+    const [nextSpinTime, setNextSpinTime] = useState<number | null>(null)
+    const [lastWin, setLastWin] = useState<SpinSegment | null>(null)
+    const [showWinDialog, setShowWinDialog] = useState(false)
+    const [rotation, setRotation] = useState(0)
+
+    const wheelRef = useRef<HTMLDivElement>(null)
+    const controls = useAnimation()
+
+    // Check spin availability
+    useEffect(() => {
+        checkSpinStatus()
+    }, [userId])
+
+    const checkSpinStatus = async () => {
+        if (!userId) return
+
+        try {
+            const res = await apiCall(`/api/spin/status?userId=${userId}`)
+            const data = await res.json()
+
+            if (data.canSpin) {
+                setCanSpin(true)
+                setNextSpinTime(null)
+            } else {
+                setCanSpin(false)
+                setNextSpinTime(data.nextSpinTime)
+            }
+        } catch (error) {
+            console.error('Failed to check spin status', error)
+        }
+    }
+
+    const spinWheel = async () => {
+        if (isSpinning || !canSpin || !userId) return
+
+        setIsSpinning(true)
+
+        // 1. Determine local outcome based on probabilities (Visual only first)
+        // In a real secure app, we should call API FIRST to get the result.
+        // For better UX (instant spin), we can Optimistically spin while fetching result
+
+        try {
+            // Start spinning animation visually
+            // We need to fetch the result from backend to know where to stop
+            const res = await apiCall('/api/spin/play', {
+                method: 'POST',
+                body: JSON.stringify({ userId })
+            })
+
+            const data = await res.json()
+
+            if (!data.success) {
+                alert(data.error || 'Spin failed')
+                setIsSpinning(false)
+                return
+            }
+
+            const winningValue = data.points
+            // Find the segment matching the points
+            // Note: If 0 points, it matches TRY AGAIN
+            const targetSegment = SEGMENTS.find(s => s.value === winningValue) || SEGMENTS.find(s => s.value === 0)!
+
+            // Calculate rotation to land on target
+            // Each segment is 60 degrees (360 / 6)
+            // Segment 1 is at top (0 deg) to start? No, typically right or top.
+            // Let's assume standard CSS rotation where 0 is top.
+            // We need to calculate precise degrees.
+
+            const segmentDegree = 360 / SEGMENTS.length
+            // Current rotation
+            const currentRotation = rotation
+
+            // Random extra spins (5 to 10 full spins)
+            const extraSpins = 360 * (5 + Math.floor(Math.random() * 5))
+
+            // Calculate stopping point
+            // Index 0 (Segment 1) is at 0 degrees usually?
+            // Actually, we need to map Segment ID to visual position.
+            // Let's assume Segment 1 is at [0, 60], Segment 2 [60, 120] etc.
+            // To land on Segment i, we need to rotate NEGATIVE or POSITIVE to align it with the pointer (usually at top)
+
+            // Let's say Pointer is at TOP (0 degrees).
+            // To bring Segment 1 to Top, rotation should be 0 (or 360).
+            // To bring Segment 2 (at 60deg initially) to Top, we rotate -60 degrees.
+
+            const segmentIndex = SEGMENTS.findIndex(s => s.id === targetSegment.id)
+            // Add randomness within the segment wedge to look natural (+/- 25 deg)
+            const wedgeCenter = segmentIndex * segmentDegree
+            const randomOffset = (Math.random() * (segmentDegree - 10)) - ((segmentDegree - 10) / 2)
+
+            // Target Visual Rotation = -(WedgePos) + ExtraSpins
+            // We ADD full spins to current rotation for smooth forward motion
+            const targetRotation = currentRotation + extraSpins + (360 - (wedgeCenter % 360)) + randomOffset
+
+            // Animate
+            await controls.start({
+                rotate: targetRotation,
+                transition: {
+                    duration: 5,
+                    ease: [0.15, 0.55, 0.25, 1], // Custom bezier for realistic "spin down"
+                    type: "tween"
+                }
+            })
+
+            setRotation(targetRotation)
+            setLastWin(targetSegment)
+            setCanSpin(false)
+            setNextSpinTime(Date.now() + 24 * 60 * 60 * 1000) // 24h from now approx
+            setIsSpinning(false)
+            setShowWinDialog(true)
+
+            if (winningValue > 0) {
+                triggerConfetti()
+                // Update Global User Points
+                window.dispatchEvent(new CustomEvent('kojo:points:earned', { detail: { points: winningValue, source: 'spin' } }))
+                window.dispatchEvent(new Event('kojo:user:update'))
+            }
+
+        } catch (error) {
+            console.error('Spin error', error)
+            setIsSpinning(false)
+            alert('Something went wrong. Please try again.')
+        }
+    }
+
+    const triggerConfetti = () => {
+        const count = 200
+        const defaults = {
+            origin: { y: 0.7 }
+        }
+
+        function fire(particleRatio: number, opts: any) {
+            confetti({
+                ...defaults,
+                ...opts,
+                particleCount: Math.floor(count * particleRatio)
+            })
+        }
+
+        fire(0.25, { spread: 26, startVelocity: 55 })
+        fire(0.2, { spread: 60 })
+        fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 })
+        fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 })
+        fire(0.1, { spread: 120, startVelocity: 45 })
+    }
+
+    // Timer Component for cooldown
+    function TimerDisplay({ targetTime }: { targetTime: number }) {
+        const [timeLeft, setTimeLeft] = useState('')
+
+        useEffect(() => {
+            const interval = setInterval(() => {
+                const now = Date.now()
+                const diff = targetTime - now
+
+                if (diff <= 0) {
+                    setCanSpin(true)
+                    setNextSpinTime(null)
+                    clearInterval(interval)
+                    return
+                }
+
+                const h = Math.floor(diff / (1000 * 60 * 60))
+                const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+                const s = Math.floor((diff % (1000 * 60)) / 1000)
+
+                setTimeLeft(`${h}h ${m}m ${s}s`)
+            }, 1000)
+
+            return () => clearInterval(interval)
+        }, [targetTime])
+
+        return <span className="font-mono">{timeLeft}</span>
+    }
+
+    return (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="w-full max-w-md"
+            >
+                <Card className="bg-gradient-to-b from-purple-900 via-indigo-900 to-black border-purple-500/30 text-white overflow-hidden shadow-2xl">
+                    <CardHeader className="text-center relative z-10">
+                        <div className="absolute top-4 right-4">
+                            <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-white/10 text-white">
+                                <span className="sr-only">Close</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                            </Button>
+                        </div>
+                        <CardTitle className="text-3xl font-bold flex items-center justify-center gap-2 text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-amber-500">
+                            <Sparkles className="h-6 w-6 text-yellow-400" />
+                            Daily Lucky Spin
+                            <Sparkles className="h-6 w-6 text-yellow-400" />
+                        </CardTitle>
+                        <CardDescription className="text-purple-200">
+                            Spin every 24 hours for guaranteed rewards!
+                        </CardDescription>
+                    </CardHeader>
+
+                    <CardContent className="flex flex-col items-center justify-center p-6 relative">
+                        {/* Wheel Container */}
+                        <div className="relative w-72 h-72 md:w-80 md:h-80 mb-8">
+                            {/* Pointer */}
+                            <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-20 w-8 h-10">
+                                <motion.div
+                                    className="w-0 h-0 border-l-[15px] border-l-transparent border-r-[15px] border-r-transparent border-t-[30px] border-t-yellow-400 drop-shadow-lg"
+                                    animate={isSpinning ? { rotate: [-5, 5, -5] } : {}}
+                                    transition={{ repeat: Infinity, duration: 0.2 }}
+                                />
+                            </div>
+
+                            {/* The Wheel */}
+                            <motion.div
+                                ref={wheelRef}
+                                className="w-full h-full rounded-full border-4 border-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.5)] overflow-hidden relative bg-white"
+                                animate={controls}
+                                style={{ rotate: 0 }}
+                            >
+                                {SEGMENTS.map((segment, index) => {
+                                    const rotation = index * (360 / SEGMENTS.length)
+                                    return (
+                                        <div
+                                            key={segment.id}
+                                            className="absolute top-0 left-1/2 w-1/2 h-full -translate-x-1/2 origin-center"
+                                            style={{
+                                                transform: `rotate(${rotation}deg)`,
+                                                // Using clip-path to create wedges is complex, CSS conic-gradient is easier for background
+                                                // but for content (text), we need rotation.
+                                            }}
+                                        >
+                                            {/* Wedge Background */}
+                                            <div
+                                                className="absolute top-0 left-0 w-full h-[50%] origin-bottom-center"
+                                                style={{
+                                                    backgroundColor: segment.color,
+                                                    height: '50%',
+                                                    transformOrigin: '50% 100%',
+                                                    // This part is visual trickery, simplified for React:
+                                                    // In reality, building a CSS wheel requires simpler geometry or SVG
+                                                }}
+                                            />
+                                            {/* Text Content */}
+                                            <div
+                                                className="absolute top-[20%] left-1/2 -translate-x-1/2 text-white font-bold text-sm md:text-base flex flex-col items-center gap-1 shadow-black/50 drop-shadow-md"
+                                                style={{ zIndex: 10 }}
+                                            >
+                                                {segment.id === 5 && <Trophy className="h-4 w-4 text-yellow-200" />}
+                                                {segment.label}
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                                {/* SVG Overlay for better wedge shapes */}
+                                <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full" style={{ transform: 'rotate(-90deg)' }}>
+                                    {SEGMENTS.map((segment, index) => {
+                                        // 360 / 6 = 60 degrees.
+                                        // Sector path
+                                        const startAngle = index * 60
+                                        const endAngle = (index + 1) * 60
+                                        // Convert polar to cartesian
+                                        const x1 = 50 + 50 * Math.cos(Math.PI * startAngle / 180)
+                                        const y1 = 50 + 50 * Math.sin(Math.PI * startAngle / 180)
+                                        const x2 = 50 + 50 * Math.cos(Math.PI * endAngle / 180)
+                                        const y2 = 50 + 50 * Math.sin(Math.PI * endAngle / 180)
+
+                                        return (
+                                            <path
+                                                key={`path-${segment.id}`}
+                                                d={`M50,50 L${x1},${y1} A50,50 0 0,1 ${x2},${y2} Z`}
+                                                fill={segment.color}
+                                                stroke="white"
+                                                strokeWidth="0.5"
+                                            />
+                                        )
+                                    })}
+                                </svg>
+
+                                {/* Inner labels (re-rendered on top of SVG) */}
+                                {SEGMENTS.map((segment, index) => {
+                                    const angle = (index * 60) + 30 // Center of wedge
+                                    return (
+                                        <div
+                                            key={`label-${segment.id}`}
+                                            className="absolute w-full h-full top-0 left-0 flex justify-center pt-4"
+                                            style={{ transform: `rotate(${angle}deg)` }}
+                                        >
+                                            <span className="text-white font-bold text-xs md:text-sm drop-shadow-md z-10 bg-black/10 px-1 rounded transform rotate-180" style={{ writingMode: 'vertical-rl' }}>
+                                                {segment.label}
+                                            </span>
+                                        </div>
+                                    )
+                                })}
+
+                                {/* Center Cap */}
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 md:w-12 md:h-12 bg-gradient-to-br from-yellow-300 to-yellow-600 rounded-full shadow-inner z-30 flex items-center justify-center border-2 border-white">
+                                    <Star className="h-4 w-4 md:h-6 md:w-6 text-white fill-white" />
+                                </div>
+                            </motion.div>
+                        </div>
+
+                        {/* Spin Button */}
+                        <div className="space-y-4 text-center w-full">
+                            {!canSpin && nextSpinTime ? (
+                                <div className="bg-purple-950/50 rounded-xl p-4 border border-purple-500/20">
+                                    <p className="text-purple-300 text-sm mb-1 uppercase tracking-wider">Next Spin In</p>
+                                    <div className="text-2xl font-bold flex items-center justify-center gap-2 text-white">
+                                        <Clock className="h-5 w-5 text-purple-400" />
+                                        <TimerDisplay targetTime={nextSpinTime} />
+                                    </div>
+                                </div>
+                            ) : (
+                                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                                    <Button
+                                        onClick={spinWheel}
+                                        disabled={isSpinning || !canSpin}
+                                        className="w-full h-14 text-xl font-bold bg-gradient-to-r from-yellow-400 to-amber-600 hover:from-yellow-500 hover:to-amber-700 text-white rounded-xl shadow-lg shadow-amber-500/20 border-b-4 border-amber-800"
+                                    >
+                                        {isSpinning ? 'SPINNING...' : 'SPIN NOW!'}
+                                    </Button>
+                                </motion.div>
+                            )}
+
+                            <p className="text-xs text-purple-300/60">
+                                100% Free Daily Reward • Sponsored by KojoMoney
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+            </motion.div>
+
+            {/* Win Dialog */}
+            <Dialog open={showWinDialog} onOpenChange={setShowWinDialog}>
+                <DialogContent className="sm:max-w-md text-center bg-white dark:bg-zinc-900 border-none">
+                    <DialogHeader>
+                        <DialogTitle className="text-3xl font-extrabold flex flex-col items-center gap-2 text-green-600">
+                            {lastWin?.value === 0 ? 'Oh no!' : 'CONGRATULATIONS!'}
+                        </DialogTitle>
+                        <DialogDescription className="text-gray-600 dark:text-gray-300">
+                            {lastWin?.value === 0 ? 'Better luck next time!' : 'You verified a daily win!'}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="py-6 flex flex-col items-center justify-center">
+                        {lastWin?.value === 0 ? (
+                            <div className="text-6xl mb-4">😢</div>
+                        ) : (
+                            <>
+                                <div className="text-6xl mb-4">🎁</div>
+                                <h3 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-green-500 to-emerald-700">
+                                    +{lastWin?.value}
+                                </h3>
+                                <p className="font-bold text-gray-500 mt-2 uppercase tracking-widest text-sm">Points Added</p>
+                            </>
+                        )}
+                    </div>
+
+                    <DialogFooter className="sm:justify-center">
+                        <Button
+                            className="w-full bg-green-600 hover:bg-green-700 text-white font-bold h-12"
+                            onClick={() => {
+                                setShowWinDialog(false)
+                                onClose && onClose()
+                            }}
+                        >
+                            CLAIM REWARD
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div>
+    )
+}

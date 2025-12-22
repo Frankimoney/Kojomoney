@@ -37,11 +37,27 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
 export default allowCors(handler)
 
+// African Country Codes (ISO 3166-1 alpha-2)
+const AFRICA_CODES = new Set([
+    'NG', 'GH', 'KE', 'ZA', 'EG', 'MA', 'DZ', 'TN', 'ET', 'UG',
+    'TZ', 'RW', 'CM', 'CI', 'SN', 'ZW', 'ZM', 'AO', 'MZ', 'MG',
+    'NA', 'BW', 'LR', 'SL', 'BJ', 'TG', 'BF', 'NE', 'ML', 'GM'
+])
+
 async function handleGet(req: NextApiRequest, res: NextApiResponse) {
     try {
-        const { region = 'africa', userId } = req.query
-        const regionStr = Array.isArray(region) ? region[0] : region
+        let { region, userId } = req.query
         const userIdStr = Array.isArray(userId) ? userId[0] : userId
+
+        // Auto-detect region if not specified or set to 'auto'
+        if (!region || region === 'auto') {
+            const country = (req.headers['x-vercel-ip-country'] as string)?.toUpperCase()
+            // If country is in Africa, use 'africa', otherwise 'global'
+            // Default to 'global' if location unknown (safer for wider audience)
+            region = (country && AFRICA_CODES.has(country)) ? 'africa' : 'global'
+        }
+
+        const regionStr = Array.isArray(region) ? region[0] : region
 
         // Check daily attempt for signed-in users
         let hasAttempted = false

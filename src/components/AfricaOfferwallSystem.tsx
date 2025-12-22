@@ -1,12 +1,12 @@
 'use client'
 
 /**
- * Africa-Focused Offerwall System
+ * Offerwall System
  * 
- * This component displays offerwalls from Africa-friendly providers:
- * - Wannads (Surveys & Offers)
- * - Adgate Media (Games, Apps, Surveys)
- * - Monlix (Quick Surveys)
+ * This component displays offerwalls from approved providers:
+ * - Kiwiwall (Games, Apps, Offers)
+ * - CPX Research (Surveys)
+ * - Timewall (Quick Tasks & Offers)
  * 
  * Features:
  * - Provider selection tabs
@@ -126,11 +126,11 @@ export default function AfricaOfferwallSystem({ userId, onClose }: AfricaOfferwa
     // Get provider icon
     const getProviderIcon = (provider: string) => {
         switch (provider) {
-            case 'Wannads':
-                return <ClipboardList className="h-4 w-4" />
-            case 'Adgate':
+            case 'Kiwiwall':
                 return <Gamepad2 className="h-4 w-4" />
-            case 'Monlix':
+            case 'CPX':
+                return <ClipboardList className="h-4 w-4" />
+            case 'Timewall':
                 return <Gift className="h-4 w-4" />
             default:
                 return <Zap className="h-4 w-4" />
@@ -140,23 +140,23 @@ export default function AfricaOfferwallSystem({ userId, onClose }: AfricaOfferwa
     // Get provider color classes
     const getProviderColorClasses = (provider: string, isSelected: boolean) => {
         const colors: Record<string, { bg: string, text: string, border: string }> = {
-            'Wannads': {
-                bg: isSelected ? 'bg-indigo-500' : 'bg-indigo-50 dark:bg-indigo-950/50',
-                text: isSelected ? 'text-white' : 'text-indigo-700 dark:text-indigo-300',
-                border: 'border-indigo-200 dark:border-indigo-800',
-            },
-            'Adgate': {
+            'Kiwiwall': {
                 bg: isSelected ? 'bg-emerald-500' : 'bg-emerald-50 dark:bg-emerald-950/50',
                 text: isSelected ? 'text-white' : 'text-emerald-700 dark:text-emerald-300',
                 border: 'border-emerald-200 dark:border-emerald-800',
             },
-            'Monlix': {
-                bg: isSelected ? 'bg-amber-500' : 'bg-amber-50 dark:bg-amber-950/50',
-                text: isSelected ? 'text-white' : 'text-amber-700 dark:text-amber-300',
-                border: 'border-amber-200 dark:border-amber-800',
+            'CPX': {
+                bg: isSelected ? 'bg-teal-500' : 'bg-teal-50 dark:bg-teal-950/50',
+                text: isSelected ? 'text-white' : 'text-teal-700 dark:text-teal-300',
+                border: 'border-teal-200 dark:border-teal-800',
+            },
+            'Timewall': {
+                bg: isSelected ? 'bg-indigo-500' : 'bg-indigo-50 dark:bg-indigo-950/50',
+                text: isSelected ? 'text-white' : 'text-indigo-700 dark:text-indigo-300',
+                border: 'border-indigo-200 dark:border-indigo-800',
             },
         }
-        return colors[provider] || colors['Wannads']
+        return colors[provider] || colors['Kiwiwall']
     }
 
     const selectedOfferwall = offerwalls.find(o => o.provider === selectedProvider)
@@ -181,7 +181,7 @@ export default function AfricaOfferwallSystem({ userId, onClose }: AfricaOfferwa
                             <div>
                                 <h1 className="text-lg font-bold flex items-center gap-2">
                                     <Sparkles className="h-5 w-5 text-purple-500" />
-                                    Offerwalls & Surveys
+                                    Offerwalls & Tasks
                                 </h1>
                                 <p className="text-xs text-muted-foreground">
                                     Complete tasks to earn big rewards
@@ -216,7 +216,7 @@ export default function AfricaOfferwallSystem({ userId, onClose }: AfricaOfferwa
                         <div className="flex gap-2 mt-3">
                             <Badge className="bg-white/20 text-white border-0 text-xs">
                                 <Globe className="h-3 w-3 mr-1" />
-                                Works in Africa
+                                Global Access
                             </Badge>
                             <Badge className="bg-white/20 text-white border-0 text-xs">
                                 <CheckCircle2 className="h-3 w-3 mr-1" />
@@ -447,6 +447,6 @@ export default function AfricaOfferwallSystem({ userId, onClose }: AfricaOfferwa
                     </Card>
                 )}
             </div>
-        </div>
+        </div >
     )
 }

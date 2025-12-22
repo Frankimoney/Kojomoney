@@ -1,0 +1,113 @@
+import type { NextApiRequest, NextApiResponse } from 'next'
+import { db } from '@/lib/firebase-admin'
+import { allowCors } from '@/lib/cors'
+
+export const dynamic = 'force-dynamic'
+
+// Normalized probabilities (Sum approx 1.0)
+const OUTCOMES = [
+    { points: 50, weight: 0.24 },
+    { points: 10, weight: 0.32 },
+    { points: 100, weight: 0.12 },
+    { points: 20, weight: 0.20 },
+    { points: 500, weight: 0.04 }, // Jackpot
+    { points: 0, weight: 0.08 }   // Try Again
+]
+
+async function handler(req: NextApiRequest, res: NextApiResponse) {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' })
+    }
+
+    try {
+        const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body
+        const { userId } = body
+
+        if (!userId) {
+            return res.status(400).json({ error: 'User ID required' })
+        }
+
+        if (!db) {
+            return res.status(200).json({
+                success: true,
+                points: 50,
+                awarded: false,
+                mock: true
+            })
+        }
+
+        const userRef = db.collection('users').doc(userId)
+
+        // Transaction to ensure atomic update and cooldown check
+        const result = await db.runTransaction(async (t) => {
+            const userDoc = await t.get(userRef)
+
+            if (!userDoc.exists) {
+                throw new Error('User not found')
+            }
+
+            const userData = userDoc.data()!
+            const lastSpinAt = userData.lastSpinAt || 0
+            const now = Date.now()
+            const oneDayMs = 24 * 60 * 60 * 1000
+
+            if (now - lastSpinAt < oneDayMs) {
+                throw new Error('Daily spin cooldown active')
+            }
+
+            // Determine Outcome
+            const rand = Math.random()
+            let cumulative = 0
+            let winningPoints = 10 // Default fallback
+
+            for (const outcome of OUTCOMES) {
+                cumulative += outcome.weight
+                if (rand <= cumulative) {
+                    winningPoints = outcome.points
+                    break
+                }
+            }
+
+            // Update User
+            const currentPoints = userData.totalPoints || userData.points || 0
+
+            t.update(userRef, {
+                totalPoints: currentPoints + winningPoints,
+                points: currentPoints + winningPoints, // Sync generic points field
+                lastSpinAt: now,
+                updatedAt: now
+            })
+
+            // Add Transaction Record
+            if (winningPoints > 0) {
+                const transRef = db!.collection('transactions').doc()
+                t.set(transRef, {
+                    userId,
+                    type: 'credit',
+                    amount: winningPoints,
+                    source: 'lucky_spin',
+                    status: 'completed',
+                    description: 'Daily Lucky Spin Reward',
+                    createdAt: now
+                })
+            }
+
+            return { points: winningPoints }
+        })
+
+        return res.status(200).json({
+            success: true,
+            points: result.points,
+            awarded: true
+        })
+
+    } catch (error: any) {
+        console.error('Spin play error:', error)
+        if (error.message === 'Daily spin cooldown active') {
+            return res.status(429).json({ error: 'Please wait 24h before spinning again' })
+        }
+        return res.status(500).json({ error: 'Failed to process spin' })
+    }
+}
+
+export default allowCors(handler)
