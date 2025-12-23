@@ -84,7 +84,7 @@ const DailyTrivia = ({ userId, dailyStreak }: DailyTriviaProps) => {
         try {
             // Region defaults to 'auto' (handled by backend based on IP)
             const url = `/api/trivia?userId=${userId ? encodeURIComponent(userId) : ''}`
-            const response = await fetch(url)
+            const response = await apiCall(url)
             const data = await response.json()
             setTriviaState(prev => ({
                 ...prev,

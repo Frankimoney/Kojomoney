@@ -150,12 +150,11 @@ const NewsReadingSystem = ({ userId }: NewsReadingSystemProps) => {
 
         // Pre-generate quiz while the user is reading
         const url = `/api/quiz?storyId=${encodeURIComponent(story.id)}`
-        fetch(url, {
+        apiCall(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ externalUrl: story.externalUrl, title: story.title, summary: story.summary })
         })
-            .then(async (res) => {
+            .then(async (res: any) => {
                 const data = await res.json().catch(() => ({}))
                 const quiz = data?.quiz || data
                 if (!quiz?.question || !Array.isArray(quiz?.options)) return
@@ -207,7 +206,7 @@ const NewsReadingSystem = ({ userId }: NewsReadingSystemProps) => {
                     const effectiveId = userId || `anon:${anonId}`
                     console.log('[NewsReading] Fetching updated user:', effectiveId)
 
-                    const ures = await fetch(`/api/user?userId=${encodeURIComponent(effectiveId)}`)
+                    const ures = await apiCall(`/api/user?userId=${encodeURIComponent(effectiveId)}`)
                     const udata = await ures.json()
                     console.log('[NewsReading] Updated user data:', udata)
 
@@ -318,7 +317,7 @@ const NewsReadingSystem = ({ userId }: NewsReadingSystemProps) => {
                                                 if (!readingState.currentStory) return
                                                 setReadingState(prev => ({ ...prev, fullContentLoading: true, showFullContent: true }))
                                                 try {
-                                                    const res = await fetch(`/api/quiz?storyId=${encodeURIComponent(readingState.currentStory.id)}&content=1`)
+                                                    const res = await apiCall(`/api/quiz?storyId=${encodeURIComponent(readingState.currentStory.id)}&content=1`)
                                                     const data = await res.json()
                                                     setReadingState(prev => ({ ...prev, fullContent: data?.text, fullContentLoading: false }))
                                                 } catch (e) {
@@ -418,7 +417,7 @@ const NewsReadingSystem = ({ userId }: NewsReadingSystemProps) => {
                                             if (!readingState.currentStory) return
                                             setReadingState(prev => ({ ...prev, fullContentLoading: true, showFullContent: true }))
                                             try {
-                                                const res = await fetch(`/api/quiz?storyId=${encodeURIComponent(readingState.currentStory.id)}&content=1`)
+                                                const res = await apiCall(`/api/quiz?storyId=${encodeURIComponent(readingState.currentStory.id)}&content=1`)
                                                 const data = await res.json()
                                                 setReadingState(prev => ({ ...prev, fullContent: data?.text, fullContentLoading: false }))
                                             } catch (e) {

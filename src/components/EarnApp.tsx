@@ -999,7 +999,7 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
 
     const fetchWithdrawals = async () => {
         try {
-            const response = await fetch(`/api/withdrawal?userId=${user?.id}`)
+            const response = await apiCall(`/api/withdrawal?userId=${user?.id}`)
             if (response.ok) {
                 const data = await response.json()
                 setWithdrawals(data.withdrawals || [])
@@ -1012,7 +1012,7 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
     const fetchEarnings = async () => {
         setIsLoadingEarnings(true)
         try {
-            const response = await fetch(`/api/user/earnings?userId=${user?.id}&limit=50`)
+            const response = await apiCall(`/api/user/earnings?userId=${user?.id}&limit=50`)
             if (response.ok) {
                 const data = await response.json()
                 setEarnings(data.earnings || [])
@@ -1735,7 +1735,7 @@ export default function EarnApp() {
 
             if (!id) return
 
-            const res = await fetch(`/api/user?userId=${encodeURIComponent(id)}`)
+            const res = await apiCall(`/api/user?userId=${encodeURIComponent(id)}`)
             const data = await res.json()
             if (data?.user) {
                 setUser(data.user)
