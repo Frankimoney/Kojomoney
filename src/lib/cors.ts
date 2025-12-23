@@ -5,9 +5,19 @@ export const allowCors = (handler: Function) => async (req: NextApiRequest, res:
     res.setHeader('Access-Control-Allow-Credentials', 'true')
 
     // In production, you might want to restrict this to your specific domains
-    // For now, we allow all origins to ensure mobile app + web app both work
+    const allowedOrigins = [
+        'https://kojomoney-6e131.web.app',
+        'https://kojomoney.web.app',
+        'http://localhost:3000'
+    ]
+
     const origin = req.headers.origin
-    res.setHeader('Access-Control-Allow-Origin', origin || '*')
+
+    if (origin && allowedOrigins.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin)
+    } else {
+        res.setHeader('Access-Control-Allow-Origin', '*')
+    }
 
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT')
     res.setHeader(
