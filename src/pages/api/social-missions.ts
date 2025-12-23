@@ -9,10 +9,11 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { db } from '@/lib/firebase-admin'
+import { allowCors } from '@/lib/cors'
 
 export const dynamic = 'force-dynamic'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (!db) {
         return res.status(500).json({ error: 'Database not available' })
     }
@@ -176,3 +177,5 @@ async function handleDelete(req: NextApiRequest, res: NextApiResponse) {
         return res.status(500).json({ error: 'Failed to delete mission' })
     }
 }
+
+export default allowCors(handler)

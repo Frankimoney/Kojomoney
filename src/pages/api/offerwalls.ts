@@ -7,6 +7,7 @@
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { allowCors } from '@/lib/cors'
 
 export const dynamic = 'force-dynamic'
 
@@ -108,3 +109,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({ error: 'Failed to fetch offerwalls' })
     }
 }
+
+export default allowCors(handler)

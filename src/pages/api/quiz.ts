@@ -1,9 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { db } from '@/lib/firebase-admin'
+import { allowCors } from '@/lib/cors'
 
 export const dynamic = 'force-dynamic'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method === 'GET') {
         return handleGet(req, res)
     } else if (req.method === 'POST') {
@@ -215,3 +216,5 @@ async function fetchArticleContent(url: string): Promise<string> {
         return 'Content not available.'
     }
 }
+
+export default allowCors(handler)

@@ -6,6 +6,7 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { db } from '@/lib/firebase-admin'
+import { allowCors } from '@/lib/cors'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,7 +19,7 @@ export const config = {
     },
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (!db) {
         return res.status(500).json({ error: 'Database not available' })
     }
@@ -90,3 +91,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({ error: 'Failed to submit proof' })
     }
 }
+
+export default allowCors(handler)
