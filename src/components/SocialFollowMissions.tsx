@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { apiCall } from '@/lib/api-client'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -62,7 +63,7 @@ export default function SocialFollowMissions({ userId, onPointsEarned }: SocialF
         setIsLoading(true)
         setError(null)
         try {
-            const res = await fetch(`/api/social-missions?userId=${userId}`)
+            const res = await apiCall(`/api/social-missions?userId=${userId}`)
             const data = await res.json()
             if (data.missions) {
                 setMissions(data.missions)
@@ -173,9 +174,8 @@ export default function SocialFollowMissions({ userId, onPointsEarned }: SocialF
         setError(null)
 
         try {
-            const res = await fetch('/api/submit-social-proof', {
+            const res = await apiCall('/api/submit-social-proof', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     userId,
                     missionId: selectedMission.id,

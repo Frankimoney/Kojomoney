@@ -8,6 +8,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { apiCall } from '@/lib/api-client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -27,7 +28,6 @@ import {
     RefreshCw,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { apiCall } from '@/lib/api-client'
 
 interface MiniGamesSystemProps {
     userId?: string
@@ -288,7 +288,7 @@ export default function MiniGamesSystem({ userId, onClose }: MiniGamesSystemProp
                     setTimeout(async () => {
                         try {
                             if (userId) {
-                                const res = await fetch(`/api/user?userId=${encodeURIComponent(userId)}`)
+                                const res = await apiCall(`/api/user?userId=${encodeURIComponent(userId)}`)
                                 const userData = await res.json()
                                 if (userData?.user) {
                                     localStorage.setItem('kojomoneyUser', JSON.stringify(userData.user))

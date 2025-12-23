@@ -181,7 +181,7 @@ const DailyTrivia = ({ userId, dailyStreak }: DailyTriviaProps) => {
                     setTimeout(async () => {
                         try {
                             if (userId) {
-                                const res = await fetch(`/api/user?userId=${encodeURIComponent(userId)}`)
+                                const res = await apiCall(`/api/user?userId=${encodeURIComponent(userId)}`)
                                 const data = await res.json()
                                 if (data?.user) {
                                     localStorage.setItem('kojomoneyUser', JSON.stringify(data.user))

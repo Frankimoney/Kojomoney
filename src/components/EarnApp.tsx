@@ -1473,7 +1473,7 @@ function ProfileTab({ user, setUser, resolvedTheme, setTheme, onLogout, onShowLe
 
     const fetchReferralStats = async () => {
         try {
-            const response = await fetch(`/api/user?userId=${user?.id}`)
+            const response = await apiCall(`/api/user?userId=${user?.id}`)
             if (response.ok) {
                 const data = await response.json()
                 const referralPoints = data.user.referralRewards?.reduce((sum: number, reward: any) => sum + reward.points, 0) || 0
