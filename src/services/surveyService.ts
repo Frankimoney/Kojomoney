@@ -91,7 +91,7 @@ export async function fetchExternalSurveyWalls(
     userId: string
 ): Promise<SurveyWallsResponse> {
     try {
-        const response = await fetch(`/api/surveywalls?userId=${encodeURIComponent(userId)}`)
+        const response = await apiCall(`/api/surveywalls?userId=${encodeURIComponent(userId)}`)
 
         if (!response.ok) {
             throw new Error('Failed to fetch survey walls')
@@ -122,7 +122,7 @@ export async function fetchExternalSurveys(
             params.append('provider', provider)
         }
 
-        const response = await fetch(`/api/surveywalls?${params.toString()}`)
+        const response = await apiCall(`/api/surveywalls?${params.toString()}`)
 
         if (!response.ok) {
             return []
