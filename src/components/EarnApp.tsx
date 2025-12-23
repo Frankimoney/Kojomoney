@@ -16,6 +16,7 @@ import { useTheme } from 'next-themes'
 import { Toaster } from '@/components/ui/toaster'
 import { apiCall } from '@/lib/api-client'
 import AdService from '@/services/adService'
+import { useBannerAd } from '@/hooks/useAds'
 
 // Dynamically import components to prevent SSR issues
 const NewsReadingSystem = dynamic(() => import('./NewsReadingSystem'), {
@@ -867,6 +868,45 @@ function HomeTab({ user, userPoints, setActiveTab, setActiveView, onOpenSpin }: 
             {/* Happy Hour - Time-based earning boosts */}
             <HappyHour />
 
+            {/* 🚀 Boost Earnings Card - Watch ad for 2x next reward */}
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Card
+                    className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-none shadow-lg cursor-pointer overflow-hidden relative"
+                    onClick={async () => {
+                        try {
+                            const reward = await AdService.showRewarded()
+                            if (reward) {
+                                // Store boost state for next activity
+                                localStorage.setItem('kojomoneyEarningsBoost', JSON.stringify({
+                                    active: true,
+                                    multiplier: 2,
+                                    expiresAt: Date.now() + 30 * 60 * 1000 // 30 minutes
+                                }))
+                                alert('🎉 2x Boost Activated! Your next earning activity will give double points!')
+                            }
+                        } catch (err) {
+                            console.error('Error showing boost ad:', err)
+                        }
+                    }}
+                >
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-white/20 rounded-full blur-2xl -mr-10 -mt-10" />
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="h-12 w-12 rounded-full bg-white/20 flex items-center justify-center border-2 border-white/40">
+                                <span className="text-2xl">🚀</span>
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-lg">Boost Your Earnings</h3>
+                                <p className="text-sm text-emerald-100">Watch ad for 2x points on next activity!</p>
+                            </div>
+                        </div>
+                        <Button size="icon" className="rounded-full bg-white/20 hover:bg-white/30 text-white shadow-md border border-white/30">
+                            <Play className="h-5 w-5 fill-current" />
+                        </Button>
+                    </CardContent>
+                </Card>
+            </motion.div>
+
             {/* Daily Spin Card - Retention Booster */}
             <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                 <Card
@@ -997,6 +1037,9 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
     const [isLoadingWithdrawal, setIsLoadingWithdrawal] = useState(false)
     const [isLoadingEarnings, setIsLoadingEarnings] = useState(false)
 
+    // Show banner ad at bottom of wallet tab
+    useBannerAd('bottom', true)
+
     const fetchWithdrawals = async () => {
         try {
             const response = await apiCall(`/api/withdrawal?userId=${user?.id}`)
@@ -1030,6 +1073,9 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
         setIsLoadingWithdrawal(true)
 
         try {
+            // Show a pre-withdrawal interstitial (respects cooldown)
+            await AdService.showInterstitial()
+
             // Construct payload based on method
             const payload: any = {
                 userId: user?.id,

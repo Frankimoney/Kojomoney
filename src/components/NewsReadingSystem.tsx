@@ -10,6 +10,7 @@ import { Progress } from '@/components/ui/progress'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
 import { Clock, BookOpen, CheckCircle, XCircle, ArrowRight } from 'lucide-react'
+import AdService from '@/services/adService'
 
 
 interface NewsStory {
@@ -201,6 +202,10 @@ const NewsReadingSystem = ({ userId }: NewsReadingSystemProps) => {
             // Sync updated user to localStorage and notify parent when points awarded
             if (result.awarded && result.isCorrect) {
                 console.log('[NewsReading] Points awarded, syncing user data...')
+
+                // Show smart interstitial every 3rd article (non-blocking)
+                AdService.showSmartInterstitial('news_reading').catch(() => { })
+
                 try {
                     // Use the prop userId directly, not from localStorage
                     const effectiveId = userId || `anon:${anonId}`

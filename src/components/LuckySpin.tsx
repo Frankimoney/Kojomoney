@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { motion, useAnimation, useSpring } from 'framer-motion'
 import confetti from 'canvas-confetti'
-import { Trophy, Star, Sparkles, Clock } from 'lucide-react'
+import { Trophy, Star, Sparkles, Clock, Play } from 'lucide-react'
 import { apiCall } from '@/lib/api-client'
 import { Badge } from '@/components/ui/badge'
+import AdService from '@/services/adService'
 
 interface LuckySpinProps {
     userId?: string
@@ -39,6 +40,11 @@ export default function LuckySpin({ userId, onClose }: LuckySpinProps) {
     const [lastWin, setLastWin] = useState<SpinSegment | null>(null)
     const [showWinDialog, setShowWinDialog] = useState(false)
     const [rotation, setRotation] = useState(0)
+
+    // Bonus spin from watching ad
+    const [hasBonusSpin, setHasBonusSpin] = useState(false)
+    const [isLoadingAd, setIsLoadingAd] = useState(false)
+    const [bonusSpinUsedToday, setBonusSpinUsedToday] = useState(false)
 
     const wheelRef = useRef<HTMLDivElement>(null)
     const controls = useAnimation()
@@ -338,22 +344,61 @@ export default function LuckySpin({ userId, onClose }: LuckySpinProps) {
 
                         {/* Spin Button */}
                         <div className="space-y-4 text-center w-full">
-                            {!canSpin && nextSpinTime ? (
-                                <div className="bg-purple-950/50 rounded-xl p-4 border border-purple-500/20">
-                                    <p className="text-purple-300 text-sm mb-1 uppercase tracking-wider">Next Spin In</p>
-                                    <div className="text-2xl font-bold flex items-center justify-center gap-2 text-white">
-                                        <Clock className="h-5 w-5 text-purple-400" />
-                                        <TimerDisplay targetTime={nextSpinTime} />
+                            {!canSpin && !hasBonusSpin && nextSpinTime ? (
+                                <div className="space-y-4">
+                                    <div className="bg-purple-950/50 rounded-xl p-4 border border-purple-500/20">
+                                        <p className="text-purple-300 text-sm mb-1 uppercase tracking-wider">Next Spin In</p>
+                                        <div className="text-2xl font-bold flex items-center justify-center gap-2 text-white">
+                                            <Clock className="h-5 w-5 text-purple-400" />
+                                            <TimerDisplay targetTime={nextSpinTime} />
+                                        </div>
                                     </div>
+
+                                    {/* Watch Ad for Bonus Spin */}
+                                    {!bonusSpinUsedToday && (
+                                        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                                            <Button
+                                                onClick={async () => {
+                                                    setIsLoadingAd(true)
+                                                    try {
+                                                        const reward = await AdService.showRewarded()
+                                                        if (reward) {
+                                                            setHasBonusSpin(true)
+                                                            setCanSpin(true)
+                                                        }
+                                                    } catch (err) {
+                                                        console.error('Error showing ad:', err)
+                                                    } finally {
+                                                        setIsLoadingAd(false)
+                                                    }
+                                                }}
+                                                disabled={isLoadingAd}
+                                                className="w-full h-12 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-xl shadow-lg flex items-center justify-center gap-2"
+                                            >
+                                                <Play className="h-5 w-5" />
+                                                {isLoadingAd ? 'Loading Ad...' : '🎁 Watch Ad for FREE Spin'}
+                                            </Button>
+                                            <p className="text-xs text-green-300/80 mt-1">
+                                                Get 1 bonus spin by watching a short video
+                                            </p>
+                                        </motion.div>
+                                    )}
                                 </div>
                             ) : (
                                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                                     <Button
-                                        onClick={spinWheel}
-                                        disabled={isSpinning || !canSpin}
+                                        onClick={async () => {
+                                            await spinWheel()
+                                            // If this was a bonus spin, mark it as used
+                                            if (hasBonusSpin) {
+                                                setHasBonusSpin(false)
+                                                setBonusSpinUsedToday(true)
+                                            }
+                                        }}
+                                        disabled={isSpinning || (!canSpin && !hasBonusSpin)}
                                         className="w-full h-14 text-xl font-bold bg-gradient-to-r from-yellow-400 to-amber-600 hover:from-yellow-500 hover:to-amber-700 text-white rounded-xl shadow-lg shadow-amber-500/20 border-b-4 border-amber-800"
                                     >
-                                        {isSpinning ? 'SPINNING...' : 'SPIN NOW!'}
+                                        {isSpinning ? 'SPINNING...' : hasBonusSpin ? '🎁 BONUS SPIN!' : 'SPIN NOW!'}
                                     </Button>
                                 </motion.div>
                             )}

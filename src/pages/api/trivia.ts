@@ -3,6 +3,8 @@ import { db } from '@/lib/firebase-admin'
 import { getTriviaByRegion, shuffleArray, type TriviaQuestion, type Region } from '@/services/triviaService'
 import crypto from 'crypto'
 import { allowCors } from '@/lib/cors'
+import { getHappyHourBonus } from '@/lib/happyHour'
+import { getStreakMultiplier } from '@/lib/points-config'
 
 export const dynamic = 'force-dynamic'
 
@@ -161,9 +163,17 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
             }
         }
 
+        // Get streak for tier-based multiplier
         const currentStreak = userDoc.exists ? (userDoc.data()?.dailyStreak || 0) : 0
-        const streakBonus = currentStreak * 5
-        const pointsEarned = (correctCount * 10) + streakBonus
+        const streakInfo = getStreakMultiplier(currentStreak)
+
+        // Calculate base points (10 per correct answer)
+        const basePoints = correctCount * 10
+
+        // Apply both Happy Hour AND Streak multipliers
+        const happyHourInfo = getHappyHourBonus(basePoints)
+        const combinedMultiplier = happyHourInfo.multiplier * streakInfo.multiplier
+        const pointsEarned = Math.floor(basePoints * combinedMultiplier)
 
         // Record the attempt
         await attemptRef.set({
@@ -171,6 +181,9 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
             triviaId,
             score: correctCount,
             total: questions.length,
+            basePoints,
+            happyHourMultiplier: happyHourInfo.multiplier,
+            streakMultiplier: streakInfo.multiplier,
             pointsEarned,
             createdAt: Date.now(),
             date: today
@@ -192,14 +205,23 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
                 updatedAt: now
             })
 
-            // Create Transaction
+            // Build bonus description
+            const bonusLabels: string[] = []
+            if (happyHourInfo.bonusLabel) bonusLabels.push(happyHourInfo.bonusLabel)
+            if (streakInfo.multiplier > 1) bonusLabels.push(`${streakInfo.tier.label} ${streakInfo.multiplier}x`)
+            const bonusDescription = bonusLabels.length > 0 ? ` (${bonusLabels.join(' + ')})` : ''
+
+            // Create Transaction with bonus info
             await db.collection('transactions').add({
                 userId,
                 type: 'credit',
                 amount: pointsEarned,
+                baseAmount: basePoints,
+                happyHourMultiplier: happyHourInfo.multiplier,
+                streakMultiplier: streakInfo.multiplier,
                 source: 'trivia',
                 status: 'completed',
-                description: `Daily Trivia Score: ${correctCount}/${questions.length}`,
+                description: `Daily Trivia Score: ${correctCount}/${questions.length}${bonusDescription}`,
                 createdAt: now
             })
 

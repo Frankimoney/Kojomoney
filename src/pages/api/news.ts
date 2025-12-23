@@ -3,6 +3,8 @@ import { db } from '@/lib/firebase-admin'
 import { XMLParser } from 'fast-xml-parser'
 import crypto from 'crypto'
 import { allowCors } from '@/lib/cors'
+import { getHappyHourBonus } from '@/lib/happyHour'
+import { getStreakMultiplier } from '@/lib/points-config'
 
 export const dynamic = 'force-dynamic'
 
@@ -237,24 +239,13 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
             ? quizAnswer === storyData.correctAnswer
             : true // Default to correct if no quiz
 
-        // Always award 10 points per story read (matching UI display)
-        const POINTS_PER_STORY = 10
-        const pointsToAward = isCorrect ? POINTS_PER_STORY : 0
-
-        // Record the read attempt
-        await readRef.set({
-            userId: effectiveUserId,
-            storyId,
-            quizAnswer,
-            isCorrect,
-            pointsEarned: pointsToAward,
-            createdAt: Date.now(),
-            isAnonymous: !userId
-        })
-
         // Award points only to registered users
         let awarded = false
-        if (userId && pointsToAward > 0) {
+        let pointsToAward = 0
+        let happyHourInfo = { finalPoints: 0, multiplier: 1, bonusLabel: null as string | null }
+        let streakInfo = { multiplier: 1, tier: { label: 'No Streak' } }
+
+        if (userId && isCorrect) {
             const userRef = db.collection('users').doc(userId)
             const userDoc = await userRef.get()
 
@@ -264,6 +255,16 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
                 const todayKey = getTodayKey()
                 const weekKey = getCurrentWeekKey()
                 const now = Date.now()
+
+                // Get user's streak for multiplier
+                const dailyStreak = userData.dailyStreak || 0
+                streakInfo = getStreakMultiplier(dailyStreak)
+
+                // Calculate points with both Happy Hour AND Streak multipliers
+                const BASE_POINTS_PER_STORY = 10
+                happyHourInfo = getHappyHourBonus(BASE_POINTS_PER_STORY)
+                const combinedMultiplier = happyHourInfo.multiplier * streakInfo.multiplier
+                pointsToAward = Math.floor(BASE_POINTS_PER_STORY * combinedMultiplier)
 
                 // Check daily stats
                 const currentProgress = userData.todayProgress || { adsWatched: 0, storiesRead: 0, triviaCompleted: false }
@@ -288,14 +289,23 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
                     updatedAt: now
                 })
 
-                // Create Transaction
+                // Build bonus description
+                const bonusLabels: string[] = []
+                if (happyHourInfo.bonusLabel) bonusLabels.push(happyHourInfo.bonusLabel)
+                if (streakInfo.multiplier > 1) bonusLabels.push(`${streakInfo.tier.label} ${streakInfo.multiplier}x`)
+                const bonusDescription = bonusLabels.length > 0 ? ` (${bonusLabels.join(' + ')})` : ''
+
+                // Create Transaction with bonus info
                 await db.collection('transactions').add({
                     userId,
                     type: 'credit',
                     amount: pointsToAward,
+                    baseAmount: 10,
+                    happyHourMultiplier: happyHourInfo.multiplier,
+                    streakMultiplier: streakInfo.multiplier,
                     source: 'news_reading',
                     status: 'completed',
-                    description: `Read: ${storyData?.title || 'News Story'}`,
+                    description: `Read: ${storyData?.title || 'News Story'}${bonusDescription}`,
                     createdAt: now
                 })
 

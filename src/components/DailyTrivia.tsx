@@ -10,6 +10,7 @@ import { Progress } from '@/components/ui/progress'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
 import { Clock, Brain, CheckCircle, XCircle, Trophy, ArrowRight } from 'lucide-react'
+import AdService from '@/services/adService'
 
 interface TriviaQuestion {
     question: string
@@ -174,6 +175,10 @@ const DailyTrivia = ({ userId, dailyStreak }: DailyTriviaProps) => {
                 })
                 const result = await response.json()
                 console.log('Trivia result:', result)
+
+                // Show trivia completion interstitial (once per day, non-blocking)
+                AdService.showTriviaCompletionInterstitial().catch(() => { })
+
                 if (typeof window !== 'undefined') {
                     // Trigger global listeners
                     window.dispatchEvent(new Event('kojo:points:earned'))

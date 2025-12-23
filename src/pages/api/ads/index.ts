@@ -8,11 +8,13 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { db } from '@/lib/firebase-admin'
 import { allowCors } from '@/lib/cors'
+import { getHappyHourBonus } from '@/lib/happyHour'
+import { getStreakMultiplier } from '@/lib/points-config'
 
 export const dynamic = 'force-dynamic'
 
 // Constants
-const AD_REWARD_POINTS = 5 // Points per ad watched
+const BASE_AD_REWARD_POINTS = 5 // Base points per ad watched
 const TOURNAMENT_POINTS_PER_AD = 10 // Tournament points per ad
 const MAX_ADS_PER_DAY = 10 // Daily limit
 
@@ -151,23 +153,42 @@ async function handlePatch(req: NextApiRequest, res: NextApiResponse) {
             adsWatched = 0
         }
 
+        // Get streak for tier-based multiplier
+        const dailyStreak = userData.dailyStreak || 0
+        const streakInfo = getStreakMultiplier(dailyStreak)
+
+        // Apply both Happy Hour AND Streak multipliers
+        const happyHourInfo = getHappyHourBonus(BASE_AD_REWARD_POINTS)
+        const combinedMultiplier = happyHourInfo.multiplier * streakInfo.multiplier
+        const pointsToAward = Math.floor(BASE_AD_REWARD_POINTS * combinedMultiplier)
+
         // Update user
         await userRef.update({
-            totalPoints: currentPoints + AD_REWARD_POINTS,
-            points: currentPoints + AD_REWARD_POINTS,
+            totalPoints: currentPoints + pointsToAward,
+            points: currentPoints + pointsToAward,
+            adPoints: (userData.adPoints || 0) + pointsToAward,
             adsWatched: adsWatched + 1,
             lastActiveDate: todayKey,
             updatedAt: now,
         })
 
-        // Create transaction record
+        // Build bonus description
+        const bonusLabels: string[] = []
+        if (happyHourInfo.bonusLabel) bonusLabels.push(happyHourInfo.bonusLabel)
+        if (streakInfo.multiplier > 1) bonusLabels.push(`${streakInfo.tier.label} ${streakInfo.multiplier}x`)
+        const bonusDescription = bonusLabels.length > 0 ? ` (${bonusLabels.join(' + ')})` : ''
+
+        // Create transaction record with bonus info
         await db!.collection('transactions').add({
             userId,
             type: 'credit',
-            amount: AD_REWARD_POINTS,
+            amount: pointsToAward,
+            baseAmount: BASE_AD_REWARD_POINTS,
+            happyHourMultiplier: happyHourInfo.multiplier,
+            streakMultiplier: streakInfo.multiplier,
             source: 'ad_watch',
             status: 'completed',
-            description: `Watched ad #${adsWatched + 1} today`,
+            description: `Watched ad #${adsWatched + 1}${bonusDescription}`,
             createdAt: now,
         })
 
@@ -199,9 +220,12 @@ async function handlePatch(req: NextApiRequest, res: NextApiResponse) {
 
         return res.status(200).json({
             success: true,
-            pointsAwarded: AD_REWARD_POINTS,
+            pointsAwarded: pointsToAward,
+            basePoints: BASE_AD_REWARD_POINTS,
+            multiplier: happyHourInfo.multiplier,
+            happyHourBonus: happyHourInfo.bonusLabel,
             tournamentPointsAwarded: TOURNAMENT_POINTS_PER_AD,
-            newTotal: currentPoints + AD_REWARD_POINTS,
+            newTotal: currentPoints + pointsToAward,
             adsWatchedToday: adsWatched + 1,
             remainingAds: MAX_ADS_PER_DAY - (adsWatched + 1),
         })

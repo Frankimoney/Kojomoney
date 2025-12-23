@@ -73,6 +73,13 @@ let interstitialCount = 0
 let currentPlatform: 'android' | 'ios' | 'web' = 'web'
 let admobModule: any = null
 
+// Smart Ad Tracking - for showing ads only every Nth activity
+let activityCounter = 0
+const SMART_INTERSTITIAL_INTERVAL = 3 // Show interstitial every 3 activities
+let dailyTriviaAdShown = false
+let lastSmartInterstitialTime = 0
+const SMART_INTERSTITIAL_COOLDOWN = 60000 // 1 minute between smart interstitials
+
 /**
  * Initialize the AdMob SDK
  * Call this once when the app starts
@@ -424,6 +431,9 @@ export function getAdPlatform(): string {
 export function resetSessionCounters(): void {
     interstitialCount = 0
     lastInterstitialTime = 0
+    activityCounter = 0
+    dailyTriviaAdShown = false
+    lastSmartInterstitialTime = 0
 }
 
 /**
@@ -436,6 +446,72 @@ export async function cleanup(): Promise<void> {
     isInitialized = false
     interstitialReady = false
     rewardedReady = false
+}
+
+/**
+ * Increment activity counter and show interstitial if threshold reached
+ * Use this after completing activities like reading news, completing trivia, etc.
+ * Shows ad every SMART_INTERSTITIAL_INTERVAL activities (default: 3)
+ */
+export async function showSmartInterstitial(activityType?: string): Promise<boolean> {
+    if (!isInitialized || !admobModule) {
+        console.log('[AdService] Not initialized, skipping smart interstitial')
+        return false
+    }
+
+    // Check cooldown
+    const now = Date.now()
+    if (now - lastSmartInterstitialTime < SMART_INTERSTITIAL_COOLDOWN) {
+        console.log('[AdService] Smart interstitial on cooldown')
+        return false
+    }
+
+    // Increment counter
+    activityCounter++
+
+    // Check if we should show an ad
+    if (activityCounter % SMART_INTERSTITIAL_INTERVAL !== 0) {
+        console.log(`[AdService] Activity ${activityCounter}/${SMART_INTERSTITIAL_INTERVAL} - not showing ad yet`)
+        return false
+    }
+
+    console.log(`[AdService] Activity ${activityCounter} - showing smart interstitial for ${activityType || 'activity'}`)
+
+    const result = await showInterstitial()
+    if (result) {
+        lastSmartInterstitialTime = now
+    }
+    return result
+}
+
+/**
+ * Show interstitial after trivia completion (once per day)
+ */
+export async function showTriviaCompletionInterstitial(): Promise<boolean> {
+    if (dailyTriviaAdShown) {
+        console.log('[AdService] Daily trivia ad already shown')
+        return false
+    }
+
+    const result = await showInterstitial()
+    if (result) {
+        dailyTriviaAdShown = true
+    }
+    return result
+}
+
+/**
+ * Reset the smart interstitial activity counter
+ */
+export function resetActivityCounter(): void {
+    activityCounter = 0
+}
+
+/**
+ * Get current activity count
+ */
+export function getActivityCount(): number {
+    return activityCounter
 }
 
 // Export default object for convenience
@@ -455,6 +531,11 @@ const AdService = {
     getPlatform: getAdPlatform,
     resetSession: resetSessionCounters,
     cleanup,
+    // Smart interstitial functions
+    showSmartInterstitial,
+    showTriviaCompletionInterstitial,
+    resetActivityCounter,
+    getActivityCount,
 }
 
 export default AdService
