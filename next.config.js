@@ -1,8 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Use 'standalone' for development and Render backend
-  // Use 'export' only when building for Firebase static hosting
-  output: process.env.BUILD_MODE === 'static' ? 'export' : 'standalone',
+  // Use 'export' for mobile apps (Capacitor) and static hosting
+  // Use 'standalone' for server deployments only
+  output: 'export',
   typescript: { ignoreBuildErrors: true },
   eslint: { ignoreDuringBuilds: true },
   images: { unoptimized: true },
