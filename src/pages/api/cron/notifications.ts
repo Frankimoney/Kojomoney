@@ -85,35 +85,75 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             }
         }
 
-        // 2. Inactivity Re-engagement (users who haven't logged in for 24-48 hours)
-        const inactiveUsersSnapshot = await db.collection('users')
-            .where('lastActiveDate', '<', oneDayAgo)
-            .where('lastActiveDate', '>', twoDaysAgo)
-            .limit(100) // Process in batches
-            .get()
+        // 2. Multi-tier Inactivity Re-engagement
+        // Define inactivity tiers with different messages and urgency
+        const inactivityTiers = [
+            {
+                name: '1day',
+                minHours: 24,
+                maxHours: 48,
+                title: "We miss you! 🎁",
+                body: "Come back and earn! Your daily tasks are waiting.",
+            },
+            {
+                name: '3day',
+                minHours: 72,      // 3 days
+                maxHours: 96,      // 4 days
+                title: "Don't forget your earnings! 💰",
+                body: "You have unclaimed opportunities. Quick tasks = quick points!",
+            },
+            {
+                name: '7day',
+                minHours: 168,     // 7 days
+                maxHours: 336,     // 14 days
+                title: "We've added new ways to earn! 🚀",
+                body: "Check out what's new - surveys, offers, and bonus events await!",
+            },
+            {
+                name: '30day',
+                minHours: 720,     // 30 days
+                maxHours: 2160,    // 90 days
+                title: "Welcome back bonus ready! 🎉",
+                body: "It's been a while! Come back for a special comeback reward.",
+            }
+        ]
 
-        for (const doc of inactiveUsersSnapshot.docs) {
-            const userId = doc.id
-            const notifKey = `inactivity_${userId}_${new Date().toISOString().split('T')[0]}`
-            const sentCheck = await db.collection('sent_notifications').doc(notifKey).get()
+        for (const tier of inactivityTiers) {
+            const tierMinAgo = now - (tier.minHours * 60 * 60 * 1000)
+            const tierMaxAgo = now - (tier.maxHours * 60 * 60 * 1000)
 
-            if (!sentCheck.exists) {
-                try {
-                    await sendPushToUser(
-                        userId,
-                        "We miss you! 🎁",
-                        "Come back and earn! Bonus points waiting for you.",
-                        { type: 'inactivity_reminder' }
-                    )
+            // Query users inactive within this tier's window
+            const inactiveUsersSnapshot = await db.collection('users')
+                .where('updatedAt', '<', tierMinAgo)
+                .where('updatedAt', '>', tierMaxAgo)
+                .limit(50) // Process in smaller batches per tier
+                .get()
 
-                    await db.collection('sent_notifications').doc(notifKey).set({
-                        sentAt: now,
-                        type: 'inactivity'
-                    })
+            for (const doc of inactiveUsersSnapshot.docs) {
+                const userId = doc.id
+                const notifKey = `inactivity_${tier.name}_${userId}`
+                const sentCheck = await db.collection('sent_notifications').doc(notifKey).get()
 
-                    results.inactivityReminders++
-                } catch (e) {
-                    results.errors++
+                // Only send once per tier (not per day)
+                if (!sentCheck.exists) {
+                    try {
+                        await sendPushToUser(
+                            userId,
+                            tier.title,
+                            tier.body,
+                            { type: 'inactivity_reminder', tier: tier.name }
+                        )
+
+                        await db.collection('sent_notifications').doc(notifKey).set({
+                            sentAt: now,
+                            type: 'inactivity',
+                            tier: tier.name
+                        })
+
+                        results.inactivityReminders++
+                    } catch (e) {
+                        results.errors++
+                    }
                 }
             }
         }

@@ -225,10 +225,15 @@ export default function LuckySpin({ userId, onClose }: LuckySpinProps) {
             >
                 <Card className="bg-gradient-to-b from-purple-900 via-indigo-900 to-black border-purple-500/30 text-white overflow-hidden shadow-2xl">
                     <CardHeader className="text-center relative z-10">
-                        <div className="absolute top-4 right-4">
-                            <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-white/10 text-white">
+                        <div className="absolute top-2 right-2 z-50">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={onClose}
+                                className="rounded-full bg-white/20 hover:bg-white/40 text-white w-10 h-10 border border-white/30 shadow-lg transition-all duration-200 hover:scale-110 focus:ring-2 focus:ring-white/50"
+                            >
                                 <span className="sr-only">Close</span>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
                             </Button>
                         </div>
                         <CardTitle className="text-3xl font-bold flex items-center justify-center gap-2 text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-amber-500">
