@@ -84,7 +84,7 @@ export default function StreakDisplay({ dailyStreak, compact = false }: StreakDi
                         </div>
                         <Progress
                             value={progressPercent}
-                            className="h-2 bg-orange-200 dark:bg-orange-800"
+                            className="h-2 bg-orange-200 dark:bg-orange-900/50 [&>div]:bg-orange-500 dark:[&>div]:bg-orange-400"
                         />
                         <p className="text-xs text-center text-muted-foreground">
                             🎯 Reach {nextTier.minDays} days for <span className="font-bold text-orange-600">{nextTier.multiplier}x</span> bonus!

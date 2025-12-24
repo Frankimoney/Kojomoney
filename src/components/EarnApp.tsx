@@ -787,7 +787,7 @@ function EarnTab({ user, userPoints, setUserPoints, setActiveView }: EarnTabProp
                                     ? '🎉 7 day streak achieved! Keep it up!'
                                     : `${user.dailyStreak}/7 days - 100 bonus points at 7 days`}
                             </p>
-                            <Progress value={(user.dailyStreak / 7) * 100} className="mt-2 h-2" />
+                            <Progress value={(user.dailyStreak / 7) * 100} className="mt-2 h-2 bg-orange-200 dark:bg-orange-900/50 [&>div]:bg-orange-500 dark:[&>div]:bg-orange-400" />
                         </div>
                         <div className="p-4 border rounded-lg">
                             <h4 className="font-semibold">Referral Reward</h4>

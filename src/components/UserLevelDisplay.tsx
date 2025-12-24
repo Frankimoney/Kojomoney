@@ -54,7 +54,7 @@ export default function UserLevelDisplay({ points, compact = false }: UserLevelD
                         <span>{points.toLocaleString()} pts</span>
                         <span>{next ? next.minPoints.toLocaleString() : '∞'} pts</span>
                     </div>
-                    <Progress value={progress} className={`h-2.5 ${current.color.replace('text', 'bg').replace('500', '200')}`} /> {/* Simple color mapping fallback */}
+                    <Progress value={progress} className={`h-2.5 bg-gray-200 dark:bg-gray-700 [&>div]:bg-purple-500 dark:[&>div]:bg-purple-400`} />
                 </div>
 
                 {next && (
