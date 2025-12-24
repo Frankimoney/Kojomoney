@@ -11,6 +11,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
 import { Clock, Brain, CheckCircle, XCircle, Trophy, ArrowRight } from 'lucide-react'
 import AdService from '@/services/adService'
+import { FloatingNotifications } from '@/components/notifications/FloatingNotification'
 
 interface TriviaQuestion {
     question: string
@@ -175,6 +176,19 @@ const DailyTrivia = ({ userId, dailyStreak }: DailyTriviaProps) => {
                 })
                 const result = await response.json()
                 console.log('Trivia result:', result)
+
+                // Show multiplier feedback notification
+                if (result.pointsEarned) {
+                    FloatingNotifications.pointsEarned({
+                        source: 'Daily Trivia',
+                        basePoints: result.basePoints || basePoints,
+                        finalPoints: result.pointsEarned,
+                        happyHourMultiplier: result.happyHourMultiplier,
+                        happyHourName: result.happyHourName,
+                        streakMultiplier: result.streakMultiplier,
+                        streakName: result.streakName
+                    })
+                }
 
                 // Show trivia completion interstitial (once per day, non-blocking)
                 AdService.showTriviaCompletionInterstitial().catch(() => { })

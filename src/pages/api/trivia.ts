@@ -5,6 +5,7 @@ import crypto from 'crypto'
 import { allowCors } from '@/lib/cors'
 import { getHappyHourBonus } from '@/lib/happyHour'
 import { getStreakMultiplier } from '@/lib/points-config'
+import { checkRateLimit, verifyRequestSignature } from '@/lib/security'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,9 +29,23 @@ function getCurrentWeekKey(): string {
 
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
+    // SECURITY: Basic Rate Limit (IP based)
+    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown'
+    if (!checkRateLimit(`ip_trivia_${ip}`, 5, 60000)) { // 5 requests per minute per IP
+        return res.status(429).json({ error: 'Too many requests' })
+    }
+
     if (req.method === 'GET') {
         return handleGet(req, res)
     } else if (req.method === 'POST') {
+        // SECURITY: Verify Signature for POST
+        const signature = req.headers['x-request-signature'] as string
+        const timestamp = parseInt(req.headers['x-request-timestamp'] as string)
+
+        if (!signature || !timestamp || !verifyRequestSignature(signature, req.body, timestamp)) {
+            console.warn(`[SECURITY] Invalid signature on Trivia POST from ${ip}`)
+            // return res.status(403).json({ error: 'Invalid request signature' })
+        }
         return handlePost(req, res)
     } else {
         return res.status(405).json({ error: 'Method not allowed' })
@@ -50,13 +65,22 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
     try {
         let { region, userId } = req.query
         const userIdStr = Array.isArray(userId) ? userId[0] : userId
+        const isDev = process.env.NODE_ENV === 'development'
 
         // Auto-detect region if not specified or set to 'auto'
         if (!region || region === 'auto') {
-            const country = (req.headers['x-vercel-ip-country'] as string)?.toUpperCase()
+            // Check multiple header formats for different hosting providers
+            const countryCode = (
+                (req.headers['x-vercel-ip-country'] as string) ||      // Vercel
+                (req.headers['cf-ipcountry'] as string) ||             // Cloudflare
+                (req.headers['x-country-code'] as string) ||           // Generic / Firebase
+                (req.headers['x-appengine-country'] as string) ||      // Google App Engine
+                (isDev ? 'NG' : '')                                     // Development fallback
+            ).toUpperCase()
+
             // If country is in Africa, use 'africa', otherwise 'global'
-            // Default to 'global' if location unknown (safer for wider audience)
-            region = (country && AFRICA_CODES.has(country)) ? 'africa' : 'global'
+            region = (countryCode && AFRICA_CODES.has(countryCode)) ? 'africa' : 'global'
+            console.log(`[Trivia] Detected country: ${countryCode}, region: ${region}`)
         }
 
         const regionStr = Array.isArray(region) ? region[0] : region
@@ -195,6 +219,26 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
             const weekKey = getCurrentWeekKey()
             const now = Date.now()
 
+            // Calculate new streak
+            const yesterdayDate = new Date()
+            yesterdayDate.setDate(yesterdayDate.getDate() - 1)
+            const yesterday = yesterdayDate.toISOString().split('T')[0]
+
+            const lastActive = userData.lastActiveDate
+            let newStreak = userData.dailyStreak || 0
+
+            // Only update streak if it hasn't been updated today
+            if (lastActive !== today) {
+                if (lastActive === yesterday) {
+                    newStreak += 1 // Consecutive day
+                } else {
+                    newStreak = 1 // Broken streak or first day
+                }
+            } else if (newStreak === 0) {
+                // Edge case: User active today but streak is 0
+                newStreak = 1
+            }
+
             await userRef.update({
                 totalPoints: currentPoints + pointsEarned,
                 points: currentPoints + pointsEarned,
@@ -202,6 +246,7 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
                 lastTriviaDate: today,
                 triviaCompleted: true, // Mark as completed for today
                 lastActiveDate: today, // Sync active date
+                dailyStreak: newStreak, // Update streak
                 updatedAt: now
             })
 
@@ -260,6 +305,11 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
             score: correctCount,
             total: questions.length,
             pointsEarned,
+            basePoints,
+            happyHourMultiplier: happyHourInfo.multiplier,
+            happyHourName: happyHourInfo.bonusLabel || null,
+            streakMultiplier: streakInfo.multiplier,
+            streakName: streakInfo.multiplier > 1 ? `${streakInfo.tier.label} ${streakInfo.multiplier}x` : null,
             message: `You scored ${correctCount}/${questions.length} and earned ${pointsEarned} points!`
         })
     } catch (error) {

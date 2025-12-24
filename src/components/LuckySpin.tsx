@@ -364,6 +364,17 @@ export default function LuckySpin({ userId, onClose }: LuckySpinProps) {
                                         <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                                             <Button
                                                 onClick={async () => {
+                                                    // Check if on native platform
+                                                    const isNative = typeof window !== 'undefined' && (
+                                                        ((window as any)?.Capacitor?.isNativePlatform?.() === true) ||
+                                                        (((window as any)?.Capacitor?.getPlatform?.() && (window as any).Capacitor.getPlatform() !== 'web'))
+                                                    )
+
+                                                    if (!isNative) {
+                                                        alert('Bonus spin ads are only available in the Kojomoney mobile app.')
+                                                        return
+                                                    }
+
                                                     setIsLoadingAd(true)
                                                     try {
                                                         const reward = await AdService.showRewarded()

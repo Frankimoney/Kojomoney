@@ -37,8 +37,24 @@ export async function apiCall(
   const base = getApiBase()
   const url = base ? `${base}${path}` : path
 
+  // SECURITY: Add Request Signing
+  const timestamp = Date.now()
+  const payload = options.body ? JSON.parse(options.body as string) : {}
+  // Note: Client-side secret is NOT secure, but adds a layer of difficulty for bots.
+  // Ideally this is handled by a native plugin or backend-for-frontend proxy.
+  // For now, we use a public "client" secret or similar mechanism. 
+  // IMPORTANT: The server uses NEXT_API_SECRET. If we can't share that safely, 
+  // we normally use a public key or session token. 
+  // Since this is a demo/MVP, we will use a simple shared secret that matches env for now, 
+  // but in PROD this should be a session-token-derived key.
+
+  // Using a simplified signature generation for client:
+  const signature = await generateClientSignature(payload, timestamp)
+
   const headers = {
     'Content-Type': 'application/json',
+    'X-Request-Signature': signature,
+    'X-Request-Timestamp': timestamp.toString(),
     ...options.headers,
   }
 
@@ -46,6 +62,35 @@ export async function apiCall(
     ...options,
     headers,
   })
+}
+
+/**
+ * Generate HMAC SHA256 signature (Client Side)
+ * Note: Browser/Capacitor environment limitation - using simple hash or subtlecrypto
+ */
+async function generateClientSignature(payload: any, timestamp: number): Promise<string> {
+  const data = JSON.stringify(payload) + timestamp.toString()
+  // In a real app, do NOT hardcode the secret. Using a placeholder or public config.
+  const secret = 'dev-secret-key-12345'
+
+  // Use Web Crypto API
+  const encoder = new TextEncoder()
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
+  const signature = await crypto.subtle.sign(
+    'HMAC',
+    key,
+    encoder.encode(data)
+  )
+
+  return Array.from(new Uint8Array(signature))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('')
 }
 
 /**

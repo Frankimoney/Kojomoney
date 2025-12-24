@@ -88,3 +88,69 @@ export function validatePhone(phone: string): boolean {
     const phoneRegex = /^[+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}$/
     return phoneRegex.test(phone.replace(/\s/g, ''))
 }
+
+// Security Configuration
+const API_SECRET = process.env.NEXT_API_SECRET || 'dev-secret-key-12345'
+const SIGNATURE_VALIDITY_MS = 5 * 60 * 1000 // 5 minutes
+
+/**
+ * Generate a HMAC-SHA256 signature for a request
+ */
+export function generateRequestSignature(payload: any, timestamp: number): string {
+    const data = JSON.stringify(payload) + timestamp.toString()
+    return crypto.createHmac('sha256', API_SECRET).update(data).digest('hex')
+}
+
+/**
+ * Verify a request signature
+ * - Checks if timestamp is within validity window (prevention of replay attacks)
+ * - Verifies the signature matches the payload and timestamp
+ */
+export function verifyRequestSignature(signature: string, payload: any, timestamp: number): boolean {
+    const now = Date.now()
+
+    // Check if timestamp is too old or in the future (skew allowance 30s)
+    if (timestamp < now - SIGNATURE_VALIDITY_MS || timestamp > now + 30000) {
+        return false
+    }
+
+    const expectedSignature = generateRequestSignature(payload, timestamp)
+
+    // Constant time comparison to prevent timing attacks
+    try {
+        return crypto.timingSafeEqual(
+            Buffer.from(signature),
+            Buffer.from(expectedSignature)
+        )
+    } catch (e) {
+        return false
+    }
+}
+
+/**
+ * Simple in-memory rate limiter (For serverless functions, use Redis/KV in production)
+ * This is a weak implementation for serverless but better than nothing for quick checks
+ */
+const rateLimitMap = new Map<string, number[]>()
+
+export function checkRateLimit(key: string, limit: number, windowMs: number): boolean {
+    const now = Date.now()
+    const timestamps = rateLimitMap.get(key) || []
+
+    // Filter out old timestamps
+    const validTimestamps = timestamps.filter(t => t > now - windowMs)
+
+    if (validTimestamps.length >= limit) {
+        return false
+    }
+
+    validTimestamps.push(now)
+    rateLimitMap.set(key, validTimestamps)
+
+    // Cleanup old keys occasionally (simple optimization)
+    if (rateLimitMap.size > 10000) {
+        rateLimitMap.clear()
+    }
+
+    return true
+}

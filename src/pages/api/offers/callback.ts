@@ -403,22 +403,52 @@ function parseProviderCallback(provider: OfferProvider, rawPayload: any): Callba
     }
 }
 
+import crypto from 'crypto'
+
 async function validateCallback(provider: OfferProvider, rawPayload: any): Promise<boolean> {
     // In production, implement signature verification for each provider
-    // Each provider uses different HMAC/hash schemes
+    const isDev = process.env.NODE_ENV === 'development'
 
-    // For now, we'll do basic validation
-    // TODO: Implement provider-specific signature verification
+    try {
+        if (provider === 'Kiwiwall') {
+            // Kiwiwall signature: MD5(sub_id:amount:secret_key)
+            // Note: rawPayload keys might vary slightly, ensuring we use mapped values
+            const subId = rawPayload.sub_id || rawPayload.subid || rawPayload.uid || rawPayload.user_id
+            const amount = rawPayload.amount || rawPayload.payout || rawPayload.points
+            const signature = rawPayload.signature || rawPayload.sig
 
-    // Example for a generic HMAC verification:
-    // const expectedSignature = crypto
-    //     .createHmac('sha256', process.env[`${provider.toUpperCase()}_SECRET`] || '')
-    //     .update(JSON.stringify(rawPayload))
-    //     .digest('hex')
-    // return rawPayload.signature === expectedSignature
+            const secret = process.env.KIWIWALL_SECRET
+            if (!secret) {
+                console.warn('[Security] KIWIWALL_SECRET not set, skipping validation')
+                return isDev // Only allow skip in dev
+            }
 
-    // Temporarily return true for development
-    // WARNING: Enable signature verification before production!
-    console.warn('Callback signature validation is disabled - enable before production!')
-    return true
+            const toHash = `${subId}:${amount}:${secret}`
+            const expectedSig = crypto.createHash('md5').update(toHash).digest('hex')
+
+            return signature === expectedSig
+        }
+
+        if (provider === 'Timewall') {
+            // Timewall usually uses HMAC-SHA256 or just SHA256 of parameters
+            // Based on doc placeholder: hash = valid
+            // Implementation depends on Timewall settings. Assuming standard HMAC for now.
+            // If specific logic unknown, enforce presence of hash at minimum.
+            if (!rawPayload.hash && !rawPayload.signature) return false
+
+            // TODO: Add specific Timewall hash check once secret is available
+            return true
+        }
+
+        // For other providers, ensure signature exists at least
+        if (!rawPayload.signature && !rawPayload.hash && !rawPayload.sig) {
+            console.warn(`[Security] Missing signature for ${provider}`)
+            return false
+        }
+
+        return true
+    } catch (e) {
+        console.error('Validation error:', e)
+        return false
+    }
 }

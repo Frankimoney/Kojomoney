@@ -9,7 +9,8 @@
         ],
         "correctAnswer": "Nigeria",
         "category": "Geography",
-        "difficulty": "easy"
+        "difficulty": "easy",
+        "country": "NG"
     },
     {
         "question": "What is the longest river in Africa?",
@@ -21,7 +22,7 @@
         ],
         "correctAnswer": "Nile River",
         "category": "Geography",
-        "difficulty": "medium"
+        "difficulty": "easy"
     },
     {
         "question": "Which mountain is the highest peak in Africa?",
@@ -33,7 +34,7 @@
         ],
         "correctAnswer": "Mount Kilimanjaro",
         "category": "Geography",
-        "difficulty": "medium"
+        "difficulty": "easy"
     },
     {
         "question": "Who was the first President of South Africa elected in a fully representative democratic election?",
@@ -45,7 +46,8 @@
         ],
         "correctAnswer": "Nelson Mandela",
         "category": "History",
-        "difficulty": "easy"
+        "difficulty": "easy",
+        "country": "ZA"
     },
     {
         "question": "Which African country was formerly known as Abyssinia?",
@@ -57,7 +59,7 @@
         ],
         "correctAnswer": "Ethiopia",
         "category": "History",
-        "difficulty": "hard"
+        "difficulty": "medium"
     },
     {
         "question": "What is the capital city of Ghana?",
@@ -69,7 +71,8 @@
         ],
         "correctAnswer": "Accra",
         "category": "Geography",
-        "difficulty": "easy"
+        "difficulty": "easy",
+        "country": "GH"
     },
     {
         "question": "Which large waterfall is located on the border between Zambia and Zimbabwe?",
@@ -81,7 +84,7 @@
         ],
         "correctAnswer": "Victoria Falls",
         "category": "Geography",
-        "difficulty": "medium"
+        "difficulty": "easy"
     },
     {
         "question": "In which country can you find the Pyramids of Giza?",
@@ -93,7 +96,8 @@
         ],
         "correctAnswer": "Egypt",
         "category": "History",
-        "difficulty": "easy"
+        "difficulty": "easy",
+        "country": "EG"
     },
     {
         "question": "Which African country has the largest population?",
@@ -105,7 +109,8 @@
         ],
         "correctAnswer": "Nigeria",
         "category": "Demographics",
-        "difficulty": "medium"
+        "difficulty": "easy",
+        "country": "NG"
     },
     {
         "question": "What is the currency of Kenya?",
@@ -117,6 +122,848 @@
         ],
         "correctAnswer": "Kenyan Shilling",
         "category": "Economy",
+        "difficulty": "medium",
+        "country": "KE"
+    },
+    {
+        "question": "Which Nigerian tech company became Africa's first unicorn (valued at over $1 billion)?",
+        "options": [
+            "Flutterwave",
+            "Paystack",
+            "Jumia",
+            "Interswitch"
+        ],
+        "correctAnswer": "Jumia",
+        "category": "Technology",
+        "difficulty": "medium",
+        "country": "NG"
+    },
+    {
+        "question": "What is M-Pesa, launched in Kenya in 2007?",
+        "options": [
+            "Mobile money service",
+            "Social media app",
+            "Gaming platform",
+            "E-commerce website"
+        ],
+        "correctAnswer": "Mobile money service",
+        "category": "Technology",
+        "difficulty": "easy",
+        "country": "KE"
+    },
+    {
+        "question": "Which African country is home to 'Silicon Savannah', a major tech hub?",
+        "options": [
+            "Kenya",
+            "Nigeria",
+            "South Africa",
+            "Egypt"
+        ],
+        "correctAnswer": "Kenya",
+        "category": "Technology",
+        "difficulty": "medium",
+        "country": "KE"
+    },
+    {
+        "question": "Paystack, acquired by Stripe for $200M, was founded in which country?",
+        "options": [
+            "Nigeria",
+            "Ghana",
+            "South Africa",
+            "Kenya"
+        ],
+        "correctAnswer": "Nigeria",
+        "category": "Technology",
+        "difficulty": "medium",
+        "country": "NG"
+    },
+    {
+        "question": "What is Andela, the African tech company founded in 2014?",
+        "options": [
+            "Software developer training company",
+            "Food delivery app",
+            "Ride-hailing service",
+            "Banking app"
+        ],
+        "correctAnswer": "Software developer training company",
+        "category": "Technology",
+        "difficulty": "hard",
+        "country": "NG"
+    },
+    {
+        "question": "Which African country launched its first satellite, RwaSat-1, in 2019?",
+        "options": [
+            "Rwanda",
+            "Kenya",
+            "Nigeria",
+            "South Africa"
+        ],
+        "correctAnswer": "Rwanda",
+        "category": "Technology",
+        "difficulty": "hard",
+        "country": "RW"
+    },
+    {
+        "question": "Chipper Cash, a cross-border payment app, was co-founded by entrepreneurs from which two African countries?",
+        "options": [
+            "Ghana and Uganda",
+            "Nigeria and Kenya",
+            "South Africa and Egypt",
+            "Rwanda and Tanzania"
+        ],
+        "correctAnswer": "Ghana and Uganda",
+        "category": "Technology",
+        "difficulty": "hard"
+    },
+    {
+        "question": "Which Nigerian fintech company processed the first-ever online payment in Nigeria?",
+        "options": [
+            "Interswitch",
+            "Paystack",
+            "Flutterwave",
+            "Paga"
+        ],
+        "correctAnswer": "Interswitch",
+        "category": "Technology",
+        "difficulty": "medium",
+        "country": "NG"
+    },
+    {
+        "question": "What year did Nigeria gain independence from Britain?",
+        "options": [
+            "1960",
+            "1963",
+            "1957",
+            "1970"
+        ],
+        "correctAnswer": "1960",
+        "category": "History",
+        "difficulty": "easy",
+        "country": "NG"
+    },
+    {
+        "question": "Ghana was the first sub-Saharan African country to gain independence. In what year?",
+        "options": [
+            "1957",
+            "1960",
+            "1963",
+            "1955"
+        ],
+        "correctAnswer": "1957",
+        "category": "History",
+        "difficulty": "medium",
+        "country": "GH"
+    },
+    {
+        "question": "Who was Ghana's first President?",
+        "options": [
+            "Kwame Nkrumah",
+            "Kofi Annan",
+            "Jerry Rawlings",
+            "John Kufuor"
+        ],
+        "correctAnswer": "Kwame Nkrumah",
+        "category": "History",
+        "difficulty": "easy",
+        "country": "GH"
+    },
+    {
+        "question": "What is the capital of Nigeria?",
+        "options": [
+            "Abuja",
+            "Lagos",
+            "Kano",
+            "Port Harcourt"
+        ],
+        "correctAnswer": "Abuja",
+        "category": "Geography",
+        "difficulty": "easy",
+        "country": "NG"
+    },
+    {
+        "question": "Which African nation is known as the 'Rainbow Nation'?",
+        "options": [
+            "South Africa",
+            "Nigeria",
+            "Kenya",
+            "Ethiopia"
+        ],
+        "correctAnswer": "South Africa",
+        "category": "Culture",
+        "difficulty": "easy",
+        "country": "ZA"
+    },
+    {
+        "question": "In mathematics, what is the value of Pi (π) to two decimal places?",
+        "options": [
+            "3.14",
+            "3.41",
+            "2.14",
+            "3.24"
+        ],
+        "correctAnswer": "3.14",
+        "category": "Education",
+        "difficulty": "easy"
+    },
+    {
+        "question": "What is the chemical symbol for Gold?",
+        "options": [
+            "Au",
+            "Ag",
+            "Go",
+            "Gd"
+        ],
+        "correctAnswer": "Au",
+        "category": "Education",
+        "difficulty": "easy"
+    },
+    {
+        "question": "What is the largest organ in the human body?",
+        "options": [
+            "Skin",
+            "Liver",
+            "Heart",
+            "Brain"
+        ],
+        "correctAnswer": "Skin",
+        "category": "Education",
+        "difficulty": "easy"
+    },
+    {
+        "question": "What is the chemical formula for water?",
+        "options": [
+            "H2O",
+            "CO2",
+            "NaCl",
+            "O2"
+        ],
+        "correctAnswer": "H2O",
+        "category": "Education",
+        "difficulty": "easy"
+    },
+    {
+        "question": "How many sides does a hexagon have?",
+        "options": [
+            "6",
+            "5",
+            "7",
+            "8"
+        ],
+        "correctAnswer": "6",
+        "category": "Education",
+        "difficulty": "easy"
+    },
+    {
+        "question": "What is the square root of 144?",
+        "options": [
+            "12",
+            "14",
+            "11",
+            "13"
+        ],
+        "correctAnswer": "12",
+        "category": "Education",
+        "difficulty": "easy"
+    },
+    {
+        "question": "Which planet is known as the Red Planet?",
+        "options": [
+            "Mars",
+            "Venus",
+            "Jupiter",
+            "Mercury"
+        ],
+        "correctAnswer": "Mars",
+        "category": "Education",
+        "difficulty": "easy"
+    },
+    {
+        "question": "What is the boiling point of water in Celsius?",
+        "options": [
+            "100°C",
+            "90°C",
+            "110°C",
+            "80°C"
+        ],
+        "correctAnswer": "100°C",
+        "category": "Education",
+        "difficulty": "easy"
+    },
+    {
+        "question": "Which programming language was created by a Nigerian, Ope Bukola, while working at Andela?",
+        "options": [
+            "None - this is a trick question",
+            "Afrolang",
+            "Naija++",
+            "SwiftNG"
+        ],
+        "correctAnswer": "None - this is a trick question",
+        "category": "Technology",
+        "difficulty": "hard",
+        "country": "NG"
+    },
+    {
+        "question": "What does HTML stand for?",
+        "options": [
+            "HyperText Markup Language",
+            "High Tech Modern Language",
+            "Home Tool Markup Language",
+            "Hyperlink Text Making Language"
+        ],
+        "correctAnswer": "HyperText Markup Language",
+        "category": "Technology",
+        "difficulty": "easy"
+    },
+    {
+        "question": "What does CPU stand for?",
+        "options": [
+            "Central Processing Unit",
+            "Computer Personal Unit",
+            "Central Program Utility",
+            "Core Processing Unit"
+        ],
+        "correctAnswer": "Central Processing Unit",
+        "category": "Technology",
+        "difficulty": "easy"
+    },
+    {
+        "question": "Which Nigerian footballer won the African Footballer of the Year award in 1996?",
+        "options": [
+            "Nwankwo Kanu",
+            "Jay-Jay Okocha",
+            "Rashidi Yekini",
+            "Finidi George"
+        ],
+        "correctAnswer": "Nwankwo Kanu",
+        "category": "Sports",
+        "difficulty": "medium",
+        "country": "NG"
+    },
+    {
+        "question": "Which African country won the 2022 Africa Cup of Nations (AFCON)?",
+        "options": [
+            "Senegal",
+            "Egypt",
+            "Nigeria",
+            "Cameroon"
+        ],
+        "correctAnswer": "Senegal",
+        "category": "Sports",
         "difficulty": "medium"
+    },
+    {
+        "question": "Who is known as 'King of African Football' and played for Chelsea and Ivory Coast?",
+        "options": [
+            "Didier Drogba",
+            "Samuel Eto'o",
+            "Yaya Toure",
+            "Michael Essien"
+        ],
+        "correctAnswer": "Didier Drogba",
+        "category": "Sports",
+        "difficulty": "easy"
+    },
+    {
+        "question": "Which African musician won a Grammy for 'Twice as Tall' in 2021?",
+        "options": [
+            "Burna Boy",
+            "Wizkid",
+            "Davido",
+            "Fela Kuti"
+        ],
+        "correctAnswer": "Burna Boy",
+        "category": "Entertainment",
+        "difficulty": "easy",
+        "country": "NG"
+    },
+    {
+        "question": "Wizkid's song 'Essence' featured which female artist?",
+        "options": [
+            "Tems",
+            "Tiwa Savage",
+            "Yemi Alade",
+            "Simi"
+        ],
+        "correctAnswer": "Tems",
+        "category": "Entertainment",
+        "difficulty": "easy",
+        "country": "NG"
+    },
+    {
+        "question": "Which South African comedian hosted The Daily Show on Comedy Central?",
+        "options": [
+            "Trevor Noah",
+            "David Kau",
+            "Loyiso Gola",
+            "Eugene Khoza"
+        ],
+        "correctAnswer": "Trevor Noah",
+        "category": "Entertainment",
+        "difficulty": "easy",
+        "country": "ZA"
+    },
+    {
+        "question": "Nollywood is the film industry of which African country?",
+        "options": [
+            "Nigeria",
+            "Ghana",
+            "South Africa",
+            "Kenya"
+        ],
+        "correctAnswer": "Nigeria",
+        "category": "Entertainment",
+        "difficulty": "easy",
+        "country": "NG"
+    },
+    {
+        "question": "What is the currency of Nigeria?",
+        "options": [
+            "Naira",
+            "Cedi",
+            "Shilling",
+            "Rand"
+        ],
+        "correctAnswer": "Naira",
+        "category": "Economy",
+        "difficulty": "easy",
+        "country": "NG"
+    },
+    {
+        "question": "What is the currency of Ghana?",
+        "options": [
+            "Cedi",
+            "Naira",
+            "Shilling",
+            "Rand"
+        ],
+        "correctAnswer": "Cedi",
+        "category": "Economy",
+        "difficulty": "easy",
+        "country": "GH"
+    },
+    {
+        "question": "What is the currency of South Africa?",
+        "options": [
+            "Rand",
+            "Naira",
+            "Shilling",
+            "Cedi"
+        ],
+        "correctAnswer": "Rand",
+        "category": "Economy",
+        "difficulty": "easy",
+        "country": "ZA"
+    },
+    {
+        "question": "Which African country is the largest producer of cocoa in the world?",
+        "options": [
+            "Ivory Coast",
+            "Ghana",
+            "Nigeria",
+            "Cameroon"
+        ],
+        "correctAnswer": "Ivory Coast",
+        "category": "Economy",
+        "difficulty": "medium"
+    },
+    {
+        "question": "Which desert is the largest in Africa?",
+        "options": [
+            "Sahara Desert",
+            "Kalahari Desert",
+            "Namib Desert",
+            "Libyan Desert"
+        ],
+        "correctAnswer": "Sahara Desert",
+        "category": "Geography",
+        "difficulty": "easy"
+    },
+    {
+        "question": "Lagos is the largest city in which African country?",
+        "options": [
+            "Nigeria",
+            "Ghana",
+            "Kenya",
+            "Egypt"
+        ],
+        "correctAnswer": "Nigeria",
+        "category": "Geography",
+        "difficulty": "easy",
+        "country": "NG"
+    },
+    {
+        "question": "What is the official language of Ethiopia?",
+        "options": [
+            "Amharic",
+            "Swahili",
+            "English",
+            "Arabic"
+        ],
+        "correctAnswer": "Amharic",
+        "category": "Culture",
+        "difficulty": "medium"
+    },
+    {
+        "question": "Swahili is widely spoken in which region of Africa?",
+        "options": [
+            "East Africa",
+            "West Africa",
+            "North Africa",
+            "Southern Africa"
+        ],
+        "correctAnswer": "East Africa",
+        "category": "Culture",
+        "difficulty": "easy"
+    },
+    {
+        "question": "What is the capital of Kenya?",
+        "options": [
+            "Nairobi",
+            "Mombasa",
+            "Kisumu",
+            "Nakuru"
+        ],
+        "correctAnswer": "Nairobi",
+        "category": "Geography",
+        "difficulty": "easy",
+        "country": "KE"
+    },
+    {
+        "question": "Which Nigerian author wrote 'Things Fall Apart'?",
+        "options": [
+            "Chinua Achebe",
+            "Wole Soyinka",
+            "Chimamanda Adichie",
+            "Ben Okri"
+        ],
+        "correctAnswer": "Chinua Achebe",
+        "category": "Education",
+        "difficulty": "medium",
+        "country": "NG"
+    },
+    {
+        "question": "Which African won the Nobel Prize for Literature in 1986?",
+        "options": [
+            "Wole Soyinka",
+            "Chinua Achebe",
+            "Ngugi wa Thiong'o",
+            "Nadine Gordimer"
+        ],
+        "correctAnswer": "Wole Soyinka",
+        "category": "Education",
+        "difficulty": "medium",
+        "country": "NG"
+    },
+    {
+        "question": "What is 15% of 200?",
+        "options": [
+            "30",
+            "25",
+            "35",
+            "20"
+        ],
+        "correctAnswer": "30",
+        "category": "Education",
+        "difficulty": "easy"
+    },
+    {
+        "question": "What is the result of 7 × 8?",
+        "options": [
+            "56",
+            "54",
+            "48",
+            "64"
+        ],
+        "correctAnswer": "56",
+        "category": "Education",
+        "difficulty": "easy"
+    },
+    {
+        "question": "What gas do plants absorb from the atmosphere?",
+        "options": [
+            "Carbon Dioxide",
+            "Oxygen",
+            "Nitrogen",
+            "Hydrogen"
+        ],
+        "correctAnswer": "Carbon Dioxide",
+        "category": "Education",
+        "difficulty": "easy"
+    },
+    {
+        "question": "Which organ pumps blood throughout the human body?",
+        "options": [
+            "Heart",
+            "Liver",
+            "Lungs",
+            "Kidneys"
+        ],
+        "correctAnswer": "Heart",
+        "category": "Education",
+        "difficulty": "easy"
+    },
+    {
+        "question": "What is the atomic number of Carbon?",
+        "options": [
+            "6",
+            "8",
+            "12",
+            "4"
+        ],
+        "correctAnswer": "6",
+        "category": "Education",
+        "difficulty": "medium"
+    },
+    {
+        "question": "Who invented the World Wide Web?",
+        "options": [
+            "Tim Berners-Lee",
+            "Bill Gates",
+            "Steve Jobs",
+            "Mark Zuckerberg"
+        ],
+        "correctAnswer": "Tim Berners-Lee",
+        "category": "Technology",
+        "difficulty": "medium"
+    },
+    {
+        "question": "What does RAM stand for in computing?",
+        "options": [
+            "Random Access Memory",
+            "Read Access Memory",
+            "Rapid Access Memory",
+            "Runtime Application Memory"
+        ],
+        "correctAnswer": "Random Access Memory",
+        "category": "Technology",
+        "difficulty": "easy"
+    },
+    {
+        "question": "Which African country hosted the 2010 FIFA World Cup?",
+        "options": [
+            "South Africa",
+            "Nigeria",
+            "Egypt",
+            "Morocco"
+        ],
+        "correctAnswer": "South Africa",
+        "category": "Sports",
+        "difficulty": "easy",
+        "country": "ZA"
+    },
+    {
+        "question": "What is the most spoken language in Nigeria?",
+        "options": [
+            "English",
+            "Yoruba",
+            "Hausa",
+            "Igbo"
+        ],
+        "correctAnswer": "English",
+        "category": "Culture",
+        "difficulty": "medium",
+        "country": "NG"
+    },
+    {
+        "question": "Which Ghanaian footballer played for Chelsea and Real Madrid?",
+        "options": [
+            "Michael Essien",
+            "Asamoah Gyan",
+            "Sulley Muntari",
+            "Andre Ayew"
+        ],
+        "correctAnswer": "Michael Essien",
+        "category": "Sports",
+        "difficulty": "medium",
+        "country": "GH"
+    },
+    {
+        "question": "Dangote Cement is owned by Africa's richest man from which country?",
+        "options": [
+            "Nigeria",
+            "South Africa",
+            "Egypt",
+            "Kenya"
+        ],
+        "correctAnswer": "Nigeria",
+        "category": "Economy",
+        "difficulty": "easy",
+        "country": "NG"
+    },
+    {
+        "question": "Which South African entrepreneur founded MTN Group?",
+        "options": [
+            "Johann Rupert and partners",
+            "Aliko Dangote",
+            "Strive Masiyiwa",
+            "Patrice Motsepe"
+        ],
+        "correctAnswer": "Johann Rupert and partners",
+        "category": "Economy",
+        "difficulty": "hard",
+        "country": "ZA"
+    },
+    {
+        "question": "What is the Great Rift Valley known for?",
+        "options": [
+            "Geological formation running through East Africa",
+            "Gold mining region",
+            "Agricultural zone",
+            "Desert region"
+        ],
+        "correctAnswer": "Geological formation running through East Africa",
+        "category": "Geography",
+        "difficulty": "medium"
+    },
+    {
+        "question": "Which lake is the largest in Africa?",
+        "options": [
+            "Lake Victoria",
+            "Lake Tanganyika",
+            "Lake Malawi",
+            "Lake Chad"
+        ],
+        "correctAnswer": "Lake Victoria",
+        "category": "Geography",
+        "difficulty": "easy"
+    },
+    {
+        "question": "What is the bite of the Tsetse fly known to cause?",
+        "options": [
+            "Sleeping sickness",
+            "Malaria",
+            "Yellow fever",
+            "Dengue"
+        ],
+        "correctAnswer": "Sleeping sickness",
+        "category": "Education",
+        "difficulty": "medium"
+    },
+    {
+        "question": "Which element has the chemical symbol 'Fe'?",
+        "options": [
+            "Iron",
+            "Fluorine",
+            "Francium",
+            "Fermium"
+        ],
+        "correctAnswer": "Iron",
+        "category": "Education",
+        "difficulty": "easy"
+    },
+    {
+        "question": "What is the speed of light approximately?",
+        "options": [
+            "300,000 km/s",
+            "150,000 km/s",
+            "500,000 km/s",
+            "100,000 km/s"
+        ],
+        "correctAnswer": "300,000 km/s",
+        "category": "Education",
+        "difficulty": "medium"
+    },
+    {
+        "question": "Which African country produces the most oil?",
+        "options": [
+            "Nigeria",
+            "Angola",
+            "Libya",
+            "Algeria"
+        ],
+        "correctAnswer": "Nigeria",
+        "category": "Economy",
+        "difficulty": "medium",
+        "country": "NG"
+    },
+    {
+        "question": "What is the capital of Egypt?",
+        "options": [
+            "Cairo",
+            "Alexandria",
+            "Giza",
+            "Luxor"
+        ],
+        "correctAnswer": "Cairo",
+        "category": "Geography",
+        "difficulty": "easy",
+        "country": "EG"
+    },
+    {
+        "question": "Which African country is known as the 'Pearl of Africa'?",
+        "options": [
+            "Uganda",
+            "Rwanda",
+            "Tanzania",
+            "Burundi"
+        ],
+        "correctAnswer": "Uganda",
+        "category": "Geography",
+        "difficulty": "medium",
+        "country": "UG"
+    },
+    {
+        "question": "What year did Kenya gain independence?",
+        "options": [
+            "1963",
+            "1960",
+            "1957",
+            "1964"
+        ],
+        "correctAnswer": "1963",
+        "category": "History",
+        "difficulty": "medium",
+        "country": "KE"
+    },
+    {
+        "question": "Who was Kenya's first President?",
+        "options": [
+            "Jomo Kenyatta",
+            "Daniel arap Moi",
+            "Uhuru Kenyatta",
+            "Mwai Kibaki"
+        ],
+        "correctAnswer": "Jomo Kenyatta",
+        "category": "History",
+        "difficulty": "medium",
+        "country": "KE"
+    },
+    {
+        "question": "The Blue Nile originates from which African country?",
+        "options": [
+            "Ethiopia",
+            "Uganda",
+            "Sudan",
+            "Egypt"
+        ],
+        "correctAnswer": "Ethiopia",
+        "category": "Geography",
+        "difficulty": "medium"
+    },
+    {
+        "question": "What does 'Ubuntu' mean in African philosophy?",
+        "options": [
+            "I am because we are",
+            "God is great",
+            "Love conquers all",
+            "Knowledge is power"
+        ],
+        "correctAnswer": "I am because we are",
+        "category": "Culture",
+        "difficulty": "medium",
+        "country": "ZA"
+    },
+    {
+        "question": "Which Nigerian musician is known as 'Fela' and created Afrobeat?",
+        "options": [
+            "Fela Kuti",
+            "King Sunny Ade",
+            "Ebenezer Obey",
+            "Lagbaja"
+        ],
+        "correctAnswer": "Fela Kuti",
+        "category": "Entertainment",
+        "difficulty": "easy",
+        "country": "NG"
     }
 ]

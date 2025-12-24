@@ -1,13 +1,30 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { db } from '@/lib/firebase-admin'
 import { allowCors } from '@/lib/cors'
+import { checkRateLimit, verifyRequestSignature } from '@/lib/security'
 
 export const dynamic = 'force-dynamic'
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
+    // SECURITY: Basic Rate Limit (IP based)
+    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown'
+    if (!checkRateLimit(`ip_quiz_${ip}`, 5, 60000)) { // 5 requests per minute per IP
+        return res.status(429).json({ error: 'Too many requests' })
+    }
+
     if (req.method === 'GET') {
         return handleGet(req, res)
     } else if (req.method === 'POST') {
+        // SECURITY: Verify Signature for POST
+        const signature = req.headers['x-request-signature'] as string
+        const timestamp = parseInt(req.headers['x-request-timestamp'] as string)
+
+        if (!signature || !timestamp || !verifyRequestSignature(signature, req.body, timestamp)) {
+            // Allow unsigned for now to prevent breaking live app, but log warnings
+            console.warn(`[SECURITY] Invalid signature on Quiz POST from ${ip}`)
+            // return res.status(403).json({ error: 'Invalid request signature' })
+        }
+
         return handlePost(req, res)
     } else {
         return res.status(405).json({ error: 'Method not allowed' })
@@ -16,16 +33,17 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
 async function handleGet(req: NextApiRequest, res: NextApiResponse) {
     try {
-        const { storyId, content } = req.query
+        const { storyId, content, url } = req.query
         const storyIdStr = Array.isArray(storyId) ? storyId[0] : storyId
+        const urlStr = Array.isArray(url) ? url[0] : url
         const wantsContent = content === '1'
 
-        if (!storyIdStr) {
-            return res.status(400).json({ error: 'Missing storyId' })
+        if (!storyIdStr && !urlStr) {
+            return res.status(400).json({ error: 'Missing storyId or url' })
         }
 
         // Try to get cached quiz from database
-        if (db) {
+        if (db && storyIdStr) {
             try {
                 const quizDoc = await db.collection('news_quizzes').doc(storyIdStr).get()
                 if (quizDoc.exists) {
@@ -58,6 +76,12 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
             } catch (e) {
                 console.error('Error fetching quiz:', e)
             }
+        }
+
+        // Helper to fetch content if URL provided
+        if (wantsContent && urlStr) {
+            const content = await fetchArticleContent(urlStr)
+            return res.status(200).json({ text: content })
         }
 
         // Return default quiz if not found

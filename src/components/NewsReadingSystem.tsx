@@ -3,7 +3,8 @@
 import { apiCall } from '@/lib/api-client'
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardFooter, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
+import { DAILY_LIMITS } from '@/lib/points-config'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
@@ -11,6 +12,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
 import { Clock, BookOpen, CheckCircle, XCircle, ArrowRight } from 'lucide-react'
 import AdService from '@/services/adService'
+import { FloatingNotifications } from '@/components/notifications/FloatingNotification'
+import { Browser } from '@capacitor/browser'
 
 
 interface NewsStory {
@@ -27,6 +30,7 @@ interface NewsStory {
     quizQuestion?: string
     quizOptions?: string[]
     correctAnswer?: number
+    content?: string
 }
 
 interface NewsReadingState {
@@ -56,6 +60,7 @@ const NewsReadingSystem = ({ userId }: NewsReadingSystemProps) => {
     const [loading, setLoading] = useState(true)
     const [readIds, setReadIds] = useState<Set<string>>(new Set())
     const [anonId, setAnonId] = useState<string>('')
+    const [dailyProgress, setDailyProgress] = useState({ storiesRead: 0, maxStories: DAILY_LIMITS.maxNews })
     const READ_SECONDS = 30
     const [readingState, setReadingState] = useState<NewsReadingState>({
         currentStory: null,
@@ -127,6 +132,14 @@ const NewsReadingSystem = ({ userId }: NewsReadingSystemProps) => {
 
             setStories(Array.isArray(data?.stories) ? data.stories : [])
             if (Array.isArray(data?.reads)) setReadIds(new Set<string>(data.reads))
+
+            // Initialize daily progress from API response
+            if (data?.maxDailyStories !== undefined) {
+                setDailyProgress({
+                    storiesRead: data.storiesReadToday || 0,
+                    maxStories: data.maxDailyStories || DAILY_LIMITS.maxNews
+                })
+            }
         } catch (error) {
             console.error('Error fetching stories:', error)
         } finally {
@@ -199,9 +212,33 @@ const NewsReadingSystem = ({ userId }: NewsReadingSystemProps) => {
                 awarded: !!result.awarded
             }))
 
+            // Update daily progress from API response
+            if (result.storiesReadToday !== undefined && result.maxDailyStories !== undefined) {
+                setDailyProgress({
+                    storiesRead: result.storiesReadToday,
+                    maxStories: result.maxDailyStories
+                })
+            }
+
+            // Handle daily limit reached
+            if (result.dailyLimitReached) {
+                console.log('[NewsReading] Daily limit reached:', result.message)
+            }
+
             // Sync updated user to localStorage and notify parent when points awarded
             if (result.awarded && result.isCorrect) {
                 console.log('[NewsReading] Points awarded, syncing user data...')
+
+                // Show multiplier feedback notification
+                FloatingNotifications.pointsEarned({
+                    source: 'News Story',
+                    basePoints: result.basePoints || 10,
+                    finalPoints: result.pointsEarned || 10,
+                    happyHourMultiplier: result.happyHourMultiplier,
+                    happyHourName: result.happyHourName,
+                    streakMultiplier: result.streakMultiplier,
+                    streakName: result.streakName
+                })
 
                 // Show smart interstitial every 3rd article (non-blocking)
                 AdService.showSmartInterstitial('news_reading').catch(() => { })
@@ -315,35 +352,23 @@ const NewsReadingSystem = ({ userId }: NewsReadingSystemProps) => {
                                 <p className="text-muted-foreground mb-4">{readingState.currentStory.summary}</p>
                                 <div className="bg-muted p-4 rounded-lg space-y-3">
                                     <div className="flex items-center gap-2">
-                                        <Button
-                                            variant="secondary"
-                                            size="sm"
-                                            onClick={async () => {
-                                                if (!readingState.currentStory) return
-                                                setReadingState(prev => ({ ...prev, fullContentLoading: true, showFullContent: true }))
-                                                try {
-                                                    const res = await apiCall(`/api/quiz?storyId=${encodeURIComponent(readingState.currentStory.id)}&content=1`)
-                                                    const data = await res.json()
-                                                    setReadingState(prev => ({ ...prev, fullContent: data?.text, fullContentLoading: false }))
-                                                } catch (e) {
-                                                    setReadingState(prev => ({ ...prev, fullContentLoading: false }))
-                                                }
-                                            }}
-                                        >
-                                            Read Full Article Here
-                                        </Button>
+                                        {readingState.currentStory?.externalUrl && (
+                                            <Button
+                                                variant="secondary"
+                                                size="sm"
+                                                onClick={async () => {
+                                                    if (readingState.currentStory?.externalUrl) {
+                                                        await Browser.open({ url: readingState.currentStory.externalUrl })
+                                                    }
+                                                }}
+                                            >
+                                                🔗 Read Full Article
+                                            </Button>
+                                        )}
                                     </div>
-                                    {readingState.showFullContent && (
-                                        <div className="mt-2">
-                                            {readingState.fullContentLoading ? (
-                                                <div className="h-24 bg-accent animate-pulse rounded" />
-                                            ) : (
-                                                <p className="whitespace-pre-line text-sm text-muted-foreground">
-                                                    {readingState.fullContent || 'Content not available.'}
-                                                </p>
-                                            )}
-                                        </div>
-                                    )}
+                                    <p className="text-xs text-muted-foreground">
+                                        Opens in a new tab on the original source ({readingState.currentStory?.source || 'external site'})
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -415,35 +440,23 @@ const NewsReadingSystem = ({ userId }: NewsReadingSystemProps) => {
                             )}
                             <div className="bg-muted p-4 rounded-lg space-y-3">
                                 <div className="flex items-center gap-2">
-                                    <Button
-                                        variant="secondary"
-                                        size="sm"
-                                        onClick={async () => {
-                                            if (!readingState.currentStory) return
-                                            setReadingState(prev => ({ ...prev, fullContentLoading: true, showFullContent: true }))
-                                            try {
-                                                const res = await apiCall(`/api/quiz?storyId=${encodeURIComponent(readingState.currentStory.id)}&content=1`)
-                                                const data = await res.json()
-                                                setReadingState(prev => ({ ...prev, fullContent: data?.text, fullContentLoading: false }))
-                                            } catch (e) {
-                                                setReadingState(prev => ({ ...prev, fullContentLoading: false }))
-                                            }
-                                        }}
-                                    >
-                                        Read Full Article Here
-                                    </Button>
+                                    {readingState.currentStory?.externalUrl && (
+                                        <Button
+                                            variant="secondary"
+                                            size="sm"
+                                            onClick={async () => {
+                                                if (readingState.currentStory?.externalUrl) {
+                                                    await Browser.open({ url: readingState.currentStory.externalUrl })
+                                                }
+                                            }}
+                                        >
+                                            🔗 Read Full Article
+                                        </Button>
+                                    )}
                                 </div>
-                                {readingState.showFullContent && (
-                                    <div className="mt-2">
-                                        {readingState.fullContentLoading ? (
-                                            <div className="h-24 bg-accent animate-pulse rounded" />
-                                        ) : (
-                                            <p className="whitespace-pre-line text-sm text-muted-foreground">
-                                                {readingState.fullContent || 'Content not available.'}
-                                            </p>
-                                        )}
-                                    </div>
-                                )}
+                                <p className="text-xs text-muted-foreground">
+                                    Opens in a new tab on the original source ({readingState.currentStory?.source || 'external site'})
+                                </p>
                             </div>
                             <Button onClick={resetReading} className="w-full">
                                 <ArrowRight className="h-4 w-4 mr-2" />
@@ -452,12 +465,13 @@ const NewsReadingSystem = ({ userId }: NewsReadingSystemProps) => {
                         </div>
                     )}
                 </CardContent>
-            </Card>
+            </Card >
         )
     }
 
     return (
         <div className="space-y-4">
+            {/* Simple Header without Progress Bar (handled by EarnApp) */}
             <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold">Today's Stories</h3>
                 <div className="flex items-center gap-2">
@@ -482,8 +496,8 @@ const NewsReadingSystem = ({ userId }: NewsReadingSystemProps) => {
                         <CardHeader className="pb-2">
                             <div className="flex items-start justify-between">
                                 <div className="space-y-1">
-                                    <CardTitle className="text-sm md:text-base font-semibold">{story.title}</CardTitle>
-                                    <CardDescription className="text-xs md:text-sm">{story.summary}</CardDescription>
+                                    <CardTitle className="text-sm md:text-base font-semibold line-clamp-2">{story.title}</CardTitle>
+                                    <CardDescription className="text-xs md:text-sm line-clamp-2">{story.summary.slice(0, 80)}{story.summary.length > 80 ? '...' : ''}</CardDescription>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <Badge variant="secondary" className="text-[11px] px-2 py-0.5">{story.points} pts</Badge>

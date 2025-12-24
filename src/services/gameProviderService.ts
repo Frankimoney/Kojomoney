@@ -651,6 +651,56 @@ export async function processGameCallback(
             }
         }
 
+        // 6. Add Tournament Points (25 pts for game completion)
+        if (!creditResult.isDuplicate && db) {
+            const TOURNAMENT_POINTS_PER_GAME = 25
+            try {
+                const now = Date.now()
+                const weekDate = new Date(now)
+                const startOfYear = new Date(weekDate.getFullYear(), 0, 1)
+                const weekNumber = Math.ceil(((weekDate.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7)
+                const weekKey = `${weekDate.getFullYear()}-W${weekNumber.toString().padStart(2, '0')}`
+
+                const userDoc = await db.collection('users').doc(parsed.userId).get()
+                const userData = userDoc.data() || {}
+
+                const entrySnapshot = await db.collection('tournament_entries')
+                    .where('weekKey', '==', weekKey)
+                    .where('userId', '==', parsed.userId)
+                    .limit(1)
+                    .get()
+
+                if (!entrySnapshot.empty) {
+                    const entryDoc = entrySnapshot.docs[0]
+                    await entryDoc.ref.update({
+                        points: (entryDoc.data().points || 0) + TOURNAMENT_POINTS_PER_GAME,
+                        lastUpdated: now,
+                    })
+                } else {
+                    // Auto-join tournament
+                    await db.collection('tournament_entries').add({
+                        weekKey,
+                        userId: parsed.userId,
+                        name: userData.name || userData.username || 'Anonymous',
+                        avatar: userData.avatarUrl || '',
+                        points: TOURNAMENT_POINTS_PER_GAME,
+                        joinedAt: now,
+                        lastUpdated: now,
+                    })
+                }
+
+                console.log({
+                    requestId,
+                    event: 'tournament_points_added',
+                    provider,
+                    userId: parsed.userId,
+                    tournamentPoints: TOURNAMENT_POINTS_PER_GAME,
+                })
+            } catch (tournamentError) {
+                console.error('Failed to add tournament points for game:', tournamentError)
+            }
+        }
+
         // Return success (200 for duplicates too, but don't re-credit)
         return {
             success: true,

@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { db } from '@/lib/firebase-admin'
 import { getWithdrawalLimits, POINTS_CONFIG } from '@/lib/points-config'
+import { enhanceFraudCheck } from '@/lib/anti-fraud'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method === 'GET') {
@@ -136,6 +137,27 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
             })
         }
 
+        // SECURITY: Enhanced Fraud Check
+        const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown'
+        const userAgent = req.headers['user-agent'] || 'unknown'
+        const deviceId = Buffer.from(`${userAgent}-${ip}`).toString('base64').substring(0, 32) // Simple hydration
+
+        const fraudResult = await enhanceFraudCheck(userId, 'withdrawal', ip, deviceId)
+
+        // Auto-flag high risk withdrawals
+        let status = 'pending'
+        let adminNote = ''
+
+        if (fraudResult.riskScore > 50) {
+            status = 'manual_review'
+            adminNote = `High Risk Score: ${fraudResult.riskScore}. Signals: ${userData.suspiciousActivityLog?.slice(-1)[0]?.signals.join(', ') || 'N/A'}`
+        }
+
+        if (amount > 10 * POINTS_CONFIG.pointsPerDollar) { // > $10
+            status = 'manual_review'
+            adminNote += (adminNote ? ' | ' : '') + 'Large withdrawal amount.'
+        }
+
         // Create withdrawal request with user info for admin access
         const withdrawalRef = db.collection('withdrawals').doc()
         const amountUSD = amount / POINTS_CONFIG.pointsPerDollar
@@ -153,7 +175,8 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
             amountUSD,
             // Payment method
             method,
-            status: 'pending',
+            status: status, // Use dynamic status (pending or manual_review)
+            adminNote: adminNote || null,
             createdAt: Date.now(),
             updatedAt: Date.now()
         }

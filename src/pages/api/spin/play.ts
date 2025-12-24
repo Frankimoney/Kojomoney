@@ -95,10 +95,51 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             return { points: winningPoints }
         })
 
+        // Add Tournament Points (10 pts for spinning)
+        const TOURNAMENT_POINTS_PER_SPIN = 10
+        const now = Date.now()
+        const weekDate = new Date(now)
+        const startOfYear = new Date(weekDate.getFullYear(), 0, 1)
+        const weekNumber = Math.ceil(((weekDate.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7)
+        const weekKey = `${weekDate.getFullYear()}-W${weekNumber.toString().padStart(2, '0')}`
+
+        try {
+            const userDoc = await db.collection('users').doc(userId).get()
+            const userData = userDoc.data() || {}
+
+            const entrySnapshot = await db.collection('tournament_entries')
+                .where('weekKey', '==', weekKey)
+                .where('userId', '==', userId)
+                .limit(1)
+                .get()
+
+            if (!entrySnapshot.empty) {
+                const entryDoc = entrySnapshot.docs[0]
+                await entryDoc.ref.update({
+                    points: (entryDoc.data().points || 0) + TOURNAMENT_POINTS_PER_SPIN,
+                    lastUpdated: now,
+                })
+            } else {
+                // Auto-join tournament
+                await db.collection('tournament_entries').add({
+                    weekKey,
+                    userId,
+                    name: userData.name || userData.username || 'Anonymous',
+                    avatar: userData.avatarUrl || '',
+                    points: TOURNAMENT_POINTS_PER_SPIN,
+                    joinedAt: now,
+                    lastUpdated: now,
+                })
+            }
+        } catch (tournamentError) {
+            console.error('Failed to add tournament points for spin:', tournamentError)
+        }
+
         return res.status(200).json({
             success: true,
             points: result.points,
-            awarded: true
+            awarded: true,
+            tournamentPoints: TOURNAMENT_POINTS_PER_SPIN
         })
 
     } catch (error: any) {

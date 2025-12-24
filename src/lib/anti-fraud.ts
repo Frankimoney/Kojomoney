@@ -83,3 +83,56 @@ function generateDeviceId(userAgent: string, ip: string): string {
     const fingerprint = `${userAgent}-${ip}`
     return Buffer.from(fingerprint).toString('base64').substring(0, 32)
 }
+
+/**
+ * Enhanced Anti-Fraud Check
+ * Combines multiple signals to determine risk
+ */
+export async function enhanceFraudCheck(userId: string, actionType: string, ip: string, deviceId: string) {
+    // If db is not available (client side?), return safe default
+    if (!db) return { riskScore: 0, block: false }
+
+    const userDoc = await db.collection('users').doc(userId).get()
+    const userData = userDoc.data()
+
+    if (!userData) return { riskScore: 0, block: false }
+
+    let riskScore = userData.fraudScore || 0
+    let signals: string[] = []
+
+    // 1. Device Mismatch
+    if (userData.lastDeviceId && userData.lastDeviceId !== deviceId) {
+        riskScore += 20
+        signals.push('Device Changed')
+    }
+
+    // 2. IP Velocity (simplified)
+    if (userData.lastIp && userData.lastIp !== ip) {
+        riskScore += 10
+        signals.push('IP Changed')
+    }
+
+    // 3. Action Velocity
+    const lastAction = userData.lastActionTimestamp || 0
+    const now = Date.now()
+    if (now - lastAction < 2000) { // < 2 seconds between major earning actions
+        riskScore += 30
+        signals.push('High Velocity Action')
+    }
+
+    // Update user stats
+    await db.collection('users').doc(userId).update({
+        fraudScore: riskScore,
+        lastActionTimestamp: now,
+        lastDeviceId: deviceId,
+        lastIp: ip,
+        suspiciousActivityLog: signals.length > 0
+            ? [...(userData.suspiciousActivityLog || []), { date: now, signals }]
+            : userData.suspiciousActivityLog || []
+    })
+
+    return {
+        riskScore,
+        block: riskScore > 80 // Auto-block threshold
+    }
+}

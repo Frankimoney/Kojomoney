@@ -262,5 +262,46 @@ export const FloatingNotifications = {
     },
     warning: (title: string, message: string) => {
         showFloatingNotification({ title, message, type: 'warning', duration: 6000 })
+    },
+    // NEW: Points earned with multiplier breakdown
+    pointsEarned: (options: {
+        source: string  // e.g., "News", "Trivia", "Ad"
+        basePoints: number
+        finalPoints: number
+        happyHourMultiplier?: number
+        streakMultiplier?: number
+        happyHourName?: string  // e.g., "Lunch Rush 2x"
+        streakName?: string     // e.g., "Week Warrior 2x"
+    }) => {
+        const { source, basePoints, finalPoints, happyHourMultiplier, streakMultiplier, happyHourName, streakName } = options
+
+        // Build multiplier description
+        const multipliers: string[] = []
+        if (happyHourMultiplier && happyHourMultiplier > 1) {
+            multipliers.push(happyHourName || `Happy Hour ${happyHourMultiplier}x`)
+        }
+        if (streakMultiplier && streakMultiplier > 1) {
+            multipliers.push(streakName || `Streak ${streakMultiplier}x`)
+        }
+
+        let message = ''
+        if (multipliers.length > 0) {
+            message = `${basePoints} base × ${multipliers.join(' × ')} = ${finalPoints} pts!`
+        } else {
+            message = `You earned ${finalPoints} points!`
+        }
+
+        // Use reward type with celebratory title
+        const hasBonus = multipliers.length > 0
+        const title = hasBonus
+            ? `🎉 ${source} +${finalPoints} pts (${Math.round((finalPoints / basePoints) * 10) / 10}x Bonus!)`
+            : `✅ ${source} +${finalPoints} pts`
+
+        showFloatingNotification({
+            title,
+            message,
+            type: hasBonus ? 'reward' : 'success',
+            duration: hasBonus ? 6000 : 4000
+        })
     }
 }

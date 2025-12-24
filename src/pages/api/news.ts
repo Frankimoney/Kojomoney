@@ -4,9 +4,12 @@ import { XMLParser } from 'fast-xml-parser'
 import crypto from 'crypto'
 import { allowCors } from '@/lib/cors'
 import { getHappyHourBonus } from '@/lib/happyHour'
-import { getStreakMultiplier } from '@/lib/points-config'
+import { DAILY_LIMITS, getStreakMultiplier } from '@/lib/points-config'
 
 export const dynamic = 'force-dynamic'
+
+// Daily limit for news reading
+export const MAX_DAILY_STORIES = DAILY_LIMITS.maxNews
 
 interface NewsStory {
     id: string
@@ -16,9 +19,10 @@ interface NewsStory {
     category?: string
     points: number
     publishedAt: string
-    isExternal?: boolean
+    isExternal: boolean
     externalUrl?: string
     source?: string
+    content?: string // Full content extracted from RSS
     quizQuestion?: string
     quizOptions?: string[]
     correctAnswer?: number
@@ -49,16 +53,42 @@ const GLOBAL_FEEDS = [
     { url: 'https://feeds.bbci.co.uk/news/world/rss.xml', source: 'BBC News' },
     { url: 'https://rss.nytimes.com/services/xml/rss/nyt/World.xml', source: 'NY Times' },
     { url: 'https://www.aljazeera.com/xml/rss/all.xml', source: 'Al Jazeera' },
-    { url: 'https://www.huffpost.com/section/front-page/feed', source: 'HuffPost' },
-    { url: 'https://feeds.reuters.com/reuters/U.S.news', source: 'Reuters' }
+    { url: 'https://feeds.skynews.com/feeds/rss/world.xml', source: 'Sky News' },
+    { url: 'https://www.cnbc.com/id/100727362/device/rss/rss.html', source: 'CNBC' }
 ]
 
-const AFRICA_FEEDS = [
+// Country-specific African feeds
+const COUNTRY_FEEDS: Record<string, { url: string; source: string }[]> = {
+    // Nigeria
+    'NG': [
+        { url: 'https://guardian.ng/feed/', source: 'The Guardian Nigeria' },
+        { url: 'https://punchng.com/feed/', source: 'Punch Nigeria' },
+        { url: 'https://www.premiumtimesng.com/feed', source: 'Premium Times' },
+        { url: 'https://www.channelstv.com/feed/', source: 'Channels TV' },
+        { url: 'https://dailytrust.com/feed/', source: 'Daily Trust' },
+    ],
+    // Ghana
+    'GH': [
+        { url: 'https://www.myjoyonline.com/feed/', source: 'Joy Online Ghana' },
+        { url: 'https://www.graphic.com.gh/feed', source: 'Graphic Ghana' },
+    ],
+    // South Africa
+    'ZA': [
+        { url: 'https://feeds.news24.com/articles/news24/TopStories/rss', source: 'News24 South Africa' },
+        { url: 'https://www.iol.co.za/cmlink/1.640', source: 'IOL South Africa' },
+    ],
+    // Kenya
+    'KE': [
+        { url: 'https://nation.africa/kenya/rss.xml', source: 'Nation Kenya' },
+        { url: 'https://www.citizen.digital/feed', source: 'Citizen Digital Kenya' },
+    ],
+}
+
+// Fallback Pan-African feeds (for countries not listed above)
+const PAN_AFRICAN_FEEDS = [
+    { url: 'https://www.africanews.com/feed/', source: 'Africanews' },
     { url: 'https://guardian.ng/feed/', source: 'The Guardian Nigeria' },
-    { url: 'https://punchng.com/feed/', source: 'Punch Nigeria' },
-    { url: 'https://www.premiumtimesng.com/feed', source: 'Premium Times' },
-    { url: 'https://allafrica.com/tools/headlines/v2/crackers/latest/headlines.xml', source: 'AllAfrica' },
-    { url: 'https://www.news24.com/news24/partner/feed', source: 'News24 South Africa' }
+    { url: 'https://feeds.news24.com/articles/news24/TopStories/rss', source: 'News24 South Africa' },
 ]
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -93,20 +123,28 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
         const urlStr = Array.isArray(url) ? url[0] : url
         const actionStr = Array.isArray(action) ? action[0] : action
 
-        // Detect Region
-        // Detect Region
+        // Detect Region and Country
         let isAfrica = false
+        let countryCode = ''
         // Development fallback: Default to Nigeria (Africa) if running locally and no header present
         const isDev = process.env.NODE_ENV === 'development'
 
         if (regionParam === 'africa') {
             isAfrica = true
+            countryCode = 'NG' // Default to Nigeria for manual override
         } else if (regionParam === 'global') {
             isAfrica = false
         } else {
-            // Auto-detect
-            const country = (req.headers['x-vercel-ip-country'] as string)?.toUpperCase() || (isDev ? 'NG' : '')
-            isAfrica = country ? AFRICA_CODES.has(country) : false // Default to global if unknown
+            // Auto-detect from IP - check multiple header formats for different hosting providers
+            countryCode = (
+                (req.headers['x-vercel-ip-country'] as string) ||      // Vercel
+                (req.headers['cf-ipcountry'] as string) ||             // Cloudflare
+                (req.headers['x-country-code'] as string) ||           // Generic / Firebase
+                (req.headers['x-appengine-country'] as string) ||      // Google App Engine
+                (isDev ? 'NG' : '')                                     // Development fallback
+            ).toUpperCase()
+            isAfrica = countryCode ? AFRICA_CODES.has(countryCode) : false
+            console.log(`[News] Detected country: ${countryCode}, isAfrica: ${isAfrica}`)
         }
 
         // Handle ingest action (admin only)
@@ -135,14 +173,16 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
 
                     if (isAfrica) {
                         // For Africa: MIX strategy (Priority Local + Global Variety)
-                        // Split limit: 70% Local, 30% Global
-                        const localLimit = Math.ceil(limitNum * 0.7)
+                        // Split limit: 60% Local, 40% Global (e.g., 6 local + 4 global)
+                        const localLimit = Math.ceil(limitNum * 0.6)
                         const globalLimit = limitNum - localLimit
 
-                        const localIndex = dayOfYear % AFRICA_FEEDS.length
+                        // Get country-specific feeds or fall back to Pan-African
+                        const countryFeeds = COUNTRY_FEEDS[countryCode] || PAN_AFRICAN_FEEDS
+                        const localIndex = dayOfYear % countryFeeds.length
                         const globalIndex = dayOfYear % GLOBAL_FEEDS.length
 
-                        const localFeed = AFRICA_FEEDS[localIndex]
+                        const localFeed = countryFeeds[localIndex]
                         const globalFeed = GLOBAL_FEEDS[globalIndex]
 
                         // Fetch in parallel
@@ -164,6 +204,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
 
         // Get read IDs for the user if requested
         let readIds: string[] = []
+        let storiesReadToday = 0
         if (reads && userIdStr && db) {
             try {
                 const readsSnapshot = await db.collection('news_reads')
@@ -173,6 +214,15 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
                     .get()
 
                 readIds = readsSnapshot.docs.map(doc => doc.data().storyId)
+
+                // Get user's daily progress
+                const userDoc = await db.collection('users').doc(userIdStr).get()
+                if (userDoc.exists) {
+                    const userData = userDoc.data()!
+                    const todayKey = getTodayKey()
+                    const todayProgress = userData.todayProgress || { storiesRead: 0 }
+                    storiesReadToday = userData.lastActiveDate === todayKey ? (todayProgress.storiesRead || 0) : 0
+                }
             } catch (e) {
                 console.error('Error fetching read IDs:', e)
             }
@@ -181,7 +231,10 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
         return res.status(200).json({
             stories,
             reads: readIds,
-            count: stories.length
+            count: stories.length,
+            storiesReadToday,
+            maxDailyStories: MAX_DAILY_STORIES,
+            storiesRemaining: MAX_DAILY_STORIES - storiesReadToday
         })
     } catch (error) {
         console.error('Error in news API:', error)
@@ -244,6 +297,7 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
         let pointsToAward = 0
         let happyHourInfo = { finalPoints: 0, multiplier: 1, bonusLabel: null as string | null }
         let streakInfo = { multiplier: 1, tier: { label: 'No Streak' } }
+        let storiesReadToday = 0
 
         if (userId && isCorrect) {
             const userRef = db.collection('users').doc(userId)
@@ -255,6 +309,22 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
                 const todayKey = getTodayKey()
                 const weekKey = getCurrentWeekKey()
                 const now = Date.now()
+
+                // Check daily limit
+                const todayProgress = userData.todayProgress || { storiesRead: 0 }
+                storiesReadToday = userData.lastActiveDate === todayKey ? (todayProgress.storiesRead || 0) : 0
+
+                if (storiesReadToday >= MAX_DAILY_STORIES) {
+                    return res.status(200).json({
+                        isCorrect: true,
+                        pointsEarned: 0,
+                        awarded: false,
+                        dailyLimitReached: true,
+                        storiesReadToday,
+                        maxDailyStories: MAX_DAILY_STORIES,
+                        message: `Daily limit reached! You've read ${MAX_DAILY_STORIES} stories today. Come back tomorrow for more.`
+                    })
+                }
 
                 // Get user's streak for multiplier
                 const dailyStreak = userData.dailyStreak || 0
@@ -279,6 +349,26 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
                 // Increment story count
                 currentProgress.storiesRead = (currentProgress.storiesRead || 0) + 1
 
+                // Calculate new streak
+                const yesterdayDate = new Date()
+                yesterdayDate.setDate(yesterdayDate.getDate() - 1)
+                const yesterday = yesterdayDate.toISOString().split('T')[0]
+
+                let newStreak = userData.dailyStreak || 0
+                const lastActive = userData.lastActiveDate
+
+                // Only update streak if it hasn't been updated today
+                if (lastActive !== todayKey) {
+                    if (lastActive === yesterday) {
+                        newStreak += 1 // Consecutive day
+                    } else {
+                        newStreak = 1 // Broken streak or first day
+                    }
+                } else if (newStreak === 0) {
+                    // Edge case: User active today but streak is 0 (likely due to missing update logic previously)
+                    newStreak = 1
+                }
+
                 await userRef.update({
                     totalPoints: currentPoints + pointsToAward,
                     points: currentPoints + pointsToAward,
@@ -286,6 +376,7 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
                     storiesRead: (userData.storiesRead || 0) + 1, // Keep legacy field for now
                     todayProgress: currentProgress,
                     lastActiveDate: todayKey,
+                    dailyStreak: newStreak,
                     updatedAt: now
                 })
 
@@ -342,9 +433,17 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
         return res.status(200).json({
             isCorrect,
             pointsEarned: pointsToAward,
+            basePoints: 10,
+            happyHourMultiplier: happyHourInfo.multiplier,
+            happyHourName: happyHourInfo.bonusLabel || null,
+            streakMultiplier: streakInfo.multiplier,
+            streakName: streakInfo.multiplier > 1 ? `${streakInfo.tier.label} ${streakInfo.multiplier}x` : null,
             awarded,
             needsLogin: !userId && pointsToAward > 0,
-            quizExplanation: storyData?.quizExplanation || null
+            quizExplanation: storyData?.quizExplanation || null,
+            storiesReadToday: awarded ? (storiesReadToday + 1) : storiesReadToday,
+            maxDailyStories: MAX_DAILY_STORIES,
+            storiesRemaining: MAX_DAILY_STORIES - (awarded ? (storiesReadToday + 1) : storiesReadToday)
         })
     } catch (error) {
         console.error('Error submitting news read:', error)
@@ -372,7 +471,9 @@ async function handleIngest(
     let updated = 0
     let processed = 0
 
-    const ALL_FEEDS = [...GLOBAL_FEEDS, ...AFRICA_FEEDS]
+    // Combine all country feeds for ingestion
+    const allAfricanFeeds = Object.values(COUNTRY_FEEDS).flat()
+    const ALL_FEEDS = [...GLOBAL_FEEDS, ...allAfricanFeeds, ...PAN_AFRICAN_FEEDS]
     for (const feed of ALL_FEEDS) {
         try {
             const stories = await fetchFromRSS(feed.url, limit, points, feed.source)
@@ -421,7 +522,8 @@ async function fetchFromRSS(
         })
 
         if (!response.ok) {
-            throw new Error(`Failed to fetch RSS: ${response.statusText}`)
+            console.warn(`RSS feed unavailable (${response.status}): ${feedUrl}`)
+            return []
         }
 
         const xmlText = await response.text()
@@ -448,16 +550,55 @@ async function fetchFromRSS(
 
             // Try to extract image from content or media
             let imageUrl = ''
+            // 1. media:content (most common for RSS 2.0 with media extension)
             if (item['media:content']?.['@_url']) {
                 imageUrl = item['media:content']['@_url']
-            } else if (item.enclosure?.['@_url']) {
+            }
+            // 2. media:thumbnail (alternative media namespace)
+            else if (item['media:thumbnail']?.['@_url']) {
+                imageUrl = item['media:thumbnail']['@_url']
+            }
+            // 3. enclosure (RSS 2.0 standard for attachments)
+            else if (item.enclosure?.['@_url']) {
                 imageUrl = item.enclosure['@_url']
-            } else {
-                // Try to extract from description HTML
+            }
+            // 4. image field (some feeds use this directly)
+            else if (item.image?.url || item.image?.['@_url'] || (typeof item.image === 'string' && item.image)) {
+                imageUrl = item.image?.url || item.image?.['@_url'] || item.image
+            }
+            // 5. Try to extract from content:encoded (full HTML content)
+            else if (item['content:encoded']) {
+                const contentImgMatch = String(item['content:encoded']).match(/<img[^>]+src=["']([^"']+)["']/)
+                if (contentImgMatch) {
+                    imageUrl = contentImgMatch[1]
+                }
+            }
+            // 6. Try to extract from description HTML
+            else {
                 const imgMatch = description.match(/<img[^>]+src=["']([^"']+)["']/)
                 if (imgMatch) {
                     imageUrl = imgMatch[1]
                 }
+            }
+
+            // Fallback: Use a placeholder image based on category
+            if (!imageUrl) {
+                const category = (() => {
+                    const c = item.category
+                    if (!c) return 'news'
+                    const v = Array.isArray(c) ? c[0] : c
+                    if (typeof v === 'string') return v.toLowerCase()
+                    if (typeof v === 'object' && v['#text']) return String(v['#text']).toLowerCase()
+                    return 'news'
+                })()
+                // Use unsplash placeholder based on category
+                const placeholderQuery = category.includes('sport') ? 'sports' :
+                    category.includes('tech') ? 'technology' :
+                        category.includes('business') ? 'business' :
+                            category.includes('politic') ? 'politics' :
+                                category.includes('entertainment') ? 'entertainment' :
+                                    'news'
+                imageUrl = `https://source.unsplash.com/800x450/?${placeholderQuery}`
             }
 
             // Clean summary (remove HTML tags)
@@ -470,6 +611,28 @@ async function fetchFromRSS(
                 .replace(/&quot;/g, '"')
                 .trim()
                 .slice(0, 300)
+
+            // Extract and clean full content
+            let rawContent = ''
+            if (item['content:encoded']) {
+                rawContent = String(item['content:encoded'])
+            } else if (item.content && typeof item.content === 'string') {
+                rawContent = item.content
+            } else if (item.content && item.content['#text']) {
+                rawContent = item.content['#text']
+            }
+
+            const cleanContent = rawContent
+                .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+                .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+                .replace(/<[^>]*>/g, ' ')
+                .replace(/&nbsp;/g, ' ')
+                .replace(/&amp;/g, '&')
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&quot;/g, '"')
+                .replace(/\s+/g, ' ')
+                .trim()
 
             stories.push({
                 id: crypto.createHash('md5').update(link).digest('hex'),
@@ -488,7 +651,8 @@ async function fetchFromRSS(
                 publishedAt: new Date(pubDate).toISOString(),
                 isExternal: true,
                 externalUrl: link,
-                source: sourceName || new URL(feedUrl).hostname
+                source: sourceName || new URL(feedUrl).hostname,
+                content: cleanContent.length > 500 ? cleanContent : undefined
             })
         }
 

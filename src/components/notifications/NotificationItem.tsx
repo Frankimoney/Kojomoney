@@ -65,7 +65,23 @@ export function NotificationItem({ notification }: NotificationItemProps) {
                 </p>
 
                 {notification.actionUrl && (
-                    <Button variant="link" className="p-0 h-auto text-xs font-semibold">
+                    <Button
+                        variant="link"
+                        className="p-0 h-auto text-xs font-semibold"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            markAsRead(notification.id);
+
+                            // Fix legacy paths for existing notifications
+                            let url = notification.actionUrl!;
+                            if (url === '/earn') url = '/?tab=earn';
+                            else if (url === '/earn/surveys') url = '/?tab=earn';
+                            else if (url === '/earn/offerwall') url = '/?tab=earn';
+                            else if (url === '/earn/trivia') url = '/?view=trivia';
+
+                            window.location.href = url;
+                        }}
+                    >
                         View Details →
                     </Button>
                 )}
@@ -83,9 +99,11 @@ export function NotificationItem({ notification }: NotificationItemProps) {
                 <X className="h-3 w-3" />
             </Button>
 
-            {!notification.isRead && (
-                <div className="absolute top-4 right-4 h-2 w-2 rounded-full bg-primary animate-pulse" />
-            )}
-        </div>
+            {
+                !notification.isRead && (
+                    <div className="absolute top-4 right-4 h-2 w-2 rounded-full bg-primary animate-pulse" />
+                )
+            }
+        </div >
     );
 }

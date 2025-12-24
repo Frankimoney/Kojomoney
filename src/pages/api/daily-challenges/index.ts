@@ -11,6 +11,17 @@ import { allowCors } from '@/lib/cors'
 
 export const dynamic = 'force-dynamic'
 
+// Tournament points per challenge claim
+const TOURNAMENT_POINTS_PER_CHALLENGE = 20
+const TOURNAMENT_POINTS_FOR_BONUS = 50
+
+function getCurrentWeekKey(): string {
+    const now = new Date()
+    const startOfYear = new Date(now.getFullYear(), 0, 1)
+    const weekNumber = Math.ceil(((now.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7)
+    return `${now.getFullYear()}-W${weekNumber.toString().padStart(2, '0')}`
+}
+
 // Daily challenge definitions
 const DAILY_CHALLENGES = [
     {
@@ -247,9 +258,42 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
                 createdAt: now,
             })
 
+            // Add tournament points
+            try {
+                const weekKey = getCurrentWeekKey()
+                const userData = userDoc.data() || {}
+
+                const entrySnapshot = await db!.collection('tournament_entries')
+                    .where('weekKey', '==', weekKey)
+                    .where('userId', '==', userId)
+                    .limit(1)
+                    .get()
+
+                if (!entrySnapshot.empty) {
+                    const entryDoc = entrySnapshot.docs[0]
+                    await entryDoc.ref.update({
+                        points: (entryDoc.data().points || 0) + TOURNAMENT_POINTS_PER_CHALLENGE,
+                        lastUpdated: now,
+                    })
+                } else {
+                    await db!.collection('tournament_entries').add({
+                        weekKey,
+                        userId,
+                        name: userData.name || userData.username || 'Anonymous',
+                        avatar: userData.avatarUrl || '',
+                        points: TOURNAMENT_POINTS_PER_CHALLENGE,
+                        joinedAt: now,
+                        lastUpdated: now,
+                    })
+                }
+            } catch (tournamentError) {
+                console.error('Failed to add tournament points for challenge:', tournamentError)
+            }
+
             return res.status(200).json({
                 success: true,
                 reward: challenge.reward,
+                tournamentPoints: TOURNAMENT_POINTS_PER_CHALLENGE,
                 message: `Earned ${challenge.reward} points!`,
             })
         }
@@ -290,9 +334,42 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
                 createdAt: now,
             })
 
+            // Add tournament points for bonus
+            try {
+                const weekKey = getCurrentWeekKey()
+                const userData = userDoc.data() || {}
+
+                const entrySnapshot = await db!.collection('tournament_entries')
+                    .where('weekKey', '==', weekKey)
+                    .where('userId', '==', userId)
+                    .limit(1)
+                    .get()
+
+                if (!entrySnapshot.empty) {
+                    const entryDoc = entrySnapshot.docs[0]
+                    await entryDoc.ref.update({
+                        points: (entryDoc.data().points || 0) + TOURNAMENT_POINTS_FOR_BONUS,
+                        lastUpdated: now,
+                    })
+                } else {
+                    await db!.collection('tournament_entries').add({
+                        weekKey,
+                        userId,
+                        name: userData.name || userData.username || 'Anonymous',
+                        avatar: userData.avatarUrl || '',
+                        points: TOURNAMENT_POINTS_FOR_BONUS,
+                        joinedAt: now,
+                        lastUpdated: now,
+                    })
+                }
+            } catch (tournamentError) {
+                console.error('Failed to add tournament points for bonus:', tournamentError)
+            }
+
             return res.status(200).json({
                 success: true,
                 reward: ALL_COMPLETE_BONUS,
+                tournamentPoints: TOURNAMENT_POINTS_FOR_BONUS,
                 message: `Congratulations! Earned ${ALL_COMPLETE_BONUS} bonus points!`,
             })
         }

@@ -183,7 +183,7 @@ export function getWithdrawalLimits(user: {
 // ============================================
 export const DAILY_LIMITS = {
     maxAds: 10,
-    maxNews: 5,
+    maxNews: 10,
     maxTrivia: 1,    // Once per day
     maxSurveys: 10,
     maxGamesMinutes: 120, // 2 hours

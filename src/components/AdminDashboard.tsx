@@ -109,6 +109,10 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     const [emailSubject, setEmailSubject] = useState('')
     const [emailMessage, setEmailMessage] = useState('')
     const [sendingEmail, setSendingEmail] = useState(false)
+    const [showPointsDialog, setShowPointsDialog] = useState(false)
+    const [pointsAmount, setPointsAmount] = useState('')
+    const [pointsReason, setPointsReason] = useState('')
+    const [processingPoints, setProcessingPoints] = useState(false)
 
     const authApiCall = (path: string, options: any = {}) => {
         const token = getAdminToken()
@@ -306,6 +310,46 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
             setError('Failed to send email')
         } finally {
             setSendingEmail(false)
+        }
+    }
+
+    const handleModifyPoints = async () => {
+        if (!selectedUser || !pointsAmount) return
+
+        const amount = parseInt(pointsAmount)
+        if (isNaN(amount) || amount === 0) {
+            setError('Please enter a valid non-zero amount')
+            return
+        }
+
+        setProcessingPoints(true)
+        try {
+            const response = await authApiCall('/api/admin/users', {
+                method: 'POST',
+                body: JSON.stringify({
+                    action: 'modify_points',
+                    userId: selectedUser.id,
+                    points: amount,
+                    reason: pointsReason || 'Manual adjustment by admin'
+                }),
+            })
+
+            if (response.ok) {
+                const data = await response.json()
+                setSuccess(`Points updated. New balance: ${data.newPoints}`)
+                setShowPointsDialog(false)
+                setSelectedUser(null)
+                setPointsAmount('')
+                setPointsReason('')
+                loadUsers()
+            } else {
+                const data = await response.json()
+                setError(data.error || 'Failed to modify points')
+            }
+        } catch (err) {
+            setError('Failed to modify points')
+        } finally {
+            setProcessingPoints(false)
         }
     }
 
@@ -747,6 +791,20 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                                                         >
                                                             <Ban className="h-4 w-4" />
                                                         </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                                            onClick={() => {
+                                                                setSelectedUser(user)
+                                                                setPointsAmount('')
+                                                                setPointsReason('')
+                                                                setShowPointsDialog(true)
+                                                            }}
+                                                            title="Modify Points"
+                                                        >
+                                                            <DollarSign className="h-4 w-4" />
+                                                        </Button>
                                                     </div>
                                                 </TableCell>
                                             </TableRow>
@@ -1045,7 +1103,64 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </div>
+
+            {/* Modify Points Dialog */}
+            <Dialog open={showPointsDialog} onOpenChange={setShowPointsDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Modify Points</DialogTitle>
+                        <DialogDescription>
+                            Credit or Debit points for this user. Use negative values to remove points.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {selectedUser && (
+                        <div className="space-y-4">
+                            <div className="p-3 bg-muted rounded-lg flex items-center justify-between">
+                                <span className="text-sm font-medium">Current Balance</span>
+                                <span className="font-bold text-lg">{selectedUser.points?.toLocaleString()} pts</span>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Amount (+/-) *</Label>
+                                <Input
+                                    type="number"
+                                    placeholder="e.g., 500 or -500"
+                                    value={pointsAmount}
+                                    onChange={(e) => setPointsAmount(e.target.value)}
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Positive to add points, Negative to remove points.
+                                </p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Reason (optional)</Label>
+                                <Input
+                                    placeholder="e.g., Bonus, Correction, Refund"
+                                    value={pointsReason}
+                                    onChange={(e) => setPointsReason(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    <DialogFooter className="gap-2">
+                        <Button variant="outline" onClick={() => setShowPointsDialog(false)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleModifyPoints}
+                            disabled={processingPoints || !pointsAmount}
+                            className="bg-indigo-600 hover:bg-indigo-700"
+                        >
+                            {processingPoints ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <DollarSign className="h-4 w-4 mr-2" />}
+                            Update Points
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div >
     )
 }
 

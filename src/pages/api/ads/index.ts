@@ -92,7 +92,7 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
             adViewId: adViewRef.id,
             adsWatchedToday: adsWatched,
             remainingAds: MAX_ADS_PER_DAY - adsWatched,
-            rewardPoints: AD_REWARD_POINTS,
+            rewardPoints: BASE_AD_REWARD_POINTS,
         })
     } catch (error) {
         console.error('Error starting ad view:', error)
@@ -162,6 +162,26 @@ async function handlePatch(req: NextApiRequest, res: NextApiResponse) {
         const combinedMultiplier = happyHourInfo.multiplier * streakInfo.multiplier
         const pointsToAward = Math.floor(BASE_AD_REWARD_POINTS * combinedMultiplier)
 
+        // Calculate new streak
+        const yesterdayDate = new Date()
+        yesterdayDate.setDate(yesterdayDate.getDate() - 1)
+        const yesterday = yesterdayDate.toISOString().split('T')[0]
+
+        let newStreak = userData.dailyStreak || 0
+        const lastActive = userData.lastActiveDate
+
+        // Only update streak if it hasn't been updated today
+        if (lastActive !== todayKey) {
+            if (lastActive === yesterday) {
+                newStreak += 1 // Consecutive day
+            } else {
+                newStreak = 1 // Broken streak or first day
+            }
+        } else if (newStreak === 0) {
+            // Edge case: User active today but streak is 0
+            newStreak = 1
+        }
+
         // Update user
         await userRef.update({
             totalPoints: currentPoints + pointsToAward,
@@ -169,6 +189,7 @@ async function handlePatch(req: NextApiRequest, res: NextApiResponse) {
             adPoints: (userData.adPoints || 0) + pointsToAward,
             adsWatched: adsWatched + 1,
             lastActiveDate: todayKey,
+            dailyStreak: newStreak, // Update streak
             updatedAt: now,
         })
 
@@ -222,8 +243,10 @@ async function handlePatch(req: NextApiRequest, res: NextApiResponse) {
             success: true,
             pointsAwarded: pointsToAward,
             basePoints: BASE_AD_REWARD_POINTS,
-            multiplier: happyHourInfo.multiplier,
-            happyHourBonus: happyHourInfo.bonusLabel,
+            happyHourMultiplier: happyHourInfo.multiplier,
+            happyHourName: happyHourInfo.bonusLabel || null,
+            streakMultiplier: streakInfo.multiplier,
+            streakName: streakInfo.multiplier > 1 ? `${streakInfo.tier.label} ${streakInfo.multiplier}x` : null,
             tournamentPointsAwarded: TOURNAMENT_POINTS_PER_AD,
             newTotal: currentPoints + pointsToAward,
             adsWatchedToday: adsWatched + 1,

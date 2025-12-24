@@ -19,6 +19,10 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method === 'GET') {
         return handleGet(req, res)
     } else if (req.method === 'POST') {
+        const { action } = req.body
+        if (action === 'modify_points') {
+            return handleUpdatePoints(req, res)
+        }
         return handleBan(req, res)
     } else {
         return res.status(405).json({ error: 'Method not allowed' })
@@ -132,6 +136,55 @@ async function handleBan(req: NextApiRequest, res: NextApiResponse) {
     } catch (error) {
         console.error('Error updating user ban status:', error)
         return res.status(500).json({ error: 'Failed to update user' })
+    }
+}
+
+async function handleUpdatePoints(req: NextApiRequest, res: NextApiResponse) {
+    try {
+        const { userId, points, reason } = req.body
+
+        if (!userId || typeof points !== 'number') {
+            return res.status(400).json({ error: 'userId and points are required' })
+        }
+
+        const userRef = db!.collection('users').doc(userId)
+        const userDoc = await userRef.get()
+
+        if (!userDoc.exists) {
+            return res.status(404).json({ error: 'User not found' })
+        }
+
+        const currentPoints = userDoc.data()?.points || 0
+        const newPoints = Math.max(0, currentPoints + points) // Ensure valid points
+
+        await userRef.update({
+            points: newPoints,
+            totalPoints: newPoints, // Sync fields
+            updatedAt: Date.now()
+        })
+
+        // Log transaction
+        await db!.collection('transactions').add({
+            userId,
+            type: points > 0 ? 'credit' : 'debit',
+            amount: Math.abs(points),
+            source: 'admin_adjustment',
+            status: 'completed',
+            description: reason || 'Admin manual adjustment',
+            adminUser: 'admin', // In real app, log acting admin ID
+            createdAt: Date.now()
+        })
+
+        return res.status(200).json({
+            success: true,
+            message: 'Points updated successfully',
+            oldPoints: currentPoints,
+            newPoints
+        })
+
+    } catch (error) {
+        console.error('Error updating points:', error)
+        return res.status(500).json({ error: 'Failed to update points' })
     }
 }
 

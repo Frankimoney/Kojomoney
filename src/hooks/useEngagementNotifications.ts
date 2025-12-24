@@ -4,6 +4,7 @@ import { useNotificationStore } from '@/lib/notificationStore';
 import { toast } from 'sonner';
 import { FloatingNotifications } from '@/components/notifications/FloatingNotification';
 import { getStreakMultiplier, getNextStreakTier } from '@/lib/points-config';
+import { apiCall } from '@/lib/api-client';
 
 export function useEngagementNotifications(user: User | null) {
     const { addNotification } = useNotificationStore();
@@ -24,7 +25,7 @@ export function useEngagementNotifications(user: User | null) {
                     title: 'Daily Tasks Reset! ☀️',
                     body: 'Your daily tasks have been reset. Complete them to maintain your streak!',
                     type: 'info',
-                    actionUrl: '/earn'
+                    actionUrl: '/?tab=earn'
                 });
 
                 // Show floating notification for better visibility
@@ -45,16 +46,26 @@ export function useEngagementNotifications(user: User | null) {
     useEffect(() => {
         if (!user || hasShownSpinReminder.current) return;
 
-        // Check if user hasn't spun today (would need backend data for this)
-        // For now, show reminder after 5 seconds on startup
-        const timer = setTimeout(() => {
-            if (!hasShownSpinReminder.current) {
-                FloatingNotifications.spinReady(() => {
-                    window.dispatchEvent(new CustomEvent('open-spin'));
-                });
-                hasShownSpinReminder.current = true;
+        // Check if user has actually spun today
+        const checkSpinStatus = async () => {
+            try {
+                // Skip if we checked recently to avoid spamming APIS
+                const res = await apiCall(`/api/spin/status?userId=${user.id}`);
+                const data = await res.json();
+
+                if (data.canSpin && !hasShownSpinReminder.current) {
+                    FloatingNotifications.spinReady(() => {
+                        window.dispatchEvent(new CustomEvent('open-spin'));
+                    });
+                    hasShownSpinReminder.current = true;
+                }
+            } catch (e) {
+                console.error('Failed to check spin status for notification', e);
             }
-        }, 5000);
+        };
+
+        // Delay slightly to allow app to load
+        const timer = setTimeout(checkSpinStatus, 4000);
 
         return () => clearTimeout(timer);
     }, [user?.id]);
@@ -92,7 +103,7 @@ export function useEngagementNotifications(user: User | null) {
                     title: 'New Survey Available! 📋',
                     body: 'A high-paying survey just became available.',
                     type: 'reward',
-                    actionUrl: '/earn/surveys',
+                    actionUrl: '/?tab=earn',
                     data: { points: 500 }
                 });
 
@@ -109,7 +120,7 @@ export function useEngagementNotifications(user: User | null) {
                     title: 'Boosted Offer! 🚀',
                     body: 'One of our partners boosted their rewards.',
                     type: 'reward',
-                    actionUrl: '/earn/offerwall'
+                    actionUrl: '/?tab=earn'
                 });
             }
 
@@ -138,7 +149,7 @@ export function useEngagementNotifications(user: User | null) {
                     title: "Don't lose your streak! 🔥",
                     body: `You haven't played today's trivia yet. Your ${user.dailyStreak}-day streak is at risk.`,
                     type: 'warning',
-                    actionUrl: '/earn/trivia'
+                    actionUrl: '/?view=trivia'
                 });
 
                 processedRef.current[key] = true;

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { DAILY_LIMITS } from '@/lib/points-config'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -32,6 +33,7 @@ const DailyTrivia = dynamic(() => import('./DailyTrivia'), {
 import AuthSystem from './AuthSystem'
 import { NotificationCenter } from '@/components/notifications/NotificationCenter'
 import { FloatingNotificationContainer } from '@/components/notifications/FloatingNotification'
+import { useEngagementNotifications } from '@/hooks/useEngagementNotifications'
 // Capacitor plugins - only available on mobile, lazy loaded
 // import { PushNotifications } from '@capacitor/push-notifications'
 // import { FirebaseAnalytics } from '@capacitor-firebase/analytics'
@@ -210,7 +212,7 @@ function NewsPage({ user: initialUser, onBack }: DedicatedPageProps) {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-green-100 text-sm">Stories Read Today</p>
-                                <p className="text-2xl font-bold">{user.todayProgress?.storiesRead || 0}/5</p>
+                                <p className="text-2xl font-bold">{user.todayProgress?.storiesRead || 0}/{DAILY_LIMITS.maxNews}</p>
                             </div>
                             <div className="text-right">
                                 <p className="text-green-100 text-sm">Points Earned</p>
@@ -218,7 +220,7 @@ function NewsPage({ user: initialUser, onBack }: DedicatedPageProps) {
                             </div>
                         </div>
                         <Progress
-                            value={Math.min(((user.todayProgress?.storiesRead || 0) / 5) * 100, 100)}
+                            value={Math.min(((user.todayProgress?.storiesRead || 0) / DAILY_LIMITS.maxNews) * 100, 100)}
                             className="mt-3 h-2 bg-green-400/30"
                         />
                     </CardContent>
@@ -347,10 +349,25 @@ function AdsPage({ user, onBack }: AdsPageProps) {
 
             if (reward) {
                 // Ad was watched successfully, credit points
-                await apiCall('/api/ads', {
+                const creditRes = await apiCall('/api/ads', {
                     method: 'PATCH',
                     body: JSON.stringify({ adViewId, userId: user.id })
                 })
+                const creditData = await creditRes.json()
+
+                // Show multiplier feedback notification
+                if (creditData.success && creditData.pointsAwarded) {
+                    const { FloatingNotifications } = await import('@/components/notifications/FloatingNotification')
+                    FloatingNotifications.pointsEarned({
+                        source: 'Ad Watch',
+                        basePoints: creditData.basePoints || 5,
+                        finalPoints: creditData.pointsAwarded,
+                        happyHourMultiplier: creditData.happyHourMultiplier,
+                        happyHourName: creditData.happyHourName,
+                        streakMultiplier: creditData.streakMultiplier,
+                        streakName: creditData.streakName
+                    })
+                }
 
                 // Start cooldown
                 setAdCooldown(30)
@@ -873,6 +890,17 @@ function HomeTab({ user, userPoints, setActiveTab, setActiveView, onOpenSpin }: 
                 <Card
                     className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-none shadow-lg cursor-pointer overflow-hidden relative"
                     onClick={async () => {
+                        // Check if on native platform
+                        const isNative = typeof window !== 'undefined' && (
+                            ((window as any)?.Capacitor?.isNativePlatform?.() === true) ||
+                            (((window as any)?.Capacitor?.getPlatform?.() && (window as any).Capacitor.getPlatform() !== 'web'))
+                        )
+
+                        if (!isNative) {
+                            alert('Boost Earnings ads are only available in the Kojomoney mobile app.')
+                            return
+                        }
+
                         try {
                             const reward = await AdService.showRewarded()
                             if (reward) {
@@ -989,16 +1017,16 @@ function HomeTab({ user, userPoints, setActiveTab, setActiveView, onOpenSpin }: 
                     <div className="space-y-2">
                         <div className="flex justify-between text-sm">
                             <span>Ads Watched</span>
-                            <span>{user.todayProgress?.adsWatched || 0}/10</span>
+                            <span>{user.todayProgress?.adsWatched || 0}/{DAILY_LIMITS.maxAds}</span>
                         </div>
-                        <Progress value={Math.min(((user.todayProgress?.adsWatched || 0) / 10) * 100, 100)} className="h-2" />
+                        <Progress value={Math.min(((user.todayProgress?.adsWatched || 0) / DAILY_LIMITS.maxAds) * 100, 100)} className="h-2" />
                     </div>
                     <div className="space-y-2">
                         <div className="flex justify-between text-sm">
                             <span>Stories Read</span>
-                            <span>{user.todayProgress?.storiesRead || 0}/5</span>
+                            <span>{user.todayProgress?.storiesRead || 0}/{DAILY_LIMITS.maxNews}</span>
                         </div>
-                        <Progress value={Math.min(((user.todayProgress?.storiesRead || 0) / 5) * 100, 100)} className="h-2" />
+                        <Progress value={Math.min(((user.todayProgress?.storiesRead || 0) / DAILY_LIMITS.maxNews) * 100, 100)} className="h-2" />
                     </div>
                     <div className="space-y-2">
                         <div className="flex justify-between text-sm">
@@ -1756,6 +1784,9 @@ export default function EarnApp() {
     const { resolvedTheme, setTheme } = useTheme()
     const [showLuckySpin, setShowLuckySpin] = useState(false)
 
+    // Enable engagement notifications (daily reset, streak alerts, opportunities)
+    useEngagementNotifications(user)
+
     useEffect(() => {
         setIsClient(true)
         // Check for existing user session only on client
@@ -1767,8 +1798,27 @@ export default function EarnApp() {
                     setUser(parsedUser)
                     setUserPoints(parsedUser.totalPoints)
                 } catch (error) {
-                    localStorage.removeItem('kojomoneyUser')
+                    console.error('Failed to parse user data:', error)
                 }
+            }
+
+            // Handle Deep Linking via Query Params
+            const searchParams = new URLSearchParams(window.location.search)
+            const tabParam = searchParams.get('tab')
+            const viewParam = searchParams.get('view')
+
+            if (tabParam && ['home', 'earn', 'wallet', 'profile'].includes(tabParam)) {
+                setActiveTab(tabParam)
+            }
+
+            if (viewParam && ['news', 'trivia', 'ads'].includes(viewParam)) {
+                setActiveView(viewParam as any)
+            }
+
+            // Clean URL after consuming params (optional, keeps URL clean)
+            if (tabParam || viewParam) {
+                const newUrl = window.location.pathname
+                window.history.replaceState({}, '', newUrl)
             }
         }
     }, [])
@@ -1802,6 +1852,7 @@ export default function EarnApp() {
 
         window.addEventListener('kojo:user:update', handler)
         window.addEventListener('kojo:points:earned', handler)
+        window.addEventListener('open-spin', () => setShowLuckySpin(true))
 
         return () => {
             window.removeEventListener('kojo:user:update', handler)
