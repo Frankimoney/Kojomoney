@@ -37,6 +37,12 @@ export const AD_CONFIG = {
     // Set to false to use real production ads
     useTestAds: false, // PRODUCTION MODE - Real ads will show!
 
+    // Test device IDs - These devices will show test ads for debugging
+    // Add your device's advertising ID here to see test ads
+    testDeviceIds: [
+        'a15f0f2c-115e-4fa1-87fa-10ca1ad1abe1', // NWAJI's physical test device
+    ],
+
     // Banner refresh interval (milliseconds)
     bannerRefreshInterval: 60000, // 60 seconds
 
@@ -85,30 +91,63 @@ const SMART_INTERSTITIAL_COOLDOWN = 60000 // 1 minute between smart interstitial
  * Call this once when the app starts
  */
 export async function initializeAds(): Promise<boolean> {
-    if (isInitialized) return true
+    console.log('[AdService] === Starting initialization ===')
+
+    if (isInitialized) {
+        console.log('[AdService] Already initialized, skipping')
+        return true
+    }
+
+    // Check if running in browser
+    if (typeof window === 'undefined') {
+        console.log('[AdService] No window object, running on server')
+        return false
+    }
+
+    // Log Capacitor status
+    const capacitor = (window as any)?.Capacitor
+    console.log('[AdService] Capacitor object exists:', !!capacitor)
+    console.log('[AdService] Capacitor details:', JSON.stringify({
+        exists: !!capacitor,
+        isNativePlatform: capacitor?.isNativePlatform?.(),
+        platform: capacitor?.getPlatform?.(),
+    }))
 
     // Check if running on native platform
-    if (typeof window === 'undefined') return false
-
-    const isNative = (window as any)?.Capacitor?.isNativePlatform?.() === true
+    const isNative = capacitor?.isNativePlatform?.() === true
     if (!isNative) {
         console.log('[AdService] Not a native platform, ads disabled')
+        console.log('[AdService] Platform detected:', capacitor?.getPlatform?.() || 'unknown')
         return false
     }
 
     // Determine platform
-    const platform = (window as any)?.Capacitor?.getPlatform?.()
+    const platform = capacitor?.getPlatform?.()
     currentPlatform = platform === 'ios' ? 'ios' : 'android'
+    console.log('[AdService] Running on native platform:', currentPlatform)
 
     try {
         // Dynamic import for Capacitor AdMob
         admobModule = await import('@capacitor-community/admob')
         const { AdMob } = admobModule
 
+        console.log('[AdService] Initializing AdMob...')
+        console.log('[AdService] Platform:', currentPlatform)
+        console.log('[AdService] Test mode:', AD_CONFIG.useTestAds)
+        console.log('[AdService] Test devices:', AD_CONFIG.testDeviceIds)
+        console.log('[AdService] Ad Unit IDs:', AD_UNIT_IDS[currentPlatform])
+
+        // Determine test devices - use configured test device IDs or all devices if in test mode
+        const testingDevices = AD_CONFIG.useTestAds
+            ? ['*'] // All devices are test devices in test mode
+            : AD_CONFIG.testDeviceIds // Use specific test device IDs for debugging
+
+        console.log('[AdService] Using test devices:', testingDevices)
+
         // Initialize with consent
         await AdMob.initialize({
             requestTrackingAuthorization: true, // iOS ATT prompt
-            testingDevices: AD_CONFIG.useTestAds ? ['*'] : [], // Use all devices as test devices during development
+            testingDevices: testingDevices,
             initializeForTesting: AD_CONFIG.useTestAds,
         })
 
@@ -116,7 +155,7 @@ export async function initializeAds(): Promise<boolean> {
         setupAdListeners()
 
         isInitialized = true
-        console.log('[AdService] Initialized successfully')
+        console.log('[AdService] ✅ Initialized successfully with test devices:', testingDevices)
 
         // Pre-load ads if configured
         if (AD_CONFIG.preloadAdsOnInit) {
@@ -125,8 +164,11 @@ export async function initializeAds(): Promise<boolean> {
         }
 
         return true
-    } catch (error) {
-        console.error('[AdService] Initialization failed:', error)
+    } catch (error: any) {
+        console.error('[AdService] ❌ Initialization failed:', error)
+        console.error('[AdService] Error message:', error?.message || 'Unknown error')
+        console.error('[AdService] Error code:', error?.code || 'No code')
+        console.error('[AdService] Full error object:', JSON.stringify(error, null, 2))
         return false
     }
 }
@@ -139,15 +181,30 @@ function setupAdListeners() {
 
     const { AdMob } = admobModule
 
+    // Helper function to decode error codes
+    const decodeAdError = (error: any) => {
+        const code = error?.code || error?.errorCode || 'unknown'
+        const errorMessages: Record<string, string> = {
+            '0': 'ERROR_CODE_INTERNAL_ERROR - Something happened internally',
+            '1': 'ERROR_CODE_INVALID_REQUEST - Invalid ad request (check ad unit ID)',
+            '2': 'ERROR_CODE_NETWORK_ERROR - Network error (check internet)',
+            '3': 'ERROR_CODE_NO_FILL - No ad available (inventory issue, try again later)',
+            '4': 'ERROR_CODE_APP_ID_MISSING - App ID missing in AndroidManifest',
+        }
+        return errorMessages[String(code)] || `Unknown error code: ${code}`
+    }
+
     // Interstitial events
     AdMob.addListener('onInterstitialAdLoaded', () => {
         interstitialReady = true
-        console.log('[AdService] Interstitial loaded')
+        console.log('[AdService] ✅ Interstitial loaded successfully')
     })
 
     AdMob.addListener('onInterstitialAdFailedToLoad', (error: any) => {
         interstitialReady = false
-        console.error('[AdService] Interstitial failed to load:', error)
+        console.error('[AdService] ❌ Interstitial failed to load')
+        console.error('[AdService] Error details:', JSON.stringify(error))
+        console.error('[AdService] Decoded:', decodeAdError(error))
     })
 
     AdMob.addListener('onInterstitialAdDismissed', () => {
@@ -158,12 +215,14 @@ function setupAdListeners() {
     // Rewarded events
     AdMob.addListener('onRewardedVideoAdLoaded', () => {
         rewardedReady = true
-        console.log('[AdService] Rewarded ad loaded')
+        console.log('[AdService] ✅ Rewarded ad loaded successfully')
     })
 
     AdMob.addListener('onRewardedVideoAdFailedToLoad', (error: any) => {
         rewardedReady = false
-        console.error('[AdService] Rewarded ad failed to load:', error)
+        console.error('[AdService] ❌ Rewarded ad failed to load')
+        console.error('[AdService] Error details:', JSON.stringify(error))
+        console.error('[AdService] Decoded:', decodeAdError(error))
     })
 
     AdMob.addListener('onRewardedVideoAdDismissed', () => {
@@ -173,11 +232,13 @@ function setupAdListeners() {
 
     // Banner events
     AdMob.addListener('onBannerAdLoaded', () => {
-        console.log('[AdService] Banner loaded')
+        console.log('[AdService] ✅ Banner loaded successfully')
     })
 
     AdMob.addListener('onBannerAdFailedToLoad', (error: any) => {
-        console.error('[AdService] Banner failed to load:', error)
+        console.error('[AdService] ❌ Banner failed to load')
+        console.error('[AdService] Error details:', JSON.stringify(error))
+        console.error('[AdService] Decoded:', decodeAdError(error))
     })
 }
 
