@@ -40,13 +40,26 @@ export function useAdsInitialization() {
 export function useBannerAd(position: 'top' | 'bottom' = 'bottom', autoShow: boolean = true) {
     const [isVisible, setIsVisible] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
+    const [retryCount, setRetryCount] = useState(0)
 
     useEffect(() => {
-        if (!autoShow || !isAdsInitialized()) return
+        if (!autoShow) return
 
         const show = async () => {
+            // Check if ads are initialized
+            if (!isAdsInitialized()) {
+                console.log('[useBannerAd] Ads not initialized yet, will retry...')
+                // Retry after a delay (up to 5 retries)
+                if (retryCount < 5) {
+                    setTimeout(() => setRetryCount(c => c + 1), 2000)
+                }
+                return
+            }
+
+            console.log('[useBannerAd] Attempting to show banner at position:', position)
             setIsLoading(true)
             const success = await showBanner(position)
+            console.log('[useBannerAd] Banner show result:', success)
             setIsVisible(success)
             setIsLoading(false)
         }
@@ -57,7 +70,7 @@ export function useBannerAd(position: 'top' | 'bottom' = 'bottom', autoShow: boo
             hideBanner()
             setIsVisible(false)
         }
-    }, [position, autoShow])
+    }, [position, autoShow, retryCount])
 
     const show = useCallback(async () => {
         setIsLoading(true)
