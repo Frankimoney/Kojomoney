@@ -47,6 +47,8 @@ export default function AfricaSurveySystem({ userId, onClose }: AfricaSurveySyst
     const [isNativeApp, setIsNativeApp] = useState(false)
     const [iframeLoading, setIframeLoading] = useState(false)
 
+    // Show banner ad at bottom
+    useBannerAd('bottom', true)
 
     // Detect if running in native app (Capacitor)
     useEffect(() => {

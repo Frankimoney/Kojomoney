@@ -12,6 +12,7 @@ import dynamic from 'next/dynamic'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { useBannerAd } from '@/hooks/useAds'
 import {
     Gamepad2,
     PlayCircle,
@@ -50,6 +51,9 @@ export default function GameRewardSystem({ userId, onClose }: GameRewardSystemPr
     const [isLoading, setIsLoading] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [showMiniGames, setShowMiniGames] = useState(false)
+
+    // Show banner ad at bottom
+    useBannerAd('bottom', true)
 
     const providers: GameProvider[] = [
         {

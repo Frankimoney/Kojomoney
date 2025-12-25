@@ -19,7 +19,7 @@ export interface FloatingNotification {
     }
 }
 
-// Store for managing floating notifications FOR KOJOMONEY ADS FOR 50%
+// Store for managing floating notifications
 interface FloatingNotificationState {
     notifications: FloatingNotification[]
     show: (notification: Omit<FloatingNotification, 'id'>) => void

@@ -11,6 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Camera, Upload, CheckCircle2, Clock, MapPin, Share2, Timer, ChevronRight, ArrowLeft, Loader2, AlertCircle, ExternalLink, Info, Shield, FileText, Gift } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Mission, MissionProgress } from '@/lib/db-schema'
+import { useBannerAd } from '@/hooks/useAds'
 import {
     fetchMissions,
     updateMissionProgress,
@@ -37,6 +38,9 @@ export default function MissionSystem({ userId, onClose }: MissionSystemProps) {
     const [showAffiliateDisclosure, setShowAffiliateDisclosure] = useState(false)
     const [pendingAffiliateUrl, setPendingAffiliateUrl] = useState<string | null>(null)
     const [showFTCWarning, setShowFTCWarning] = useState(false)
+
+    // Show banner ad at bottom
+    useBannerAd('bottom', true)
 
     useEffect(() => {
         loadMissions()

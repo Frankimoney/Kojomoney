@@ -10,6 +10,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Share2, Copy, Download, Users, Gift, Star, Award, ChevronRight, ArrowLeft, MessageCircle, Twitter, Facebook, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { apiCall, apiJson } from '@/lib/api-client'
+import { useBannerAd } from '@/hooks/useAds'
 import html2canvas from 'html2canvas'
 import confetti from 'canvas-confetti'
 
@@ -43,6 +44,9 @@ export default function ReferralSystem({ user, onClose }: ReferralSystemProps) {
     const [showSpamWarning, setShowSpamWarning] = useState(false)
     const [claimingMilestone, setClaimingMilestone] = useState<number | null>(null)
     const posterRef = useRef<HTMLDivElement>(null)
+
+    // Show banner ad at bottom
+    useBannerAd('bottom', true)
 
     const activeCount = referrals.filter(r => r.status === 'active' || r.status === 'completed').length
     const nextMilestone = milestones.find(m => !m.isClaimed && m.count > activeCount) || milestones[milestones.length - 1]

@@ -162,6 +162,9 @@ interface DedicatedPageProps {
 function NewsPage({ user: initialUser, onBack }: DedicatedPageProps) {
     const [user, setUser] = useState<User>(initialUser)
 
+    // Show banner ad at bottom
+    useBannerAd('bottom', true)
+
     useEffect(() => {
         const handler = () => {
             // Re-read user from localStorage when notified
@@ -235,6 +238,9 @@ function NewsPage({ user: initialUser, onBack }: DedicatedPageProps) {
 
 function TriviaPage({ user: initialUser, onBack }: DedicatedPageProps) {
     const [user, setUser] = useState<User>(initialUser)
+
+    // Show banner ad at bottom
+    useBannerAd('bottom', true)
 
     useEffect(() => {
         const handler = () => {
@@ -312,6 +318,9 @@ interface AdsPageProps {
 function AdsPage({ user, onBack }: AdsPageProps) {
     const [adCooldown, setAdCooldown] = useState(0)
     const [isLoading, setIsLoading] = useState(false)
+
+    // Show banner ad at bottom
+    useBannerAd('bottom', true)
 
     const handleWatchAd = async () => {
         if (!user?.id || isLoading) return
