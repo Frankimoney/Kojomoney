@@ -179,7 +179,7 @@ export async function initializeAds(): Promise<boolean> {
 function setupAdListeners() {
     if (!admobModule) return
 
-    const { AdMob } = admobModule
+    const { AdMob, RewardAdPluginEvents, InterstitialAdPluginEvents, BannerAdPluginEvents } = admobModule
 
     // Helper function to decode error codes
     const decodeAdError = (error: any) => {
@@ -194,48 +194,61 @@ function setupAdListeners() {
         return errorMessages[String(code)] || `Unknown error code: ${code}`
     }
 
-    // Interstitial events
-    AdMob.addListener('onInterstitialAdLoaded', () => {
+    // Interstitial events (using v7 enum names or fallback to string)
+    const interstitialLoadedEvent = InterstitialAdPluginEvents?.Loaded || 'interstitialAdLoaded'
+    const interstitialFailedEvent = InterstitialAdPluginEvents?.FailedToLoad || 'interstitialAdFailedToLoad'
+    const interstitialDismissedEvent = InterstitialAdPluginEvents?.Dismissed || 'interstitialAdDismissed'
+
+    AdMob.addListener(interstitialLoadedEvent, () => {
         interstitialReady = true
         console.log('[AdService] ✅ Interstitial loaded successfully')
     })
 
-    AdMob.addListener('onInterstitialAdFailedToLoad', (error: any) => {
+    AdMob.addListener(interstitialFailedEvent, (error: any) => {
         interstitialReady = false
         console.error('[AdService] ❌ Interstitial failed to load')
         console.error('[AdService] Error details:', JSON.stringify(error))
         console.error('[AdService] Decoded:', decodeAdError(error))
     })
 
-    AdMob.addListener('onInterstitialAdDismissed', () => {
+    AdMob.addListener(interstitialDismissedEvent, () => {
         interstitialReady = false
         preloadInterstitial() // Pre-load next one
     })
 
-    // Rewarded events
-    AdMob.addListener('onRewardedVideoAdLoaded', () => {
+    // Rewarded events (using v7 enum names or fallback to string)
+    const rewardLoadedEvent = RewardAdPluginEvents?.Loaded || 'rewardedVideoAdLoaded'
+    const rewardFailedEvent = RewardAdPluginEvents?.FailedToLoad || 'rewardedVideoAdFailedToLoad'
+    const rewardDismissedEvent = RewardAdPluginEvents?.Dismissed || 'rewardedVideoAdDismissed'
+
+    console.log('[AdService] Setting up reward events:', { rewardLoadedEvent, rewardFailedEvent, rewardDismissedEvent })
+
+    AdMob.addListener(rewardLoadedEvent, () => {
         rewardedReady = true
         console.log('[AdService] ✅ Rewarded ad loaded successfully')
     })
 
-    AdMob.addListener('onRewardedVideoAdFailedToLoad', (error: any) => {
+    AdMob.addListener(rewardFailedEvent, (error: any) => {
         rewardedReady = false
         console.error('[AdService] ❌ Rewarded ad failed to load')
         console.error('[AdService] Error details:', JSON.stringify(error))
         console.error('[AdService] Decoded:', decodeAdError(error))
     })
 
-    AdMob.addListener('onRewardedVideoAdDismissed', () => {
+    AdMob.addListener(rewardDismissedEvent, () => {
         rewardedReady = false
         preloadRewarded() // Pre-load next one
     })
 
-    // Banner events
-    AdMob.addListener('onBannerAdLoaded', () => {
+    // Banner events (using v7 enum names or fallback to string)
+    const bannerLoadedEvent = BannerAdPluginEvents?.Loaded || 'bannerAdLoaded'
+    const bannerFailedEvent = BannerAdPluginEvents?.FailedToLoad || 'bannerAdFailedToLoad'
+
+    AdMob.addListener(bannerLoadedEvent, () => {
         console.log('[AdService] ✅ Banner loaded successfully')
     })
 
-    AdMob.addListener('onBannerAdFailedToLoad', (error: any) => {
+    AdMob.addListener(bannerFailedEvent, (error: any) => {
         console.error('[AdService] ❌ Banner failed to load')
         console.error('[AdService] Error details:', JSON.stringify(error))
         console.error('[AdService] Decoded:', decodeAdError(error))
@@ -395,7 +408,7 @@ export async function preloadRewarded(): Promise<boolean> {
 
     try {
         const { AdMob } = admobModule
-        await AdMob.prepareRewardedAd({
+        await AdMob.prepareRewardVideoAd({
             adId: getAdUnitId('rewarded'),
             isTesting: AD_CONFIG.useTestAds,
         })
@@ -418,30 +431,34 @@ export async function showRewarded(): Promise<{ type: string; amount: number } |
 
     return new Promise(async (resolve) => {
         try {
-            const { AdMob } = admobModule
+            const { AdMob, RewardAdPluginEvents } = admobModule
+
+            // Get event names (v7 enums or fallback strings)
+            const rewardEvent = RewardAdPluginEvents?.Rewarded || 'onRewardedVideoAdReward'
+            const dismissEvent = RewardAdPluginEvents?.Dismissed || 'onRewardedVideoAdDismissed'
 
             // Set up reward listener
-            const rewardListener = AdMob.addListener('onRewardedVideoAdReward', (reward: any) => {
+            const rewardListener = AdMob.addListener(rewardEvent, (reward: any) => {
                 console.log('[AdService] User earned reward:', reward)
                 rewardListener.remove()
                 resolve({ type: reward.type || 'points', amount: reward.amount || 1 })
             })
 
             // Set up dismiss listener (user closed without reward)
-            const dismissListener = AdMob.addListener('onRewardedVideoAdDismissed', () => {
+            const dismissListener = AdMob.addListener(dismissEvent, () => {
                 dismissListener.remove()
                 // Note: reward listener may have already resolved
             })
 
             // If not pre-loaded, load now
             if (!rewardedReady) {
-                await AdMob.prepareRewardedAd({
+                await AdMob.prepareRewardVideoAd({
                     adId: getAdUnitId('rewarded'),
                     isTesting: AD_CONFIG.useTestAds,
                 })
             }
 
-            await AdMob.showRewardedAd()
+            await AdMob.showRewardVideoAd()
             rewardedReady = false
 
         } catch (error) {
