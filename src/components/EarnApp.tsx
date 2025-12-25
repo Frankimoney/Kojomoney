@@ -1881,20 +1881,69 @@ export default function EarnApp() {
             (((window as any)?.Capacitor?.getPlatform?.() && (window as any).Capacitor.getPlatform() !== 'web'))
         )
         if (!isNative || !user?.id) return
+
         const setupPush = async () => {
             try {
-                // const perm = await PushNotifications.requestPermissions()
-                // if (perm.receive !== 'granted') return
-                // await PushNotifications.register()
-                // const tok = await FirebaseMessaging.getToken()
-                // if ((tok as any)?.token) {
-                //     await apiCall('/api/push', {
-                //         method: 'POST',
-                //         body: JSON.stringify({ userId: user.id, token: (tok as any).token, platform: (window as any).Capacitor.getPlatform?.() })
-                //     })
-                // }
-            } catch (_) { }
+                console.log('[PushNotifications] Setting up push notifications...')
+
+                // Dynamically import push notifications
+                const { PushNotifications } = await import('@capacitor/push-notifications')
+
+                // Request permission
+                const perm = await PushNotifications.requestPermissions()
+                console.log('[PushNotifications] Permission result:', perm)
+
+                if (perm.receive !== 'granted') {
+                    console.log('[PushNotifications] Permission not granted')
+                    return
+                }
+
+                // Register for push
+                await PushNotifications.register()
+                console.log('[PushNotifications] Registered successfully')
+
+                // Listen for registration token
+                PushNotifications.addListener('registration', async (token) => {
+                    console.log('[PushNotifications] Got token:', token.value?.substring(0, 20) + '...')
+
+                    if (token.value) {
+                        try {
+                            const platform = (window as any).Capacitor?.getPlatform?.() || 'android'
+                            await apiCall('/api/notifications/register', {
+                                method: 'POST',
+                                body: JSON.stringify({
+                                    userId: user.id,
+                                    token: token.value,
+                                    platform
+                                })
+                            })
+                            console.log('[PushNotifications] Token registered with server')
+                        } catch (err) {
+                            console.error('[PushNotifications] Failed to register token:', err)
+                        }
+                    }
+                })
+
+                // Listen for push notifications
+                PushNotifications.addListener('pushNotificationReceived', (notification) => {
+                    console.log('[PushNotifications] Received:', notification)
+                })
+
+                // Listen for push notification action (tap)
+                PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+                    console.log('[PushNotifications] Action performed:', action)
+                })
+
+                // Listen for errors
+                PushNotifications.addListener('registrationError', (error) => {
+                    console.error('[PushNotifications] Registration error:', error)
+                })
+
+            } catch (err) {
+                console.error('[PushNotifications] Setup failed:', err)
+            }
         }
+
         setupPush()
     }, [user?.id])
 
