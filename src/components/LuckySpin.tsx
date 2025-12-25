@@ -68,6 +68,9 @@ export default function LuckySpin({ userId, onClose }: LuckySpinProps) {
                 setCanSpin(false)
                 setNextSpinTime(data.nextSpinTime)
             }
+
+            // Set bonus spin availability from server
+            setBonusSpinUsedToday(!data.canBonusSpin)
         } catch (error) {
             console.error('Failed to check spin status', error)
         }
@@ -87,7 +90,7 @@ export default function LuckySpin({ userId, onClose }: LuckySpinProps) {
             // We need to fetch the result from backend to know where to stop
             const res = await apiCall('/api/spin/play', {
                 method: 'POST',
-                body: JSON.stringify({ userId })
+                body: JSON.stringify({ userId, bonusSpin: hasBonusSpin })
             })
 
             const data = await res.json()

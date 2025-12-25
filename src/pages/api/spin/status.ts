@@ -19,7 +19,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     try {
         if (!db) {
             // Fallback for dev without DB
-            return res.status(200).json({ canSpin: true })
+            return res.status(200).json({ canSpin: true, canBonusSpin: true })
         }
 
         const userDoc = await db.collection('users').doc(userIdStr).get()
@@ -30,16 +30,21 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
         const userData = userDoc.data()
         const lastSpinAt = userData?.lastSpinAt || 0
+        const lastBonusSpinAt = userData?.lastBonusSpinAt || 0
         const now = Date.now()
         const oneDayMs = 24 * 60 * 60 * 1000
 
         const timeDiff = now - lastSpinAt
         const canSpin = timeDiff >= oneDayMs
 
+        const bonusTimeDiff = now - lastBonusSpinAt
+        const canBonusSpin = bonusTimeDiff >= oneDayMs
+
         const nextSpinTime = canSpin ? null : (lastSpinAt + oneDayMs)
 
         return res.status(200).json({
             canSpin,
+            canBonusSpin,
             nextSpinTime,
             serverTime: now
         })

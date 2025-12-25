@@ -21,7 +21,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     try {
         const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body
-        const { userId } = body
+        const { userId, bonusSpin } = body
 
         if (!userId) {
             return res.status(400).json({ error: 'User ID required' })
@@ -48,11 +48,21 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
             const userData = userDoc.data()!
             const lastSpinAt = userData.lastSpinAt || 0
+            const lastBonusSpinAt = userData.lastBonusSpinAt || 0
             const now = Date.now()
             const oneDayMs = 24 * 60 * 60 * 1000
 
-            if (now - lastSpinAt < oneDayMs) {
-                throw new Error('Daily spin cooldown active')
+            // Check if this is a bonus spin (from watching ad)
+            if (bonusSpin) {
+                // Check if bonus spin was already used today
+                if (now - lastBonusSpinAt < oneDayMs) {
+                    throw new Error('Bonus spin already used today')
+                }
+            } else {
+                // Regular spin - check normal cooldown
+                if (now - lastSpinAt < oneDayMs) {
+                    throw new Error('Daily spin cooldown active')
+                }
             }
 
             // Determine Outcome
@@ -71,12 +81,20 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             // Update User
             const currentPoints = userData.totalPoints || userData.points || 0
 
-            t.update(userRef, {
+            const updateData: any = {
                 totalPoints: currentPoints + winningPoints,
                 points: currentPoints + winningPoints, // Sync generic points field
-                lastSpinAt: now,
                 updatedAt: now
-            })
+            }
+
+            // Only update the appropriate spin timer
+            if (bonusSpin) {
+                updateData.lastBonusSpinAt = now
+            } else {
+                updateData.lastSpinAt = now
+            }
+
+            t.update(userRef, updateData)
 
             // Add Transaction Record
             if (winningPoints > 0) {
@@ -85,9 +103,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
                     userId,
                     type: 'credit',
                     amount: winningPoints,
-                    source: 'lucky_spin',
+                    source: bonusSpin ? 'bonus_spin' : 'lucky_spin',
                     status: 'completed',
-                    description: 'Daily Lucky Spin Reward',
+                    description: bonusSpin ? 'Bonus Spin Reward (Ad)' : 'Daily Lucky Spin Reward',
                     createdAt: now
                 })
             }
@@ -139,13 +157,17 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             success: true,
             points: result.points,
             awarded: true,
-            tournamentPoints: TOURNAMENT_POINTS_PER_SPIN
+            tournamentPoints: TOURNAMENT_POINTS_PER_SPIN,
+            bonusSpin: !!bonusSpin
         })
 
     } catch (error: any) {
         console.error('Spin play error:', error)
         if (error.message === 'Daily spin cooldown active') {
             return res.status(429).json({ error: 'Please wait 24h before spinning again' })
+        }
+        if (error.message === 'Bonus spin already used today') {
+            return res.status(429).json({ error: 'Bonus spin already used today. Try again tomorrow!' })
         }
         return res.status(500).json({ error: 'Failed to process spin' })
     }
