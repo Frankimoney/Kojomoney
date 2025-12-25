@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useBannerAd } from '@/hooks/useAds'
 import {
     ArrowLeft,
     ExternalLink,
@@ -45,6 +46,7 @@ export default function AfricaSurveySystem({ userId, onClose }: AfricaSurveySyst
     const [selectedProvider, setSelectedProvider] = useState<string | null>(null)
     const [isNativeApp, setIsNativeApp] = useState(false)
     const [iframeLoading, setIframeLoading] = useState(false)
+
 
     // Detect if running in native app (Capacitor)
     useEffect(() => {

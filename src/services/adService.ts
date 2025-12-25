@@ -17,18 +17,24 @@ export const AD_UNIT_IDS = {
         banner: 'ca-app-pub-1074124909116054/9946925160',
         interstitial: 'ca-app-pub-1074124909116054/1960623937',
         rewarded: 'ca-app-pub-1074124909116054/3381516810',
+        rewardedInterstitial: 'ca-app-pub-1074124909116054/2618806276',
+        native: 'ca-app-pub-1074124909116054/2678516028',
     },
     // Production IDs for iOS (using same IDs - create separate iOS ad units if needed)
     ios: {
         banner: 'ca-app-pub-1074124909116054/9946925160',
         interstitial: 'ca-app-pub-1074124909116054/1960623937',
         rewarded: 'ca-app-pub-1074124909116054/3381516810',
+        rewardedInterstitial: 'ca-app-pub-1074124909116054/2618806276',
+        native: 'ca-app-pub-1074124909116054/2678516028',
     },
     // Test IDs for development (always work, no revenue)
     test: {
         banner: 'ca-app-pub-3940256099942544/6300978111',
         interstitial: 'ca-app-pub-3940256099942544/1033173712',
         rewarded: 'ca-app-pub-3940256099942544/5224354917',
+        rewardedInterstitial: 'ca-app-pub-3940256099942544/5354046379',
+        native: 'ca-app-pub-3940256099942544/2247696110',
     },
 }
 
@@ -57,7 +63,7 @@ export const AD_CONFIG = {
 }
 
 // Types
-export type AdType = 'banner' | 'interstitial' | 'rewarded'
+export type AdType = 'banner' | 'interstitial' | 'rewarded' | 'rewardedInterstitial' | 'native'
 export type BannerPosition = 'top' | 'bottom'
 
 export interface AdEventCallback {
@@ -73,6 +79,7 @@ export interface AdEventCallback {
 let isInitialized = false
 let interstitialReady = false
 let rewardedReady = false
+let rewardedInterstitialReady = false
 let bannerVisible = false
 let lastInterstitialTime = 0
 let interstitialCount = 0
@@ -604,6 +611,115 @@ export function getActivityCount(): number {
     return activityCounter
 }
 
+// ==========================================
+// REWARDED INTERSTITIAL ADS
+// ==========================================
+
+/**
+ * Preload a rewarded interstitial ad
+ * Use for premium placements like game completion or before withdrawal
+ */
+export async function preloadRewardedInterstitial(): Promise<boolean> {
+    if (!isInitialized || !admobModule) return false
+
+    try {
+        const { AdMob } = admobModule
+
+        console.log('[AdService] Preloading rewarded interstitial...')
+
+        await AdMob.prepareRewardInterstitialAd({
+            adId: getAdUnitId('rewardedInterstitial'),
+            isTesting: AD_CONFIG.useTestAds,
+        })
+
+        rewardedInterstitialReady = true
+        console.log('[AdService] ✅ Rewarded interstitial preloaded')
+        return true
+    } catch (error: any) {
+        console.error('[AdService] ❌ Failed to preload rewarded interstitial:', error?.message || error)
+        rewardedInterstitialReady = false
+        return false
+    }
+}
+
+/**
+ * Show a rewarded interstitial ad
+ * Returns true if user earned reward, false otherwise
+ * Best for: Before withdrawals, after game completion, premium features
+ */
+export async function showRewardedInterstitial(): Promise<boolean> {
+    if (!isInitialized || !admobModule) {
+        console.warn('[AdService] Not initialized, cannot show rewarded interstitial')
+        return false
+    }
+
+    try {
+        const { AdMob, RewardInterstitialAdPluginEvents } = admobModule
+
+        // Load if not ready
+        if (!rewardedInterstitialReady) {
+            console.log('[AdService] Loading rewarded interstitial on demand...')
+            await AdMob.prepareRewardInterstitialAd({
+                adId: getAdUnitId('rewardedInterstitial'),
+                isTesting: AD_CONFIG.useTestAds,
+            })
+        }
+
+        return new Promise<boolean>((resolve) => {
+            let rewarded = false
+            let resolved = false
+
+            // Set up event listeners
+            const rewardListener = AdMob.addListener(
+                RewardInterstitialAdPluginEvents?.Rewarded || 'onRewardInterstitialAdRewarded',
+                () => {
+                    console.log('[AdService] ✅ User earned reward from rewarded interstitial')
+                    rewarded = true
+                }
+            )
+
+            const dismissListener = AdMob.addListener(
+                RewardInterstitialAdPluginEvents?.Dismissed || 'onRewardInterstitialAdDismissed',
+                () => {
+                    console.log('[AdService] Rewarded interstitial dismissed, rewarded:', rewarded)
+                    rewardListener?.remove?.()
+                    dismissListener?.remove?.()
+                    rewardedInterstitialReady = false
+
+                    if (!resolved) {
+                        resolved = true
+                        resolve(rewarded)
+                    }
+
+                    // Preload next one
+                    preloadRewardedInterstitial()
+                }
+            )
+
+            // Show the ad
+            AdMob.showRewardInterstitialAd().catch((error: any) => {
+                console.error('[AdService] ❌ Failed to show rewarded interstitial:', error?.message || error)
+                rewardListener?.remove?.()
+                dismissListener?.remove?.()
+                if (!resolved) {
+                    resolved = true
+                    resolve(false)
+                }
+            })
+        })
+    } catch (error: any) {
+        console.error('[AdService] ❌ Failed to show rewarded interstitial:', error?.message || error)
+        return false
+    }
+}
+
+/**
+ * Check if rewarded interstitial is ready
+ */
+export function isRewardedInterstitialReady(): boolean {
+    return rewardedInterstitialReady
+}
+
 // Export default object for convenience
 const AdService = {
     initialize: initializeAds,
@@ -626,6 +742,10 @@ const AdService = {
     showTriviaCompletionInterstitial,
     resetActivityCounter,
     getActivityCount,
+    // Rewarded interstitial functions
+    showRewardedInterstitial,
+    preloadRewardedInterstitial,
+    isRewardedInterstitialReady,
 }
 
 export default AdService

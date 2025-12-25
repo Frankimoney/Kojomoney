@@ -183,7 +183,7 @@ function NewsPage({ user: initialUser, onBack }: DedicatedPageProps) {
     }, [])
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen bg-background pb-16"> {/* Added padding for banner */}
             <div className="container mx-auto px-4 py-6 max-w-4xl">
                 {/* Header */}
                 <div className="flex items-center space-x-4 mb-6">
@@ -256,7 +256,7 @@ function TriviaPage({ user: initialUser, onBack }: DedicatedPageProps) {
     }, [])
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen bg-background pb-16"> {/* Added padding for banner */}
             <div className="container mx-auto px-4 py-6 max-w-4xl">
                 {/* Header */}
                 <div className="flex items-center space-x-4 mb-6">
@@ -1101,8 +1101,8 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
         setIsLoadingWithdrawal(true)
 
         try {
-            // Show a pre-withdrawal interstitial (respects cooldown)
-            await AdService.showInterstitial()
+            // Show a pre-withdrawal rewarded interstitial (user gets bonus for watching)
+            await AdService.showRewardedInterstitial()
 
             // Construct payload based on method
             const payload: any = {
