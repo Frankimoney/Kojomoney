@@ -269,6 +269,10 @@ function getAdUnitId(type: AdType): string {
  * Show a banner ad
  */
 export async function showBanner(position: BannerPosition = 'bottom'): Promise<boolean> {
+    console.log('[AdService] showBanner called, position:', position)
+    console.log('[AdService] isInitialized:', isInitialized)
+    console.log('[AdService] admobModule exists:', !!admobModule)
+
     if (!isInitialized || !admobModule) {
         console.warn('[AdService] Not initialized, cannot show banner')
         return false
@@ -281,9 +285,17 @@ export async function showBanner(position: BannerPosition = 'bottom'): Promise<b
 
     try {
         const { AdMob, BannerAdPosition, BannerAdSize } = admobModule
+        const adId = getAdUnitId('banner')
+
+        console.log('[AdService] Showing banner with:', {
+            adId,
+            adSize: 'ADAPTIVE_BANNER',
+            position: position === 'top' ? 'TOP_CENTER' : 'BOTTOM_CENTER',
+            isTesting: AD_CONFIG.useTestAds,
+        })
 
         await AdMob.showBanner({
-            adId: getAdUnitId('banner'),
+            adId: adId,
             adSize: BannerAdSize.ADAPTIVE_BANNER,
             position: position === 'top' ? BannerAdPosition.TOP_CENTER : BannerAdPosition.BOTTOM_CENTER,
             margin: 0,
@@ -291,10 +303,10 @@ export async function showBanner(position: BannerPosition = 'bottom'): Promise<b
         })
 
         bannerVisible = true
-        console.log('[AdService] Banner shown')
+        console.log('[AdService] ✅ Banner shown successfully')
         return true
-    } catch (error) {
-        console.error('[AdService] Failed to show banner:', error)
+    } catch (error: any) {
+        console.error('[AdService] ❌ Failed to show banner:', error?.message || error)
         return false
     }
 }
