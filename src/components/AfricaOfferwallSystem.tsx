@@ -71,8 +71,16 @@ export default function AfricaOfferwallSystem({ userId, onClose }: AfricaOfferwa
     // Detect if running in native app (Capacitor)
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            const native = (window as any)?.Capacitor?.isNativePlatform?.() === true
-            setIsNativeApp(native)
+            // Multiple detection methods for reliability
+            const capacitorNative = (window as any)?.Capacitor?.isNativePlatform?.() === true
+            const capacitorPlatform = (window as any)?.Capacitor?.getPlatform?.()
+            const isAndroid = capacitorPlatform === 'android' || capacitorPlatform === 'ios'
+            const hasCapacitor = !!(window as any)?.Capacitor
+
+            // Set native if any Capacitor detection succeeds
+            const isNative = capacitorNative || isAndroid || hasCapacitor
+            console.log('[AfricaOfferwallSystem] Native detection:', { capacitorNative, capacitorPlatform, hasCapacitor, isNative })
+            setIsNativeApp(isNative)
         }
     }, [])
 
