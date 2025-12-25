@@ -12,7 +12,10 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build the Next.js app
+# Set environment for server build (standalone mode)
+ENV RENDER=true
+
+# Build the Next.js app (will use standalone output)
 RUN npm run build
 
 # Production stage
