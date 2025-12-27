@@ -1028,21 +1028,21 @@ function HomeTab({ user, userPoints, setActiveTab, setActiveView, onOpenSpin }: 
                             <span>Ads Watched</span>
                             <span>{user.todayProgress?.adsWatched || 0}/{DAILY_LIMITS.maxAds}</span>
                         </div>
-                        <Progress value={Math.min(((user.todayProgress?.adsWatched || 0) / DAILY_LIMITS.maxAds) * 100, 100)} className="h-2" />
+                        <Progress value={Math.min(((user.todayProgress?.adsWatched || 0) / DAILY_LIMITS.maxAds) * 100, 100)} className="h-2 bg-purple-200 dark:bg-purple-900/50 [&>div]:bg-purple-500 dark:[&>div]:bg-purple-400" />
                     </div>
                     <div className="space-y-2">
                         <div className="flex justify-between text-sm">
                             <span>Stories Read</span>
                             <span>{user.todayProgress?.storiesRead || 0}/{DAILY_LIMITS.maxNews}</span>
                         </div>
-                        <Progress value={Math.min(((user.todayProgress?.storiesRead || 0) / DAILY_LIMITS.maxNews) * 100, 100)} className="h-2" />
+                        <Progress value={Math.min(((user.todayProgress?.storiesRead || 0) / DAILY_LIMITS.maxNews) * 100, 100)} className="h-2 bg-purple-200 dark:bg-purple-900/50 [&>div]:bg-purple-500 dark:[&>div]:bg-purple-400" />
                     </div>
                     <div className="space-y-2">
                         <div className="flex justify-between text-sm">
                             <span>Daily Trivia</span>
                             <span>{user.todayProgress?.triviaCompleted ? 'Completed' : 'Not completed'}</span>
                         </div>
-                        <Progress value={user.todayProgress?.triviaCompleted ? 100 : 0} className="h-2" />
+                        <Progress value={user.todayProgress?.triviaCompleted ? 100 : 0} className="h-2 bg-purple-200 dark:bg-purple-900/50 [&>div]:bg-purple-500 dark:[&>div]:bg-purple-400" />
                     </div>
                 </CardContent>
             </Card>
