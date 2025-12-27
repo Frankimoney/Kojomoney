@@ -14,6 +14,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { db } from '@/lib/firebase-admin'
 import { sendPushToUser } from '@/pages/api/notifications/send'
+import { getLocalHourServer } from '@/lib/timezone'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
     // Verify cron secret for security
@@ -37,18 +38,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const now = Date.now()
         const oneDayAgo = now - (24 * 60 * 60 * 1000)
         const twoDaysAgo = now - (2 * 24 * 60 * 60 * 1000)
-        const hour = new Date().getUTCHours()
 
-        // 1. Streak at Risk Warnings (send once per day, around evening hours)
-        if (hour >= 17 && hour <= 20) {
-            const usersSnapshot = await db.collection('users')
-                .where('dailyStreak', '>=', 2)
-                .get()
+        // 1. Streak at Risk Warnings (send once per day, around evening hours in USER'S timezone)
+        // Process all users with streaks and check their local time
+        const usersSnapshot = await db.collection('users')
+            .where('dailyStreak', '>=', 2)
+            .get()
 
-            for (const doc of usersSnapshot.docs) {
-                const user = doc.data()
-                const userId = doc.id
+        for (const doc of usersSnapshot.docs) {
+            const user = doc.data()
+            const userId = doc.id
 
+            // Get user's local hour (default to UTC if no timezone stored)
+            const userTimezone = user.timezone || 'UTC'
+            const userLocalHour = getLocalHourServer(userTimezone)
+
+            // Only send if it's evening (5-8pm) in USER's timezone
+            if (userLocalHour >= 17 && userLocalHour <= 20) {
                 // Check if trivia completed today
                 const todayStart = new Date()
                 todayStart.setUTCHours(0, 0, 0, 0)
@@ -160,7 +166,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         // 3. Tournament Reminders (last day of the week)
         const dayOfWeek = new Date().getUTCDay()
-        if (dayOfWeek === 0 && hour >= 10 && hour <= 12) { // Sunday morning
+        const utcHour = new Date().getUTCHours()  // Use UTC for tournament (global event)
+        if (dayOfWeek === 0 && utcHour >= 10 && utcHour <= 12) { // Sunday morning UTC
             // Get all tournament participants this week
             const startOfYear = new Date(new Date().getFullYear(), 0, 1)
             const weekNumber = Math.ceil((((now - startOfYear.getTime()) / 86400000) + startOfYear.getDay() + 1) / 7)

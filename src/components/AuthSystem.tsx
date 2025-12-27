@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { UserPlus, LogIn, Gift, Shield, CheckCircle2, AlertCircle, Eye, EyeOff, RefreshCw } from 'lucide-react'
 import { apiCall } from '@/lib/api-client'
+import { getUserTimezone } from '@/lib/timezone'
 
 interface AuthSystemProps {
     onAuthSuccess: (user: any) => void
@@ -242,7 +243,8 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
                 return
             }
 
-            // Now register the user
+            // Now register the user with timezone
+            const timezone = getUserTimezone()
             const registerResponse = await apiCall('/api/auth/register', {
                 method: 'POST',
                 body: JSON.stringify({
@@ -253,7 +255,8 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
                     name: registerForm.name,
                     phone: registerForm.phone,
                     referralCode: registerForm.referralCode,
-                    verificationId: registerVerification.verificationId
+                    verificationId: registerVerification.verificationId,
+                    timezone
                 })
             })
 
@@ -354,13 +357,15 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
                 return
             }
 
-            // Now login
+            // Now login with timezone update
+            const timezone = getUserTimezone()
             const loginResponse = await apiCall('/api/auth/login', {
                 method: 'POST',
                 body: JSON.stringify({
                     usernameOrEmail: loginForm.usernameOrEmail,
                     password: loginForm.password,
-                    verificationId: loginVerification.verificationId
+                    verificationId: loginVerification.verificationId,
+                    timezone  // Update timezone on each login
                 })
             })
 

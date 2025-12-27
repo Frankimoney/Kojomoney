@@ -12,7 +12,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 
     try {
-        const { usernameOrEmail, password, verificationId } = req.body
+        const { usernameOrEmail, password, verificationId, timezone } = req.body
 
         // Validate required fields
         if (!usernameOrEmail || !password) {
@@ -56,14 +56,19 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             return res.status(400).json({ error: 'Invalid username/email or password', success: false })
         }
 
-        // Update last active date
-        await usersRef.doc(userId!).update({
+        // Update last active date and timezone
+        const updateData: any = {
             lastActiveDate: new Date().toISOString().split('T')[0],
             updatedAt: Date.now()
-        })
+        }
+        // Update timezone if provided (user may have moved or device changed)
+        if (timezone) {
+            updateData.timezone = timezone
+        }
+        await usersRef.doc(userId!).update(updateData)
 
-        // Return user data (without password)
-        const userResponse = { ...userData, id: userId }
+        // Return user data (without password), including updated timezone
+        const userResponse = { ...userData, id: userId, timezone: timezone || userData.timezone }
         delete (userResponse as any).password
 
         return res.status(200).json({

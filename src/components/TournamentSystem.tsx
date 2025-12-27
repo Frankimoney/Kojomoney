@@ -212,7 +212,7 @@ export default function TournamentSystem({ userId, onClose }: TournamentSystemPr
                             <Gift className="h-8 w-8 text-yellow-600" />
                             <div>
                                 <p className="text-[10px] text-yellow-800 dark:text-yellow-200 uppercase font-bold">Prize Pool</p>
-                                <p className="font-bold text-yellow-700 dark:text-yellow-400 text-sm">₦{(prizePool / 1000).toFixed(0)}k</p>
+                                <p className="font-bold text-yellow-700 dark:text-yellow-400 text-sm">{(prizePool).toLocaleString()} pts</p>
                             </div>
                         </CardContent>
                     </Card>
@@ -346,13 +346,13 @@ export default function TournamentSystem({ userId, onClose }: TournamentSystemPr
                                             {index === 2 && <Medal className="h-4 w-4 text-orange-400" />}
                                             {reward.label || `Rank ${reward.rank}`}
                                         </span>
-                                        <span className="font-bold">₦{(reward.nairaValue || reward.points).toLocaleString()}</span>
+                                        <span className="font-bold">{(reward.nairaValue || reward.points).toLocaleString()} pts</span>
                                     </div>
                                 ))}
                                 {rewards.length > 3 && (
                                     <div className="flex justify-between items-center p-2 border rounded-lg">
                                         <span className="flex items-center gap-2"><Star className="h-4 w-4 text-indigo-500" /> Rank 4-10</span>
-                                        <span className="font-bold">₦{(rewards[3]?.nairaValue || rewards[3]?.points || 10000).toLocaleString()}+</span>
+                                        <span className="font-bold">{(rewards[3]?.nairaValue || rewards[3]?.points || 10000).toLocaleString()}+ pts</span>
                                     </div>
                                 )}
                             </div>

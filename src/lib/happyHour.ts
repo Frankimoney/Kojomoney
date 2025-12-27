@@ -1,7 +1,10 @@
 /**
  * Happy Hour Utility - Server-side version
  * Calculates point multipliers based on time of day and weekend bonuses
+ * Now supports IANA timezone strings for proper timezone handling
  */
+
+import { getLocalHourServer } from './timezone'
 
 // Happy Hour schedule (same as frontend HappyHour.tsx)
 export const HAPPY_HOUR_SCHEDULE = [
@@ -26,19 +29,38 @@ export interface HappyHourStatus {
 }
 
 /**
- * Get current Happy Hour status with multiplier
- * Can optionally pass a timezone offset for the user
+ * Get local day of week for a timezone (server-side)
+ * Returns 0-6 where 0 = Sunday
  */
-export function getHappyHourStatus(timezoneOffset?: number): HappyHourStatus {
-    const now = new Date()
-
-    // Apply timezone offset if provided (in minutes)
-    if (timezoneOffset !== undefined) {
-        now.setMinutes(now.getMinutes() + timezoneOffset + now.getTimezoneOffset())
+function getLocalDayOfWeekServer(timezone: string = 'UTC'): number {
+    try {
+        const now = new Date()
+        const formatter = new Intl.DateTimeFormat('en-US', {
+            timeZone: timezone,
+            weekday: 'short',
+        })
+        const dayStr = formatter.format(now)
+        const dayMap: Record<string, number> = {
+            'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3,
+            'Thu': 4, 'Fri': 5, 'Sat': 6,
+        }
+        return dayMap[dayStr] ?? new Date().getUTCDay()
+    } catch (e) {
+        console.warn('Server: Failed to get local day for timezone:', timezone, e)
+        return new Date().getUTCDay()
     }
+}
 
-    const currentHour = now.getHours()
-    const currentDay = now.getDay()
+/**
+ * Get current Happy Hour status with multiplier
+ * Accepts IANA timezone string (e.g., "Africa/Lagos") for proper timezone support
+ * Falls back to UTC if no timezone provided
+ */
+export function getHappyHourStatus(timezone?: string): HappyHourStatus {
+    const tz = timezone || 'UTC'
+
+    const currentHour = getLocalHourServer(tz)
+    const currentDay = getLocalDayOfWeekServer(tz)
     const isWeekend = WEEKEND_BONUS.days.includes(currentDay)
 
     // Check if we're in a happy hour window
@@ -70,22 +92,26 @@ export function getHappyHourStatus(timezoneOffset?: number): HappyHourStatus {
 /**
  * Apply Happy Hour multiplier to points
  * Returns the boosted points amount
+ * @param basePoints - Base points to multiply
+ * @param timezone - User's IANA timezone string (e.g., "Africa/Lagos")
  */
-export function applyHappyHourMultiplier(basePoints: number, timezoneOffset?: number): number {
-    const status = getHappyHourStatus(timezoneOffset)
+export function applyHappyHourMultiplier(basePoints: number, timezone?: string): number {
+    const status = getHappyHourStatus(timezone)
     return Math.floor(basePoints * status.totalMultiplier)
 }
 
 /**
  * Get display info for transaction description
+ * @param basePoints - Base points earned
+ * @param timezone - User's IANA timezone string (e.g., "Africa/Lagos")
  */
-export function getHappyHourBonus(basePoints: number, timezoneOffset?: number): {
+export function getHappyHourBonus(basePoints: number, timezone?: string): {
     basePoints: number
     multiplier: number
     finalPoints: number
     bonusLabel: string | null
 } {
-    const status = getHappyHourStatus(timezoneOffset)
+    const status = getHappyHourStatus(timezone)
     const finalPoints = Math.floor(basePoints * status.totalMultiplier)
 
     let bonusLabel: string | null = null

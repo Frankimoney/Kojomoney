@@ -19,7 +19,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 
     try {
-        const { username, email, password, name, phone, referralCode, verificationId } = req.body
+        const { username, email, password, name, phone, referralCode, verificationId, timezone } = req.body
 
         // Validate required fields
         if (!username || !email || !password) {
@@ -67,6 +67,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             password: hashedPassword, // Store hashed password
             name: name || '',
             phone: phone || '',
+            timezone: timezone || 'UTC',  // User's IANA timezone string
             referralCode: userReferralCode,
             referredBy: referralCode || null,
             totalPoints: 100, // Welcome bonus

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Zap, TrendingUp, PartyPopper, Timer } from 'lucide-react';
+import { getUserTimezone, getLocalHour, getLocalDayOfWeek } from '@/lib/timezone';
 
 // Happy Hour configuration
 export const HAPPY_HOUR_SCHEDULE = [
@@ -27,11 +28,12 @@ export interface HappyHourStatus {
     totalMultiplier: number;
 }
 
-// Utility function to get current happy hour status
-export function getHappyHourStatus(): HappyHourStatus {
+// Utility function to get current happy hour status (timezone-aware)
+export function getHappyHourStatus(timezone?: string): HappyHourStatus {
+    const tz = timezone || getUserTimezone();
     const now = new Date();
-    const currentHour = now.getHours();
-    const currentDay = now.getDay();
+    const currentHour = getLocalHour(tz);
+    const currentDay = getLocalDayOfWeek(tz);
     const isWeekend = WEEKEND_BONUS.days.includes(currentDay);
 
     // Check if we're in a happy hour window
@@ -90,10 +92,11 @@ function formatTimeRemaining(minutes: number): string {
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
 }
 
-// Calculate time remaining in current session
-function getSessionTimeRemaining(): number {
+// Calculate time remaining in current session (timezone-aware)
+function getSessionTimeRemaining(timezone?: string): number {
+    const tz = timezone || getUserTimezone();
+    const currentHour = getLocalHour(tz);
     const now = new Date();
-    const currentHour = now.getHours();
     const currentMinutes = now.getMinutes();
 
     const activeSession = HAPPY_HOUR_SCHEDULE.find(
@@ -110,21 +113,23 @@ function getSessionTimeRemaining(): number {
 interface HappyHourProps {
     compact?: boolean;
     className?: string;
+    timezone?: string;  // Optional user timezone override
 }
 
-export default function HappyHour({ compact = false, className = '' }: HappyHourProps) {
-    const [status, setStatus] = useState<HappyHourStatus>(getHappyHourStatus);
-    const [timeRemaining, setTimeRemaining] = useState(getSessionTimeRemaining);
+export default function HappyHour({ compact = false, className = '', timezone }: HappyHourProps) {
+    const userTimezone = timezone || getUserTimezone();
+    const [status, setStatus] = useState<HappyHourStatus>(() => getHappyHourStatus(userTimezone));
+    const [timeRemaining, setTimeRemaining] = useState(() => getSessionTimeRemaining(userTimezone));
 
     // Update status every minute
     useEffect(() => {
         const interval = setInterval(() => {
-            setStatus(getHappyHourStatus());
-            setTimeRemaining(getSessionTimeRemaining());
+            setStatus(getHappyHourStatus(userTimezone));
+            setTimeRemaining(getSessionTimeRemaining(userTimezone));
         }, 60000);
 
         return () => clearInterval(interval);
-    }, []);
+    }, [userTimezone]);
 
     // Compact version for header/navbar
     if (compact) {
@@ -135,8 +140,8 @@ export default function HappyHour({ compact = false, className = '' }: HappyHour
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${status.isActive
-                        ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white'
-                        : 'bg-purple-500/20 text-purple-400'
+                    ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white'
+                    : 'bg-purple-500/20 text-purple-400'
                     } ${className}`}
             >
                 {status.isActive ? (
@@ -164,8 +169,8 @@ export default function HappyHour({ compact = false, className = '' }: HappyHour
             {/* Background */}
             <div
                 className={`absolute inset-0 ${status.isActive
-                        ? 'bg-gradient-to-br from-amber-500 via-orange-500 to-red-500'
-                        : 'bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900'
+                    ? 'bg-gradient-to-br from-amber-500 via-orange-500 to-red-500'
+                    : 'bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900'
                     }`}
             />
 
@@ -283,19 +288,19 @@ export default function HappyHour({ compact = false, className = '' }: HappyHour
                     </p>
                     <div className="flex gap-2 overflow-x-auto pb-1">
                         {HAPPY_HOUR_SCHEDULE.map((session, idx) => {
-                            const now = new Date();
+                            const currentHour = getLocalHour(userTimezone);
                             const isCurrentSession =
-                                now.getHours() >= session.start && now.getHours() < session.end;
-                            const isPast = now.getHours() >= session.end;
+                                currentHour >= session.start && currentHour < session.end;
+                            const isPast = currentHour >= session.end;
 
                             return (
                                 <div
                                     key={idx}
                                     className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs ${isCurrentSession
-                                            ? 'bg-white/30 text-white font-medium'
-                                            : isPast
-                                                ? 'bg-slate-600/30 text-slate-500 line-through'
-                                                : 'bg-slate-600/50 text-slate-300'
+                                        ? 'bg-white/30 text-white font-medium'
+                                        : isPast
+                                            ? 'bg-slate-600/30 text-slate-500 line-through'
+                                            : 'bg-slate-600/50 text-slate-300'
                                         }`}
                                 >
                                     <span className="font-medium">{session.start}:00</span>

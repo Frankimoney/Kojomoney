@@ -239,7 +239,7 @@ export default function ReferralSystem({ user, onClose }: ReferralSystemProps) {
                             />
                         </div>
                         <p className="text-xs text-muted-foreground text-center pt-1">
-                            Reach {nextMilestone.count} active referrals to unlock ₦{nextMilestone.reward.toLocaleString()} bonus!
+                            Reach {nextMilestone.count} active referrals to unlock {nextMilestone.reward.toLocaleString()} bonus points!
                         </p>
                     </div>
                 )}
@@ -312,7 +312,7 @@ export default function ReferralSystem({ user, onClose }: ReferralSystemProps) {
                                 <p className="text-sm font-medium mb-1 text-purple-100">USE MY CODE</p>
                                 <p className="text-3xl font-black tracking-widest text-white mb-2">{user?.referralCode || 'KOJO'}</p>
                                 <div className="bg-white text-purple-900 text-xs font-bold py-1 px-3 rounded-full inline-block">
-                                    GET ₦500 BONUS
+                                    GET 500 BONUS POINTS
                                 </div>
                             </div>
 

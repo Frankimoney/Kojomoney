@@ -636,7 +636,7 @@ function EarnTab({ user, userPoints, setUserPoints, setActiveView }: EarnTabProp
                             Invite Friends
                         </Button>
                         <p className="text-xs text-violet-100">
-                            Earn ₦1,000 for every 10 invites
+                            Earn 1,000 pts for every 10 invites
                         </p>
                     </CardContent>
                 </Card>
@@ -691,7 +691,7 @@ function EarnTab({ user, userPoints, setUserPoints, setActiveView }: EarnTabProp
                             <Medal className="h-5 w-5 text-yellow-300" />
                             <span>Weekly Cup</span>
                         </CardTitle>
-                        <CardDescription className="text-blue-100">Compete for ₦100k</CardDescription>
+                        <CardDescription className="text-blue-100">Compete for cash prizes</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="flex items-center justify-between">
@@ -1243,7 +1243,7 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
                 <CardHeader>
                     <CardTitle>Withdraw Points</CardTitle>
                     <CardDescription>
-                        Minimum withdrawal: ₦1,000 (1,000 points)
+                        Minimum withdrawal: 1,000 points
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -1459,7 +1459,7 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
                                             transaction.status === 'approved' ? 'default' :
                                                 transaction.status === 'rejected' ? 'destructive' : 'secondary'
                                         }>
-                                            ₦{transaction.amount}
+                                            {transaction.amount} pts
                                         </Badge>
                                     </div>
                                 ))

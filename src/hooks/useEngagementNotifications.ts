@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { FloatingNotifications } from '@/components/notifications/FloatingNotification';
 import { getStreakMultiplier, getNextStreakTier } from '@/lib/points-config';
 import { apiCall } from '@/lib/api-client';
+import { getGreeting, getLocalHour, getLocalDateString, getUserTimezone } from '@/lib/timezone';
 
 export function useEngagementNotifications(user: User | null) {
     const { addNotification } = useNotificationStore();
@@ -16,7 +17,9 @@ export function useEngagementNotifications(user: User | null) {
         if (!user) return;
 
         const checkDailyReset = () => {
-            const today = new Date().toISOString().split('T')[0];
+            // Use user's timezone for date check
+            const userTimezone = user.timezone || getUserTimezone();
+            const today = getLocalDateString(userTimezone);
             const lastCheck = localStorage.getItem('last_daily_reset_check');
 
             if (lastCheck !== today) {
@@ -28,9 +31,10 @@ export function useEngagementNotifications(user: User | null) {
                     actionUrl: '/?tab=earn'
                 });
 
-                // Show floating notification for better visibility
+                // Show floating notification with timezone-aware greeting
+                const greeting = getGreeting(userTimezone);
                 FloatingNotifications.reward(
-                    'Good Morning! ☀️',
+                    greeting,
                     'Daily tasks reset. Time to earn!',
                     { label: 'Start Earning', onClick: () => window.dispatchEvent(new CustomEvent('switch-tab', { detail: 'earn' })) }
                 );
@@ -134,11 +138,13 @@ export function useEngagementNotifications(user: User | null) {
         if (!user) return;
 
         const checkStreakRisk = () => {
-            const hour = new Date().getHours();
+            // Use user's timezone for time check
+            const userTimezone = user.timezone || getUserTimezone();
+            const hour = getLocalHour(userTimezone);
             const hasDoneTrivia = user.todayProgress?.triviaCompleted;
-            const key = `streak_warning_${new Date().toISOString().split('T')[0]}`;
+            const key = `streak_warning_${getLocalDateString(userTimezone)}`;
 
-            // If it's after 6pm and no trivia done, warn about streak
+            // If it's after 6pm in user's local time and no trivia done, warn about streak
             if (hour >= 18 && !hasDoneTrivia && !processedRef.current[key] && user.dailyStreak >= 2) {
                 FloatingNotifications.warning(
                     "🔥 Don't Lose Your Streak!",

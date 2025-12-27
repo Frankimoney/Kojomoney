@@ -3,6 +3,7 @@ export interface User {
     email: string
     name?: string
     phone?: string
+    timezone?: string  // IANA timezone string, e.g., "Africa/Lagos"
     referralCode?: string
     totalPoints: number
     adPoints: number
