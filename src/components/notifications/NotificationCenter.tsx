@@ -55,7 +55,7 @@ export function NotificationCenter() {
                                 {unreadCount} New
                             </Badge>
                         </SheetTitle>
-                        <div className="flex gap-1">
+                        <div className="flex gap-3">
                             <Button
                                 variant="ghost"
                                 size="icon"
@@ -71,6 +71,7 @@ export function NotificationCenter() {
                                 title="Clear all"
                                 onClick={() => clearAll()}
                                 disabled={notifications.length === 0}
+                                className="mr-6"
                             >
                                 <Trash2 className="h-4 w-4" />
                             </Button>
