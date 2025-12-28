@@ -170,24 +170,33 @@ export default function LuckySpin({ userId, onClose }: LuckySpinProps) {
     }
 
     const triggerConfetti = () => {
-        const count = 200
-        const defaults = {
-            origin: { y: 0.7 }
-        }
+        // Use setTimeout to ensure DOM is ready (helps with Android WebView)
+        setTimeout(() => {
+            try {
+                const count = 200
+                const defaults = {
+                    origin: { y: 0.7 },
+                    zIndex: 9999, // Ensure confetti appears above everything
+                    disableForReducedMotion: false
+                }
 
-        function fire(particleRatio: number, opts: any) {
-            confetti({
-                ...defaults,
-                ...opts,
-                particleCount: Math.floor(count * particleRatio)
-            })
-        }
+                function fire(particleRatio: number, opts: any) {
+                    confetti({
+                        ...defaults,
+                        ...opts,
+                        particleCount: Math.floor(count * particleRatio)
+                    })
+                }
 
-        fire(0.25, { spread: 26, startVelocity: 55 })
-        fire(0.2, { spread: 60 })
-        fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 })
-        fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 })
-        fire(0.1, { spread: 120, startVelocity: 45 })
+                fire(0.25, { spread: 26, startVelocity: 55 })
+                fire(0.2, { spread: 60 })
+                fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 })
+                fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 })
+                fire(0.1, { spread: 120, startVelocity: 45 })
+            } catch (e) {
+                console.error('Confetti error:', e)
+            }
+        }, 100) // Small delay to ensure the dialog animation has started
     }
 
     // Timer Component for cooldown
