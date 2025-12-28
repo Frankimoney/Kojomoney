@@ -5,21 +5,30 @@
 
 const getApiBase = (): string => {
   if (typeof window === 'undefined') {
-    // Server-side: use relative path (same origin)
     return ''
+  }
+
+  // Check for Capacitor native platform
+  // We can check user agent or Capacitor global
+  const isCapacitor = typeof window !== 'undefined' && (
+    (window as any)?.Capacitor?.isNativePlatform?.() ||
+    (window as any)?.Capacitor?.getPlatform?.() === 'android' ||
+    (window as any)?.Capacitor?.getPlatform?.() === 'ios'
+  )
+
+  if (isCapacitor) {
+    return 'https://kojomoney-app.onrender.com'
   }
 
   // Check if running locally (development mode)
   const isLocalhost = window.location.hostname === 'localhost' ||
     window.location.hostname === '127.0.0.1'
 
-  // For local development, use relative paths (same origin)
-  // For production/mobile apps, use Render backend
   if (isLocalhost) {
     return '' // Uses same origin (localhost:3000)
   }
 
-  // Production/mobile: use Render backend
+  // Fallback / Production web
   return 'https://kojomoney-app.onrender.com'
 }
 

@@ -42,6 +42,22 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
         const userData = userDoc.data()!
 
+        // Build todayProgress with proper defaults and date validation
+        const today = new Date().toISOString().split('T')[0]
+        const isToday = userData.lastActiveDate === today
+        const existingProgress = userData.todayProgress || {}
+
+        // Check if trivia was completed today (from todayProgress or legacy field)
+        const triviaCompletedToday = isToday
+            ? (existingProgress.triviaCompleted || userData.lastTriviaDate === today)
+            : false
+
+        const todayProgress = {
+            adsWatched: isToday ? (existingProgress.adsWatched || 0) : 0,
+            storiesRead: isToday ? (existingProgress.storiesRead || 0) : 0,
+            triviaCompleted: triviaCompletedToday
+        }
+
         // Remove sensitive fields
         const safeUser = {
             id: userIdStr,
@@ -68,11 +84,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             profileImageUrl: userData.profileImageUrl,
             country: userData.country,
             region: userData.region,
-            todayProgress: userData.todayProgress || {
-                adsWatched: 0,
-                storiesRead: 0,
-                triviaCompleted: Boolean(userData.lastTriviaDate === new Date().toISOString().split('T')[0])
-            }
+            todayProgress
         }
 
         return res.status(200).json({ user: safeUser })
@@ -83,3 +95,4 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 }
 
 export default allowCors(handler)
+

@@ -239,12 +239,22 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
                 newStreak = 1
             }
 
+            // Get current todayProgress and update triviaCompleted
+            const currentProgress = userData.todayProgress || { adsWatched: 0, storiesRead: 0, triviaCompleted: false }
+
+            // Reset progress if it's a new day
+            if (lastActive !== today) {
+                currentProgress.adsWatched = 0
+                currentProgress.storiesRead = 0
+            }
+            currentProgress.triviaCompleted = true
+
             await userRef.update({
                 totalPoints: currentPoints + pointsEarned,
                 points: currentPoints + pointsEarned,
                 triviaPoints: (userData.triviaPoints || 0) + pointsEarned,
                 lastTriviaDate: today,
-                triviaCompleted: true, // Mark as completed for today
+                todayProgress: currentProgress, // Update todayProgress with triviaCompleted
                 lastActiveDate: today, // Sync active date
                 dailyStreak: newStreak, // Update streak
                 updatedAt: now
