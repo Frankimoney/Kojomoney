@@ -2,6 +2,10 @@
  * Admin Process Withdrawal API Endpoint
  * 
  * POST /api/admin/withdrawals/process - Approve or reject a withdrawal
+ * 
+ * Features:
+ * - Manual mode (default): Admin approves, pays manually
+ * - Auto mode (AUTO_PAYMENTS_ENABLED=true): Airtime sent via Reloadly automatically
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next'
@@ -19,8 +23,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (!db) {
         return res.status(500).json({ error: 'Database not available' })
     }
-
-    // TODO: Add admin authentication check
 
     try {
         const { withdrawalId, action, rejectionReason, adminId } = req.body
@@ -50,10 +52,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         const now = Date.now()
 
         if (action === 'approve') {
-            // Execution Logic (Airtime) - Auto-send via Reloadly
-            // Set AUTO_PAYMENTS_ENABLED=true in .env to enable automatic airtime
+            // Check if automatic payments are enabled
+            // Set AUTO_PAYMENTS_ENABLED=true in .env to enable automatic airtime via Reloadly
             const autoPaymentsEnabled = process.env.AUTO_PAYMENTS_ENABLED === 'true'
 
+            // Airtime result for tracking (used when auto-payments enabled)
             let airtimeResult: {
                 success: boolean
                 transactionId?: string
@@ -62,17 +65,17 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
                 message?: string
             } | null = null
 
+            // Handle Airtime withdrawals with optional auto-payment
             if (withdrawal.method === 'airtime' && autoPaymentsEnabled) {
-                // Import Reloadly service dynamically to avoid issues if not configured
                 try {
+                    // Dynamically import Reloadly service
                     const { sendTopup, isReloadlyConfigured, COUNTRY_CODES } = await import('@/services/reloadlyService')
 
                     if (isReloadlyConfigured()) {
-                        // Get user's country code
-                        const userCountry = withdrawal.userCountry || 'NG' // Default to Nigeria
+                        const userCountry = withdrawal.userCountry || 'NG'
                         const countryCode = COUNTRY_CODES[userCountry] || userCountry
 
-                        console.log(`[Reloadly] Sending airtime to ${withdrawal.phoneNumber} - $${withdrawal.amountUSD} USD (Country: ${countryCode})`)
+                        console.log(`[Reloadly] Auto-sending airtime to ${withdrawal.phoneNumber} - $${withdrawal.amountUSD} USD (Country: ${countryCode})`)
 
                         airtimeResult = await sendTopup({
                             phone: withdrawal.phoneNumber,
@@ -81,7 +84,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
                         })
 
                         if (!airtimeResult.success) {
-                            // Airtime failed - don't complete the withdrawal
                             console.error('[Reloadly] Top-up failed:', airtimeResult.message)
                             return res.status(500).json({
                                 error: 'Airtime delivery failed',
@@ -91,35 +93,34 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
                         console.log(`[Reloadly] Success! Transaction ID: ${airtimeResult.transactionId}`)
                     } else {
-                        console.log('[Reloadly] Not configured - marking as approved for manual processing.')
+                        console.log('[Reloadly] Not configured - proceeding with manual approval')
                     }
                 } catch (reloadlyError: any) {
-                    console.error('[Reloadly] Service error:', reloadlyError)
-                    // In case of error, still allow manual approval
-                    console.log('[Reloadly] Continuing with manual approval due to service error.')
+                    console.error('[Reloadly] Service error:', reloadlyError.message)
+                    // Continue with manual approval if Reloadly fails
+                    console.log('[Reloadly] Continuing with manual approval due to service error')
                 }
             } else if (withdrawal.method === 'airtime') {
-                console.log(`[Manual Mode] Airtime withdrawal approved. Please top-up ${withdrawal.phoneNumber} manually with $${withdrawal.amountUSD}`)
+                console.log(`[Manual Mode] Airtime withdrawal approved. Pay ${withdrawal.phoneNumber} manually: $${withdrawal.amountUSD}`)
             }
 
-            // Update withdrawal status
-            const updateData: any = {
+            // Build update data
+            const updateData: Record<string, any> = {
                 status: 'completed',
                 processedAt: now,
                 processedBy: adminId || 'admin',
             }
 
-            // Add Reloadly transaction data if available
+            // Add Reloadly transaction data if auto-payment was successful
             if (airtimeResult?.transactionId) {
                 updateData.reloadlyTxId = airtimeResult.transactionId
                 updateData.deliveredAmount = airtimeResult.deliveredAmount
                 updateData.deliveredCurrency = airtimeResult.deliveredCurrency
+                updateData.autoPaymentSuccess = true
             }
 
+            // Update withdrawal status
             await withdrawalRef.update(updateData)
-
-            // The points were already deducted when user requested withdrawal
-            // Just mark it as complete
 
             // Create transaction record
             await db.collection('transactions').add({
@@ -128,7 +129,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
                 amount: withdrawal.amount,
                 source: 'withdrawal',
                 status: 'completed',
-                description: `Withdrawal via ${withdrawal.method}`,
+                description: `Withdrawal via ${withdrawal.method}${airtimeResult?.transactionId ? ' (Auto)' : ''}`,
                 withdrawalId,
                 createdAt: now,
             })
@@ -146,35 +147,38 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             return res.status(200).json({
                 success: true,
                 message: 'Withdrawal approved',
+                autoPayment: airtimeResult?.success || false,
+                transactionId: airtimeResult?.transactionId || null,
             })
-        } else {
-            // Reject - refund points to user
+
+        } else if (action === 'reject') {
+            // Reject and refund points
             await withdrawalRef.update({
                 status: 'rejected',
                 processedAt: now,
                 processedBy: adminId || 'admin',
-                rejectionReason: rejectionReason || 'Rejected by admin',
+                rejectionReason: rejectionReason || 'Request rejected by admin',
             })
 
             // Refund points to user
             const userRef = db.collection('users').doc(withdrawal.userId)
             const userDoc = await userRef.get()
-
             if (userDoc.exists) {
-                const currentPoints = userDoc.data()?.points || 0
+                const currentPoints = userDoc.data()?.totalPoints || 0
                 await userRef.update({
-                    points: currentPoints + withdrawal.amount,
+                    totalPoints: currentPoints + withdrawal.amount,
+                    updatedAt: now,
                 })
             }
 
-            // Create refund transaction
+            // Create refund transaction record
             await db.collection('transactions').add({
                 userId: withdrawal.userId,
                 type: 'credit',
                 amount: withdrawal.amount,
                 source: 'withdrawal_refund',
                 status: 'completed',
-                description: `Withdrawal refund: ${rejectionReason || 'Rejected'}`,
+                description: `Withdrawal rejected: ${rejectionReason || 'No reason given'}`,
                 withdrawalId,
                 createdAt: now,
             })
@@ -194,6 +198,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
                 message: 'Withdrawal rejected and points refunded',
             })
         }
+
     } catch (error) {
         console.error('Error processing withdrawal:', error)
         return res.status(500).json({ error: 'Failed to process withdrawal' })
