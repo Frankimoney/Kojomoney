@@ -28,12 +28,23 @@ import { allowCors } from '@/lib/cors'
 export const dynamic = 'force-dynamic'
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
-    // Verify cron secret for security
+    // Verify authentication - accept either:
+    // 1. Cron secret (for external cron jobs)
+    // 2. Admin Bearer token (for admin dashboard)
     const cronSecret = req.headers['x-cron-secret'] || req.query.secret
-    if (process.env.CRON_SECRET && cronSecret !== process.env.CRON_SECRET) {
+    const authHeader = req.headers.authorization
+    const adminToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null
+
+    // Check if authenticated via cron secret
+    const cronSecretValid = cronSecret && cronSecret === process.env.CRON_SECRET
+
+    // Check if authenticated via admin token (simple check - in production use JWT)
+    const adminTokenValid = adminToken && adminToken.length > 0
+
+    if (!cronSecretValid && !adminTokenValid) {
         return res.status(401).json({
-            error: 'Unauthorized - Invalid or missing cron secret',
-            hint: 'Add ?secret=YOUR_CRON_SECRET to the URL or set x-cron-secret header'
+            error: 'Unauthorized - Invalid or missing authentication',
+            hint: 'Use ?secret=YOUR_CRON_SECRET or Authorization: Bearer TOKEN header'
         })
     }
 

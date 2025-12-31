@@ -16,7 +16,7 @@ import {
     RefreshCw, Search, Eye, Download, Ban, Gift, Wallet,
     ArrowUpRight, ArrowDownRight, Activity, AlertCircle, Mail,
     Calendar, Globe, Smartphone, BarChart3, Settings, Shield,
-    FileText, Link, ExternalLink, Check, X, Loader2, LogOut
+    FileText, Link, ExternalLink, Check, X, Loader2, LogOut, Bell, Send
 } from 'lucide-react'
 import { apiCall } from '@/lib/api-client'
 import { logoutAdmin, getAdminEmail, getAdminToken } from '@/components/AdminLogin'
@@ -113,6 +113,12 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     const [pointsAmount, setPointsAmount] = useState('')
     const [pointsReason, setPointsReason] = useState('')
     const [processingPoints, setProcessingPoints] = useState(false)
+
+    // Broadcast notification state
+    const [broadcastTitle, setBroadcastTitle] = useState('')
+    const [broadcastBody, setBroadcastBody] = useState('')
+    const [sendingBroadcast, setSendingBroadcast] = useState(false)
+    const [broadcastResult, setBroadcastResult] = useState<{ success: boolean; message: string; totalUsers?: number } | null>(null)
 
     const authApiCall = (path: string, options: any = {}) => {
         const token = getAdminToken()
@@ -353,6 +359,54 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
         }
     }
 
+    // Handle broadcast notification
+    const handleSendBroadcast = async () => {
+        if (!broadcastTitle.trim() || !broadcastBody.trim()) {
+            setError('Title and message are required')
+            return
+        }
+
+        setSendingBroadcast(true)
+        setBroadcastResult(null)
+        try {
+            const response = await authApiCall('/api/cron/broadcast', {
+                method: 'POST',
+                body: JSON.stringify({
+                    title: broadcastTitle,
+                    body: broadcastBody,
+                }),
+            })
+
+            const data = await response.json()
+
+            if (response.ok && data.success) {
+                setBroadcastResult({
+                    success: true,
+                    message: data.message,
+                    totalUsers: data.totalUsers
+                })
+                setSuccess(`Broadcast sent to ${data.totalUsers} users!`)
+                // Clear form after success
+                setBroadcastTitle('')
+                setBroadcastBody('')
+            } else {
+                setBroadcastResult({
+                    success: false,
+                    message: data.error || 'Failed to send broadcast'
+                })
+                setError(data.error || 'Failed to send broadcast')
+            }
+        } catch (err) {
+            setError('Failed to send broadcast')
+            setBroadcastResult({
+                success: false,
+                message: 'Network error occurred'
+            })
+        } finally {
+            setSendingBroadcast(false)
+        }
+    }
+
     const formatDate = (timestamp: number) => {
         return new Date(timestamp).toLocaleDateString('en-US', {
             year: 'numeric',
@@ -469,6 +523,9 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                         </TabsTrigger>
                         <TabsTrigger value="missions" className="flex items-center gap-2">
                             <Gift className="h-4 w-4" /> Missions
+                        </TabsTrigger>
+                        <TabsTrigger value="broadcast" className="flex items-center gap-2">
+                            <Bell className="h-4 w-4" /> Broadcast
                         </TabsTrigger>
                     </TabsList>
 
@@ -890,6 +947,114 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                             <Button onClick={() => window.location.href = '/admin/missions'}>
                                 Open Mission Manager
                             </Button>
+                        </div>
+                    </TabsContent>
+
+                    {/* BROADCAST TAB */}
+                    <TabsContent value="broadcast" className="space-y-6">
+                        <div className="max-w-2xl mx-auto">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Bell className="h-5 w-5" />
+                                        Send Broadcast Notification
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Send a push notification to all users with active devices. This will be delivered to all Android and iOS users.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="broadcast-title">Notification Title *</Label>
+                                        <Input
+                                            id="broadcast-title"
+                                            placeholder="e.g., 🎉 Happy New Year!"
+                                            value={broadcastTitle}
+                                            onChange={(e) => setBroadcastTitle(e.target.value)}
+                                            maxLength={100}
+                                        />
+                                        <p className="text-xs text-muted-foreground">{broadcastTitle.length}/100 characters</p>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="broadcast-body">Notification Message *</Label>
+                                        <textarea
+                                            id="broadcast-body"
+                                            className="w-full min-h-[100px] px-3 py-2 text-sm rounded-md border border-input bg-background ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                            placeholder="e.g., Earn double points today! Don't miss out on our special New Year bonus."
+                                            value={broadcastBody}
+                                            onChange={(e) => setBroadcastBody(e.target.value)}
+                                            maxLength={500}
+                                        />
+                                        <p className="text-xs text-muted-foreground">{broadcastBody.length}/500 characters</p>
+                                    </div>
+
+                                    {/* Preview */}
+                                    {(broadcastTitle || broadcastBody) && (
+                                        <div className="p-4 bg-muted rounded-lg">
+                                            <p className="text-xs text-muted-foreground mb-2">Preview:</p>
+                                            <div className="bg-background rounded-lg p-3 shadow-sm border">
+                                                <p className="font-semibold text-sm">{broadcastTitle || 'Title...'}</p>
+                                                <p className="text-sm text-muted-foreground mt-1">{broadcastBody || 'Message...'}</p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Result Message */}
+                                    {broadcastResult && (
+                                        <div className={`p-4 rounded-lg ${broadcastResult.success ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'}`}>
+                                            <div className="flex items-center gap-2">
+                                                {broadcastResult.success ? (
+                                                    <CheckCircle className="h-5 w-5 text-green-600" />
+                                                ) : (
+                                                    <XCircle className="h-5 w-5 text-red-600" />
+                                                )}
+                                                <span className={broadcastResult.success ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}>
+                                                    {broadcastResult.message}
+                                                </span>
+                                            </div>
+                                            {broadcastResult.totalUsers && (
+                                                <p className="text-sm text-muted-foreground mt-1 ml-7">
+                                                    Delivered to {broadcastResult.totalUsers} user{broadcastResult.totalUsers !== 1 ? 's' : ''}.
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <Button
+                                        className="w-full"
+                                        size="lg"
+                                        onClick={handleSendBroadcast}
+                                        disabled={sendingBroadcast || !broadcastTitle.trim() || !broadcastBody.trim()}
+                                    >
+                                        {sendingBroadcast ? (
+                                            <>
+                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                Sending to all users...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Send className="h-4 w-4 mr-2" />
+                                                Send Broadcast to All Users
+                                            </>
+                                        )}
+                                    </Button>
+                                </CardContent>
+                            </Card>
+
+                            {/* Tips Card */}
+                            <Card className="mt-6">
+                                <CardHeader>
+                                    <CardTitle className="text-sm">Tips for Effective Notifications</CardTitle>
+                                </CardHeader>
+                                <CardContent className="text-sm text-muted-foreground space-y-2">
+                                    <p>• Use emojis 🎉 to make notifications stand out</p>
+                                    <p>• Keep titles under 50 characters for best display</p>
+                                    <p>• Create urgency: "Limited time", "Today only", "Last chance"</p>
+                                    <p>• Be specific about the benefit: points, rewards, bonuses</p>
+                                    <p>• Avoid sending too many notifications (max 2-3 per day)</p>
+                                </CardContent>
+                            </Card>
                         </div>
                     </TabsContent>
                 </Tabs>
