@@ -52,8 +52,13 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             ? (existingProgress.triviaCompleted || userData.lastTriviaDate === today)
             : false
 
+        // Get adsWatched - check both todayProgress and root-level (legacy) field
+        const adsWatchedToday = isToday
+            ? (existingProgress.adsWatched || userData.adsWatched || 0)
+            : 0
+
         const todayProgress = {
-            adsWatched: isToday ? (existingProgress.adsWatched || 0) : 0,
+            adsWatched: adsWatchedToday,
             storiesRead: isToday ? (existingProgress.storiesRead || 0) : 0,
             triviaCompleted: triviaCompletedToday
         }

@@ -182,12 +182,26 @@ async function handlePatch(req: NextApiRequest, res: NextApiResponse) {
             newStreak = 1
         }
 
-        // Update user
+        // Get current todayProgress and update adsWatched
+        const currentProgress = userData.todayProgress || { adsWatched: 0, storiesRead: 0, triviaCompleted: false }
+
+        // Reset progress if new day
+        if (userData.lastActiveDate !== todayKey) {
+            currentProgress.adsWatched = 0
+            currentProgress.storiesRead = 0
+            currentProgress.triviaCompleted = false
+        }
+
+        // Update user with both root-level and todayProgress.adsWatched
         await userRef.update({
             totalPoints: currentPoints + pointsToAward,
             points: currentPoints + pointsToAward,
             adPoints: (userData.adPoints || 0) + pointsToAward,
-            adsWatched: adsWatched + 1,
+            adsWatched: adsWatched + 1, // Legacy field for backwards compatibility
+            todayProgress: {
+                ...currentProgress,
+                adsWatched: adsWatched + 1 // Update in todayProgress for progress bar
+            },
             lastActiveDate: todayKey,
             dailyStreak: newStreak, // Update streak
             updatedAt: now,
