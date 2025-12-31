@@ -70,7 +70,7 @@ export default function LegalPages({ onClose, initialPage = 'privacy' }: LegalPa
                             <div>
                                 <p className="font-semibold">Questions or Concerns?</p>
                                 <p className="text-sm text-muted-foreground">
-                                    Contact us at <a href="mailto:legal@kojomoney.com" className="text-blue-600 hover:underline">legal@kojomoney.com</a>
+                                    Contact us at <a href="mailto:admin@kojomoney.com" className="text-blue-600 hover:underline">admin@kojomoney.com</a>
                                 </p>
                             </div>
                         </div>
@@ -233,8 +233,8 @@ function PrivacyPolicy() {
                 <CardContent className="text-sm text-muted-foreground">
                     <p>For privacy-related questions, contact us at:</p>
                     <p className="mt-2">
-                        <strong>Email:</strong> privacy@kojomoney.com<br />
-                        <strong>Data Protection Officer:</strong> dpo@kojomoney.com
+                        <strong>Email:</strong> admin@kojomoney.com<br />
+                        <strong>Data Protection Officer:</strong> admin@kojomoney.com
                     </p>
                 </CardContent>
             </Card>
@@ -542,7 +542,7 @@ function GDPRRights() {
                 <CardContent className="text-sm text-muted-foreground">
                     <p>To exercise any of these rights, contact us at:</p>
                     <p className="mt-2">
-                        <strong>Email:</strong> privacy@kojomoney.com<br />
+                        <strong>Email:</strong> admin@kojomoney.com<br />
                         <strong>Subject:</strong> Data Rights Request - [Your Request Type]
                     </p>
                     <p className="mt-2">We will respond within 30 days (or sooner if required by your local law). You may be asked to verify your identity.</p>
@@ -604,7 +604,7 @@ function GDPRRights() {
                 <CardContent className="text-sm text-muted-foreground">
                     <p>For data protection inquiries, contact our Data Protection Officer:</p>
                     <p className="mt-2">
-                        <strong>Email:</strong> dpo@kojomoney.com
+                        <strong>Email:</strong> admin@kojomoney.com
                     </p>
                 </CardContent>
             </Card>
