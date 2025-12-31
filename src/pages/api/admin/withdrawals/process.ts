@@ -50,12 +50,69 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         const now = Date.now()
 
         if (action === 'approve') {
+            // Execution Logic (Airtime) - Auto-send via Reloadly
+            let airtimeResult: {
+                success: boolean
+                transactionId?: string
+                deliveredAmount?: number
+                deliveredCurrency?: string
+                message?: string
+            } | null = null
+            if (withdrawal.method === 'airtime') {
+                // Import Reloadly service dynamically to avoid issues if not configured
+                try {
+                    const { sendTopup, isReloadlyConfigured, COUNTRY_CODES } = await import('@/services/reloadlyService')
+
+                    if (isReloadlyConfigured()) {
+                        // Get user's country code
+                        const userCountry = withdrawal.userCountry || 'NG' // Default to Nigeria
+                        const countryCode = COUNTRY_CODES[userCountry] || userCountry
+
+                        console.log(`[Reloadly] Sending airtime to ${withdrawal.phoneNumber} - $${withdrawal.amountUSD} USD (Country: ${countryCode})`)
+
+                        airtimeResult = await sendTopup({
+                            phone: withdrawal.phoneNumber,
+                            amount: withdrawal.amountUSD,
+                            countryCode: countryCode
+                        })
+
+                        if (!airtimeResult.success) {
+                            // Airtime failed - don't complete the withdrawal
+                            console.error('[Reloadly] Top-up failed:', airtimeResult.message)
+                            return res.status(500).json({
+                                error: 'Airtime delivery failed',
+                                details: airtimeResult.message
+                            })
+                        }
+
+                        console.log(`[Reloadly] Success! Transaction ID: ${airtimeResult.transactionId}`)
+                    } else {
+                        console.warn('[Reloadly] Not configured - skipping automatic airtime. Process manually.')
+                    }
+                } catch (reloadlyError: any) {
+                    console.error('[Reloadly] Service error:', reloadlyError)
+                    return res.status(500).json({
+                        error: 'Airtime service error',
+                        details: reloadlyError.message
+                    })
+                }
+            }
+
             // Update withdrawal status
-            await withdrawalRef.update({
+            const updateData: any = {
                 status: 'completed',
                 processedAt: now,
                 processedBy: adminId || 'admin',
-            })
+            }
+
+            // Add Reloadly transaction data if available
+            if (airtimeResult?.transactionId) {
+                updateData.reloadlyTxId = airtimeResult.transactionId
+                updateData.deliveredAmount = airtimeResult.deliveredAmount
+                updateData.deliveredCurrency = airtimeResult.deliveredCurrency
+            }
+
+            await withdrawalRef.update(updateData)
 
             // The points were already deducted when user requested withdrawal
             // Just mark it as complete

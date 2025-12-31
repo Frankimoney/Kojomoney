@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { db } from '@/lib/firebase-admin'
 import { getWithdrawalLimits, POINTS_CONFIG } from '@/lib/points-config'
+import { getEconomyConfig } from '@/lib/server-config'
 import { enhanceFraudCheck } from '@/lib/anti-fraud'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -52,7 +53,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
 // POST /api/withdrawal - Request a new withdrawal
 async function handlePost(req: NextApiRequest, res: NextApiResponse) {
     try {
-        const { userId, amount, method, bankName, accountNumber, accountName, paypalEmail, walletAddress, cryptoNetwork } = req.body
+        const { userId, amount, method, bankName, accountNumber, accountName, paypalEmail, walletAddress, cryptoNetwork, phoneNumber } = req.body
 
         if (!userId || !amount || !method) {
             return res.status(400).json({ error: 'Missing required fields' })
@@ -60,17 +61,13 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
 
         // Validate based on method
         if (method === 'bank_transfer') {
-            if (!bankName || !accountNumber || !accountName) {
-                return res.status(400).json({ error: 'Missing bank details' })
-            }
+            if (!bankName || !accountNumber || !accountName) return res.status(400).json({ error: 'Missing bank details' })
         } else if (method === 'paypal') {
-            if (!paypalEmail) {
-                return res.status(400).json({ error: 'Missing PayPal email' })
-            }
+            if (!paypalEmail) return res.status(400).json({ error: 'Missing PayPal email' })
         } else if (method === 'crypto') {
-            if (!walletAddress || !cryptoNetwork) {
-                return res.status(400).json({ error: 'Missing crypto wallet details' })
-            }
+            if (!walletAddress || !cryptoNetwork) return res.status(400).json({ error: 'Missing crypto wallet details' })
+        } else if (method === 'airtime') {
+            if (!phoneNumber) return res.status(400).json({ error: 'Missing phone number' })
         } else {
             return res.status(400).json({ error: 'Invalid payment method' })
         }
@@ -88,53 +85,47 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
         const userData = userDoc.data()!
         const currentPoints = userData.totalPoints || 0
 
-        // Get dynamic withdrawal limits based on user tier
-        const withdrawalLimits = getWithdrawalLimits({
-            createdAt: userData.createdAt,
-            emailVerified: userData.emailVerified,
-            phoneVerified: userData.phoneVerified,
-            totalPoints: userData.totalPoints
-        })
+        const config = await getEconomyConfig()
 
-        // Check minimum withdrawal (in points)
-        if (amount < withdrawalLimits.minPoints) {
-            const minUSD = POINTS_CONFIG.formatPointsAsUSD(withdrawalLimits.minPoints)
+        // --- DIESEL ECONOMY LOGIC ---
+        // 1. Identify Country & Multiplier
+        let userCountry = userData.country
+        if (!userCountry) {
+            const ipCountry = (req.headers['cf-ipcountry'] as string) || 'US'
+            userCountry = ipCountry
+        }
+
+        const multiplier = config.countryMultipliers?.[userCountry?.toUpperCase()] || config.countryMultipliers?.['GLOBAL'] || 1.0
+        const globalMargin = config.globalMargin || 1.0
+
+        // 2. Calculate Diesel Value (USD)
+        const baseUSD = amount / POINTS_CONFIG.pointsPerDollar
+        const dieselUSD = baseUSD * multiplier * globalMargin
+
+        // 3. Velocity Check (Max $10/day Diesel Value)
+        const DAILY_CAP_USD = 10.0
+        const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+
+        const withdrawalsToday = await db.collection('withdrawals')
+            .where('userId', '==', userId)
+            .where('createdAt', '>', todayStart.getTime())
+            .get()
+
+        const usedUSD = withdrawalsToday.docs.reduce((sum, doc) => sum + (doc.data().amountUSD || 0), 0)
+
+        if ((usedUSD + dieselUSD) > DAILY_CAP_USD) {
             return res.status(400).json({
-                error: `Minimum withdrawal is ${minUSD} (${withdrawalLimits.minPoints.toLocaleString()} points) for ${withdrawalLimits.tier} users`,
-                tier: withdrawalLimits.tier,
-                minPoints: withdrawalLimits.minPoints
+                error: `Daily limit reached. Max $${DAILY_CAP_USD}/day. Used: $${usedUSD.toFixed(2)}. Request Value: $${dieselUSD.toFixed(2)}`
             })
         }
 
-        // Check daily limit
-        const dailyLimitPoints = Math.floor(withdrawalLimits.dailyLimitUSD * POINTS_CONFIG.pointsPerDollar)
-        if (amount > dailyLimitPoints) {
-            const maxUSD = POINTS_CONFIG.formatPointsAsUSD(dailyLimitPoints)
-            return res.status(400).json({
-                error: `Daily withdrawal limit is ${maxUSD} for ${withdrawalLimits.tier} users`,
-                tier: withdrawalLimits.tier,
-                dailyLimitPoints
-            })
+        // 4. Minimum Check (e.g. $1.00)
+        if (dieselUSD < 0.50) { // Keep low for local currencies? Prompt said "Max $10".
+            return res.status(400).json({ error: `Minimum withdrawal value is $0.50. Your request is valued at $${dieselUSD.toFixed(2)} based on regional rates.` })
         }
 
         if (currentPoints < amount) {
             return res.status(400).json({ error: 'Insufficient balance' })
-        }
-
-        // Check for recent withdrawals based on tier's weekly limit
-        const oneWeekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000)
-        const recentWithdrawals = await db.collection('withdrawals')
-            .where('userId', '==', userId)
-            .where('createdAt', '>', oneWeekAgo)
-            .where('status', 'in', ['pending', 'approved'])
-            .get()
-
-        if (recentWithdrawals.size >= withdrawalLimits.weeklyLimit) {
-            return res.status(400).json({
-                error: `You've reached your weekly limit of ${withdrawalLimits.weeklyLimit} withdrawal(s) for ${withdrawalLimits.tier} users`,
-                tier: withdrawalLimits.tier,
-                weeklyLimit: withdrawalLimits.weeklyLimit
-            })
         }
 
         // SECURITY: Enhanced Fraud Check
@@ -150,7 +141,7 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
 
         if (fraudResult.riskScore > 50) {
             status = 'manual_review'
-            adminNote = `High Risk Score: ${fraudResult.riskScore}. Signals: ${userData.suspiciousActivityLog?.slice(-1)[0]?.signals.join(', ') || 'N/A'}`
+            adminNote = `High Risk Score: ${fraudResult.riskScore}. Signals: ${(fraudResult.signals || []).join(', ') || 'N/A'}`
         }
 
         if (amount > 10 * POINTS_CONFIG.pointsPerDollar) { // > $10
@@ -160,7 +151,7 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
 
         // Create withdrawal request with user info for admin access
         const withdrawalRef = db.collection('withdrawals').doc()
-        const amountUSD = amount / POINTS_CONFIG.pointsPerDollar
+        const amountUSD = dieselUSD
 
         const withdrawal: any = {
             id: withdrawalRef.id,
@@ -169,7 +160,7 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
             userEmail: userData.email || 'Unknown',
             userName: userData.name || userData.displayName || 'Unknown',
             userPhone: userData.phone || null,
-            userTier: withdrawalLimits.tier,
+            userTier: 'Standard',
             // Amount info
             amount,
             amountUSD,
@@ -177,6 +168,8 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
             method,
             status: status, // Use dynamic status (pending or manual_review)
             adminNote: adminNote || null,
+            riskScore: fraudResult.riskScore || 0,
+            fraudSignals: fraudResult.signals || [],
             createdAt: Date.now(),
             updatedAt: Date.now()
         }
@@ -194,6 +187,9 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
             withdrawal.walletAddress = walletAddress
             withdrawal.cryptoNetwork = cryptoNetwork
             withdrawal.accountDetails = `${cryptoNetwork}: ${walletAddress}`
+        } else if (method === 'airtime') {
+            withdrawal.phoneNumber = phoneNumber
+            withdrawal.accountDetails = `Airtime: ${phoneNumber}`
         }
 
         await withdrawalRef.set(withdrawal)

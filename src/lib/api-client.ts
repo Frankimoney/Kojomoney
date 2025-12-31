@@ -48,7 +48,15 @@ export async function apiCall(
 
   // SECURITY: Add Request Signing
   const timestamp = Date.now()
-  const payload = options.body ? JSON.parse(options.body as string) : {}
+  let payload = {}
+  if (options.body) {
+    try {
+      payload = JSON.parse(options.body as string)
+    } catch {
+      // Body is not JSON (e.g., FormData) or empty - use empty object for signature
+      payload = {}
+    }
+  }
   // Note: Client-side secret is NOT secure, but adds a layer of difficulty for bots.
   // Ideally this is handled by a native plugin or backend-for-frontend proxy.
   // For now, we use a public "client" secret or similar mechanism. 

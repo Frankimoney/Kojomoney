@@ -120,6 +120,18 @@ export async function enhanceFraudCheck(userId: string, actionType: string, ip: 
         signals.push('High Velocity Action')
     }
 
+    // 4. Multiple Accounts (Shared Device Check)
+    try {
+        const sameDeviceSnap = await db.collection('users').where('lastDeviceId', '==', deviceId).get()
+        if (sameDeviceSnap.size > 1) {
+            const otherUsers = sameDeviceSnap.docs.filter(d => d.id !== userId)
+            if (otherUsers.length > 0) {
+                riskScore += 55
+                signals.push(`Duplicate Device: Used by ${otherUsers.length} other account(s)`)
+            }
+        }
+    } catch (e) { console.error('Error checking device duplicates', e) }
+
     // Update user stats
     await db.collection('users').doc(userId).update({
         fraudScore: riskScore,
@@ -133,6 +145,7 @@ export async function enhanceFraudCheck(userId: string, actionType: string, ip: 
 
     return {
         riskScore,
-        block: riskScore > 80 // Auto-block threshold
+        signals, // Returned for storage
+        block: riskScore > 80
     }
 }

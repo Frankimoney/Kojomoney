@@ -11,12 +11,9 @@ import { allowCors } from '@/lib/cors'
 import { getHappyHourBonus } from '@/lib/happyHour'
 import { getStreakMultiplier } from '@/lib/points-config'
 
-export const dynamic = 'force-dynamic'
+import { getEconomyConfig } from '@/lib/server-config'
 
-// Constants
-const BASE_AD_REWARD_POINTS = 5 // Base points per ad watched
-const TOURNAMENT_POINTS_PER_AD = 10 // Tournament points per ad
-const MAX_ADS_PER_DAY = 10 // Daily limit
+export const dynamic = 'force-dynamic'
 
 function getTodayKey(): string {
     return new Date().toISOString().split('T')[0]
@@ -34,10 +31,12 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         return res.status(500).json({ error: 'Database not available' })
     }
 
+    const config = await getEconomyConfig()
+
     if (req.method === 'POST') {
-        return handlePost(req, res)
+        return handlePost(req, res, config)
     } else if (req.method === 'PATCH') {
-        return handlePatch(req, res)
+        return handlePatch(req, res, config)
     } else {
         return res.status(405).json({ error: 'Method not allowed' })
     }
@@ -46,7 +45,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 export default allowCors(handler)
 
 // POST: Start an ad viewing session
-async function handlePost(req: NextApiRequest, res: NextApiResponse) {
+async function handlePost(req: NextApiRequest, res: NextApiResponse, config: any) {
     try {
         const { userId } = req.body
 
@@ -71,11 +70,11 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
             adsWatched = 0
         }
 
-        if (adsWatched >= MAX_ADS_PER_DAY) {
+        if (adsWatched >= config.dailyLimits.maxAds) {
             return res.status(429).json({
                 error: 'Daily ad limit reached',
                 adsWatched,
-                maxAds: MAX_ADS_PER_DAY,
+                maxAds: config.dailyLimits.maxAds,
                 resetTime: 'midnight'
             })
         }
@@ -91,8 +90,8 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
         return res.status(200).json({
             adViewId: adViewRef.id,
             adsWatchedToday: adsWatched,
-            remainingAds: MAX_ADS_PER_DAY - adsWatched,
-            rewardPoints: BASE_AD_REWARD_POINTS,
+            remainingAds: config.dailyLimits.maxAds - adsWatched,
+            rewardPoints: config.earningRates.watchAd,
         })
     } catch (error) {
         console.error('Error starting ad view:', error)
@@ -101,7 +100,7 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
 }
 
 // PATCH: Complete an ad view and award points
-async function handlePatch(req: NextApiRequest, res: NextApiResponse) {
+async function handlePatch(req: NextApiRequest, res: NextApiResponse, config: any) {
     try {
         const { adViewId, userId } = req.body
 
@@ -158,9 +157,10 @@ async function handlePatch(req: NextApiRequest, res: NextApiResponse) {
         const streakInfo = getStreakMultiplier(dailyStreak)
 
         // Apply both Happy Hour AND Streak multipliers
-        const happyHourInfo = getHappyHourBonus(BASE_AD_REWARD_POINTS)
+        // Apply both Happy Hour AND Streak multipliers
+        const happyHourInfo = getHappyHourBonus(config.earningRates.watchAd)
         const combinedMultiplier = happyHourInfo.multiplier * streakInfo.multiplier
-        const pointsToAward = Math.floor(BASE_AD_REWARD_POINTS * combinedMultiplier)
+        const pointsToAward = Math.floor(config.earningRates.watchAd * combinedMultiplier)
 
         // Calculate new streak
         const yesterdayDate = new Date()

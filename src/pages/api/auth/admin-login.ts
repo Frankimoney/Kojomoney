@@ -15,7 +15,7 @@ import nodemailer from 'nodemailer'
 
 // Admin credentials from environment
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'NshumB@EMMANDAK2'
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'manamongmen99@gmail.com'
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'manamongmen99@gmail.com,francistogor@gmail.com').split(',').map(e => e.trim().toLowerCase())
 
 // Store for pending 2FA codes (in production, use Redis or database)
 // Map: email -> { code: string, expiresAt: number, attempts: number }
@@ -39,6 +39,20 @@ function generateCode(): string {
 
 // Send 2FA code via email
 async function send2FACode(email: string, code: string): Promise<boolean> {
+    // Check if email config is present
+    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+        console.warn('[Admin 2FA] Missing GMAIL_USER or GMAIL_APP_PASSWORD')
+
+        // In development, mock success so admin can still login
+        if (process.env.NODE_ENV !== 'production') {
+            console.log('==========================================')
+            console.log(`[DEV MODE] Mock 2FA code for ${email}: ${code}`)
+            console.log('==========================================')
+            return true
+        }
+        return false
+    }
+
     try {
         const transporter = getEmailTransporter()
 
@@ -152,8 +166,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         return res.status(401).json({ error: 'Invalid password' })
     }
 
-    // Verify email (must match admin email)
-    if (email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+    // Verify email (must match authorized list)
+    if (!ADMIN_EMAILS.includes(email.toLowerCase())) {
         return res.status(403).json({ error: 'Unauthorized email address' })
     }
 

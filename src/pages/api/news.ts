@@ -5,6 +5,7 @@ import crypto from 'crypto'
 import { allowCors } from '@/lib/cors'
 import { getHappyHourBonus } from '@/lib/happyHour'
 import { DAILY_LIMITS, getStreakMultiplier } from '@/lib/points-config'
+import { getEconomyConfig } from '@/lib/server-config'
 
 export const dynamic = 'force-dynamic'
 
@@ -92,10 +93,12 @@ const PAN_AFRICAN_FEEDS = [
 ]
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
+    const config = await getEconomyConfig()
+
     if (req.method === 'GET') {
-        return handleGet(req, res)
+        return handleGet(req, res, config)
     } else if (req.method === 'POST') {
-        return handlePost(req, res)
+        return handlePost(req, res, config)
     } else {
         return res.status(405).json({ error: 'Method not allowed' })
     }
@@ -103,7 +106,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
 export default allowCors(handler)
 
-async function handleGet(req: NextApiRequest, res: NextApiResponse) {
+async function handleGet(req: NextApiRequest, res: NextApiResponse, config: any) {
     try {
         const {
             source,
@@ -117,7 +120,8 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
         } = req.query
 
         const limitNum = parseInt(Array.isArray(limit) ? limit[0] : limit) || 10
-        const pointsNum = parseInt(Array.isArray(points) ? points[0] : points) || 10
+        // Use server config for points, ignore client query
+        const pointsNum = config.earningRates.readNews || 10
         const userIdStr = Array.isArray(userId) ? userId[0] : userId
         const sourceStr = Array.isArray(source) ? source[0] : source
         const urlStr = Array.isArray(url) ? url[0] : url
@@ -233,8 +237,8 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
             reads: readIds,
             count: stories.length,
             storiesReadToday,
-            maxDailyStories: MAX_DAILY_STORIES,
-            storiesRemaining: MAX_DAILY_STORIES - storiesReadToday
+            maxDailyStories: config.dailyLimits.maxNews,
+            storiesRemaining: config.dailyLimits.maxNews - storiesReadToday
         })
     } catch (error) {
         console.error('Error in news API:', error)
@@ -242,7 +246,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
     }
 }
 
-async function handlePost(req: NextApiRequest, res: NextApiResponse) {
+async function handlePost(req: NextApiRequest, res: NextApiResponse, config: any) {
     try {
         const { storyId, quizAnswer, anonId, userId } = req.body
 
@@ -314,15 +318,15 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
                 const todayProgress = userData.todayProgress || { storiesRead: 0 }
                 storiesReadToday = userData.lastActiveDate === todayKey ? (todayProgress.storiesRead || 0) : 0
 
-                if (storiesReadToday >= MAX_DAILY_STORIES) {
+                if (storiesReadToday >= config.dailyLimits.maxNews) {
                     return res.status(200).json({
                         isCorrect: true,
                         pointsEarned: 0,
                         awarded: false,
                         dailyLimitReached: true,
                         storiesReadToday,
-                        maxDailyStories: MAX_DAILY_STORIES,
-                        message: `Daily limit reached! You've read ${MAX_DAILY_STORIES} stories today. Come back tomorrow for more.`
+                        maxDailyStories: config.dailyLimits.maxNews,
+                        message: `Daily limit reached! You've read ${config.dailyLimits.maxNews} stories today. Come back tomorrow for more.`
                     })
                 }
 
@@ -331,7 +335,8 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
                 streakInfo = getStreakMultiplier(dailyStreak)
 
                 // Calculate points with both Happy Hour AND Streak multipliers
-                const BASE_POINTS_PER_STORY = 10
+                // Use dynamic rate
+                const BASE_POINTS_PER_STORY = config.earningRates.readNews
                 happyHourInfo = getHappyHourBonus(BASE_POINTS_PER_STORY)
                 const combinedMultiplier = happyHourInfo.multiplier * streakInfo.multiplier
                 pointsToAward = Math.floor(BASE_POINTS_PER_STORY * combinedMultiplier)

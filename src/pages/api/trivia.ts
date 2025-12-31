@@ -6,6 +6,7 @@ import { allowCors } from '@/lib/cors'
 import { getHappyHourBonus } from '@/lib/happyHour'
 import { getStreakMultiplier } from '@/lib/points-config'
 import { checkRateLimit, verifyRequestSignature } from '@/lib/security'
+import { getEconomyConfig } from '@/lib/server-config'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,6 +30,8 @@ function getCurrentWeekKey(): string {
 
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
+    const config = await getEconomyConfig()
+
     // SECURITY: Basic Rate Limit (IP based)
     const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown'
     if (!checkRateLimit(`ip_trivia_${ip}`, 5, 60000)) { // 5 requests per minute per IP
@@ -36,7 +39,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 
     if (req.method === 'GET') {
-        return handleGet(req, res)
+        return handleGet(req, res, config)
     } else if (req.method === 'POST') {
         // SECURITY: Verify Signature for POST
         const signature = req.headers['x-request-signature'] as string
@@ -46,7 +49,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             console.warn(`[SECURITY] Invalid signature on Trivia POST from ${ip}`)
             // return res.status(403).json({ error: 'Invalid request signature' })
         }
-        return handlePost(req, res)
+        return handlePost(req, res, config)
     } else {
         return res.status(405).json({ error: 'Method not allowed' })
     }
@@ -61,7 +64,7 @@ const AFRICA_CODES = new Set([
     'NA', 'BW', 'LR', 'SL', 'BJ', 'TG', 'BF', 'NE', 'ML', 'GM'
 ])
 
-async function handleGet(req: NextApiRequest, res: NextApiResponse) {
+async function handleGet(req: NextApiRequest, res: NextApiResponse, config: any) {
     try {
         let { region, userId } = req.query
         const userIdStr = Array.isArray(userId) ? userId[0] : userId
@@ -132,7 +135,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
 
         return res.status(200).json({
             questions: processedQuestions,
-            totalPoints: processedQuestions.length * 10,
+            totalPoints: processedQuestions.length * config.earningRates.triviaCorrect,
             triviaId,
             hasAttempted
         })
@@ -142,7 +145,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
     }
 }
 
-async function handlePost(req: NextApiRequest, res: NextApiResponse) {
+async function handlePost(req: NextApiRequest, res: NextApiResponse, config: any) {
     try {
         const { triviaId, userId, answers } = req.body
 
@@ -191,8 +194,8 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
         const currentStreak = userDoc.exists ? (userDoc.data()?.dailyStreak || 0) : 0
         const streakInfo = getStreakMultiplier(currentStreak)
 
-        // Calculate base points (10 per correct answer)
-        const basePoints = correctCount * 10
+        // Calculate base points (dynamic per correct answer)
+        const basePoints = correctCount * config.earningRates.triviaCorrect
 
         // Apply both Happy Hour AND Streak multipliers
         const happyHourInfo = getHappyHourBonus(basePoints)

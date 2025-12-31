@@ -35,6 +35,10 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         let activeMissions = 0
         let totalOffers = 0
         let completedMissions24h = 0
+        // Diesel Metrics
+        let totalLiabilityPoints = 0
+        let adRevenue24h = 0
+        let payouts24h = 0
 
         // Get user stats (safely)
         try {
@@ -46,6 +50,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
                 if (data.createdAt && data.createdAt > oneDayAgo) {
                     newUsersToday++
                 }
+                totalLiabilityPoints += (data.points || 0)
                 if (data.lastActive && data.lastActive > oneDayAgo) {
                     activeUsers++
                 }
@@ -70,6 +75,10 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             withdrawalsSnapshot.forEach(doc => {
                 if (doc.data().status === 'pending') {
                     pendingWithdrawals++
+                }
+                const data = doc.data()
+                if (data.status === 'completed' && data.processedAt && data.processedAt > oneDayAgo) {
+                    payouts24h += (data.amountUSD || 0)
                 }
             })
         } catch (e) {
@@ -121,6 +130,12 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
                 if (data.type === 'credit') {
                     totalPointsDistributed += data.amount || 0
                 }
+                if (data.source === 'ad_watch' && data.createdAt > oneDayAgo) {
+                    // Estimate: 10000 pts = $1 to user. We earn approx $2 (100% margin).
+                    // Formula: (Points / 10000) * 2
+                    const userValue = (data.amount || 0) / 10000
+                    adRevenue24h += (userValue * 2)
+                }
             })
         } catch (e) {
             console.error('Error fetching transactions:', e)
@@ -137,6 +152,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             totalOffers,
             activeMissions,
             completedMissions24h,
+            // Diesel Metrics
+            totalLiabilityPoints,
+            adRevenue24h,
+            payouts24h,
+            netMargin: adRevenue24h - payouts24h
         })
     } catch (error) {
         console.error('Error fetching admin stats:', error)

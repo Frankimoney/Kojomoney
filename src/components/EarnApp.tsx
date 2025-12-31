@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { DAILY_LIMITS } from '@/lib/points-config'
+import { DAILY_LIMITS as DEFAULT_DAILY_LIMITS, EARNING_RATES as DEFAULT_EARNING_RATES } from '@/lib/points-config'
+import { useEconomyStore, useEconomyInit } from '@/store/economyStore'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -10,7 +11,7 @@ import { Progress } from '@/components/ui/progress'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
-import { Home, Coins, Wallet, User, Play, BookOpen, Brain, Clock, TrendingUp, Gift, Settings, Share2, Bell, Moon, LogOut, Users, Trophy, Medal, ArrowLeft, FileText, Gamepad2, CheckCircle, Sparkles, UserCircle, Shield, ChevronRight, Landmark, Building, Bitcoin } from 'lucide-react'
+import { Home, Coins, Wallet, User, Play, BookOpen, Brain, Clock, TrendingUp, Gift, Settings, Share2, Bell, Moon, LogOut, Users, Trophy, Medal, ArrowLeft, FileText, Gamepad2, CheckCircle, Sparkles, UserCircle, Shield, ChevronRight, Landmark, Building, Bitcoin, Smartphone } from 'lucide-react'
 import { motion } from 'framer-motion'
 import dynamic from 'next/dynamic'
 import { useTheme } from 'next-themes'
@@ -160,6 +161,8 @@ interface DedicatedPageProps {
 }
 
 function NewsPage({ user: initialUser, onBack }: DedicatedPageProps) {
+    const dailyLimits = useEconomyStore(state => state.dailyLimits)
+    const earningRates = useEconomyStore(state => state.earningRates)
     const [user, setUser] = useState<User>(initialUser)
 
     // Show banner ad at bottom
@@ -215,15 +218,15 @@ function NewsPage({ user: initialUser, onBack }: DedicatedPageProps) {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-green-100 text-sm">Stories Read Today</p>
-                                <p className="text-2xl font-bold">{user.todayProgress?.storiesRead || 0}/{DAILY_LIMITS.maxNews}</p>
+                                <p className="text-2xl font-bold">{user.todayProgress?.storiesRead || 0}/{dailyLimits.maxNews}</p>
                             </div>
                             <div className="text-right">
                                 <p className="text-green-100 text-sm">Points Earned</p>
-                                <p className="text-2xl font-bold">{(user.todayProgress?.storiesRead || 0) * 10} pts</p>
+                                <p className="text-2xl font-bold">{(user.todayProgress?.storiesRead || 0) * earningRates.readNews} pts</p>
                             </div>
                         </div>
                         <Progress
-                            value={Math.min(((user.todayProgress?.storiesRead || 0) / DAILY_LIMITS.maxNews) * 100, 100)}
+                            value={Math.min(((user.todayProgress?.storiesRead || 0) / dailyLimits.maxNews) * 100, 100)}
                             className="mt-3 h-2 bg-green-400/30"
                         />
                     </CardContent>
@@ -237,6 +240,8 @@ function NewsPage({ user: initialUser, onBack }: DedicatedPageProps) {
 }
 
 function TriviaPage({ user: initialUser, onBack }: DedicatedPageProps) {
+    const dailyLimits = useEconomyStore(state => state.dailyLimits)
+    const earningRates = useEconomyStore(state => state.earningRates)
     const [user, setUser] = useState<User>(initialUser)
 
     // Show banner ad at bottom
@@ -280,7 +285,7 @@ function TriviaPage({ user: initialUser, onBack }: DedicatedPageProps) {
                         </div>
                         <div>
                             <h1 className="text-2xl font-bold">Daily Trivia Challenge</h1>
-                            <p className="text-sm text-muted-foreground">Answer questions and earn up to 50 bonus points</p>
+                            <p className="text-sm text-muted-foreground">Answer questions and earn up to {earningRates.triviaBonus} bonus points</p>
                         </div>
                     </div>
                 </div>
@@ -316,6 +321,8 @@ interface AdsPageProps {
 }
 
 function AdsPage({ user, onBack }: AdsPageProps) {
+    const earningRates = useEconomyStore(state => state.earningRates)
+    const dailyLimits = useEconomyStore(state => state.dailyLimits)
     const [adCooldown, setAdCooldown] = useState(0)
     const [isLoading, setIsLoading] = useState(false)
 
@@ -424,7 +431,7 @@ function AdsPage({ user, onBack }: AdsPageProps) {
                         </div>
                         <div>
                             <h1 className="text-2xl font-bold">Watch Ads & Earn</h1>
-                            <p className="text-sm text-muted-foreground">Earn 5 points per ad watched</p>
+                            <p className="text-sm text-muted-foreground">Earn {earningRates.watchAd} points per ad watched</p>
                         </div>
                     </div>
                 </div>
@@ -435,11 +442,11 @@ function AdsPage({ user, onBack }: AdsPageProps) {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-blue-100 text-sm">Ads Watched Today</p>
-                                <p className="text-2xl font-bold">{user.todayProgress?.adsWatched || 0}/10</p>
+                                <p className="text-2xl font-bold">{user.todayProgress?.adsWatched || 0}/{dailyLimits.maxAds}</p>
                             </div>
                             <div className="text-right">
                                 <p className="text-blue-100 text-sm">Points Earned</p>
-                                <p className="text-2xl font-bold">{(user.todayProgress?.adsWatched || 0) * 5} pts</p>
+                                <p className="text-2xl font-bold">{(user.todayProgress?.adsWatched || 0) * earningRates.watchAd} pts</p>
                             </div>
                         </div>
                         <Progress
@@ -516,6 +523,8 @@ interface EarnTabProps {
 }
 
 function EarnTab({ user, userPoints, setUserPoints, setActiveView }: EarnTabProps) {
+    const earningRates = useEconomyStore(state => state.earningRates)
+    const dailyLimits = useEconomyStore(state => state.dailyLimits)
     const [adCooldown, setAdCooldown] = useState(0)
     const [view, setView] = useState<'list' | 'offerwall' | 'africa-offerwalls' | 'surveys' | 'missions' | 'referrals' | 'challenges' | 'tournament' | 'games'>('list')
 
@@ -581,7 +590,7 @@ function EarnTab({ user, userPoints, setUserPoints, setActiveView }: EarnTabProp
                             <Brain className="h-5 w-5 text-yellow-300" />
                             <span>Take Surveys</span>
                         </CardTitle>
-                        <CardDescription className="text-teal-100">Earn 500-2000 pts</CardDescription>
+                        <CardDescription className="text-teal-100">Earn {earningRates.surveyMin}-{earningRates.surveyMax} pts</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="flex items-center justify-between">
@@ -718,7 +727,7 @@ function EarnTab({ user, userPoints, setUserPoints, setActiveView }: EarnTabProp
                     <CardContent className="space-y-4">
                         <div className="flex items-center justify-between">
                             <span>Standard Ad</span>
-                            <Badge variant="secondary">5 pts</Badge>
+                            <Badge variant="secondary">{earningRates.watchAd} pts</Badge>
                         </div>
                         <Button
                             className="w-full"
@@ -744,7 +753,7 @@ function EarnTab({ user, userPoints, setUserPoints, setActiveView }: EarnTabProp
                     <CardContent className="space-y-4">
                         <div className="flex items-center justify-between">
                             <span>Daily News</span>
-                            <Badge variant="secondary">10 pts</Badge>
+                            <Badge variant="secondary">{earningRates.readNews} pts</Badge>
                         </div>
                         <Button className="w-full" variant="outline" onClick={() => setActiveView('news')}>
                             Read Stories
@@ -850,6 +859,8 @@ interface HomeTabProps {
 }
 
 function HomeTab({ user, userPoints, setActiveTab, setActiveView, onOpenSpin }: HomeTabProps) {
+    const dailyLimits = useEconomyStore(state => state.dailyLimits)
+    const earningRates = useEconomyStore(state => state.earningRates)
     return (
         <div className="space-y-6">
             <Card className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
@@ -975,7 +986,7 @@ function HomeTab({ user, userPoints, setActiveTab, setActiveView, onOpenSpin }: 
                             <Play className="h-6 w-6 text-blue-500" />
                             <CardTitle className="text-lg">Watch an Ad</CardTitle>
                         </div>
-                        <CardDescription>Earn 5 points per ad</CardDescription>
+                        <CardDescription>Earn {earningRates.watchAd} points per ad</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Button className="w-full" variant="outline">
@@ -990,7 +1001,7 @@ function HomeTab({ user, userPoints, setActiveTab, setActiveView, onOpenSpin }: 
                             <BookOpen className="h-6 w-6 text-green-500" />
                             <CardTitle className="text-lg">Read Today's Stories</CardTitle>
                         </div>
-                        <CardDescription>Earn 10 points per story</CardDescription>
+                        <CardDescription>Earn {earningRates.readNews} points per story</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Button className="w-full" variant="outline">
@@ -1005,7 +1016,7 @@ function HomeTab({ user, userPoints, setActiveTab, setActiveView, onOpenSpin }: 
                             <Brain className="h-6 w-6 text-purple-500" />
                             <CardTitle className="text-lg">Play Daily Trivia</CardTitle>
                         </div>
-                        <CardDescription>Earn 50 points bonus</CardDescription>
+                        <CardDescription>Earn {earningRates.triviaBonus} points bonus</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Button className="w-full" variant="outline">
@@ -1026,16 +1037,16 @@ function HomeTab({ user, userPoints, setActiveTab, setActiveView, onOpenSpin }: 
                     <div className="space-y-2">
                         <div className="flex justify-between text-sm">
                             <span>Ads Watched</span>
-                            <span>{user.todayProgress?.adsWatched || 0}/{DAILY_LIMITS.maxAds}</span>
+                            <span>{user.todayProgress?.adsWatched || 0}/{dailyLimits.maxAds}</span>
                         </div>
-                        <Progress value={Math.min(((user.todayProgress?.adsWatched || 0) / DAILY_LIMITS.maxAds) * 100, 100)} className="h-2 bg-purple-200 dark:bg-purple-900/50 [&>div]:bg-purple-500 dark:[&>div]:bg-purple-400" />
+                        <Progress value={Math.min(((user.todayProgress?.adsWatched || 0) / dailyLimits.maxAds) * 100, 100)} className="h-2 bg-purple-200 dark:bg-purple-900/50 [&>div]:bg-purple-500 dark:[&>div]:bg-purple-400" />
                     </div>
                     <div className="space-y-2">
                         <div className="flex justify-between text-sm">
                             <span>Stories Read</span>
-                            <span>{user.todayProgress?.storiesRead || 0}/{DAILY_LIMITS.maxNews}</span>
+                            <span>{user.todayProgress?.storiesRead || 0}/{dailyLimits.maxNews}</span>
                         </div>
-                        <Progress value={Math.min(((user.todayProgress?.storiesRead || 0) / DAILY_LIMITS.maxNews) * 100, 100)} className="h-2 bg-purple-200 dark:bg-purple-900/50 [&>div]:bg-purple-500 dark:[&>div]:bg-purple-400" />
+                        <Progress value={Math.min(((user.todayProgress?.storiesRead || 0) / dailyLimits.maxNews) * 100, 100)} className="h-2 bg-purple-200 dark:bg-purple-900/50 [&>div]:bg-purple-500 dark:[&>div]:bg-purple-400" />
                     </div>
                     <div className="space-y-2">
                         <div className="flex justify-between text-sm">
@@ -1057,6 +1068,8 @@ interface WalletTabProps {
 }
 
 function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
+    const dailyLimits = useEconomyStore(state => state.dailyLimits)
+    const pointsConfig = useEconomyStore(state => state.pointsConfig)
     const [withdrawals, setWithdrawals] = useState<any[]>([])
     const [earnings, setEarnings] = useState<any[]>([])
     const [earningSummary, setEarningSummary] = useState<any>(null)
@@ -1069,10 +1082,40 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
         accountName: '',
         paypalEmail: '',
         walletAddress: '',
-        cryptoNetwork: 'USDT (TRC20)'
+        cryptoNetwork: 'USDT (TRC20)',
+        phoneNumber: '' // For Airtime
     })
     const [isLoadingWithdrawal, setIsLoadingWithdrawal] = useState(false)
     const [isLoadingEarnings, setIsLoadingEarnings] = useState(false)
+
+    // Diesel Economy: User's withdrawal rate based on country
+    const [rateInfo, setRateInfo] = useState<{
+        country: string
+        multiplier: number
+        usdPer1000Points: number
+    } | null>(null)
+
+    // Fetch user's withdrawal rate
+    const fetchWithdrawalRate = async () => {
+        try {
+            const response = await apiCall(`/api/user/withdrawal-rate?userId=${user?.id}`)
+            if (response.ok) {
+                const data = await response.json()
+                setRateInfo({
+                    country: data.country,
+                    multiplier: data.multiplier,
+                    usdPer1000Points: data.usdPer1000Points
+                })
+            }
+        } catch (error) {
+            console.error('Failed to fetch withdrawal rate:', error)
+        }
+    }
+
+    // Calculate estimated USD for current amount
+    const estimatedUSD = withdrawalForm.amount && rateInfo
+        ? (parseInt(withdrawalForm.amount) / 1000 * rateInfo.usdPer1000Points).toFixed(2)
+        : '0.00'
 
     // Show banner ad at bottom of wallet tab
     useBannerAd('bottom', true)
@@ -1129,6 +1172,8 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
             } else if (withdrawalForm.method === 'crypto') {
                 payload.walletAddress = withdrawalForm.walletAddress
                 payload.cryptoNetwork = withdrawalForm.cryptoNetwork
+            } else if (withdrawalForm.method === 'airtime') {
+                payload.phoneNumber = withdrawalForm.phoneNumber
             }
 
             const response = await apiCall('/api/withdrawal', {
@@ -1155,6 +1200,7 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
     useEffect(() => {
         fetchWithdrawals()
         fetchEarnings()
+        fetchWithdrawalRate()
         syncUserFromServer()
     }, [])
 
@@ -1249,21 +1295,29 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
                 <CardContent className="space-y-4">
                     <form onSubmit={handleWithdrawal} className="space-y-4">
                         {/* Payment Method Selector */}
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-4 gap-2">
                             <button
                                 type="button"
                                 onClick={() => setWithdrawalForm(prev => ({ ...prev, method: 'bank_transfer' }))}
                                 className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${withdrawalForm.method === 'bank_transfer' ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'border-muted hover:bg-muted'}`}
                             >
-                                <Building className={`h-6 w-6 mb-1 ${withdrawalForm.method === 'bank_transfer' ? 'text-green-600' : 'text-muted-foreground'}`} />
+                                <Building className={`h-5 w-5 mb-1 ${withdrawalForm.method === 'bank_transfer' ? 'text-green-600' : 'text-muted-foreground'}`} />
                                 <span className={`text-xs font-medium ${withdrawalForm.method === 'bank_transfer' ? 'text-green-700' : 'text-muted-foreground'}`}>Bank</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setWithdrawalForm(prev => ({ ...prev, method: 'airtime' }))}
+                                className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${withdrawalForm.method === 'airtime' ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20' : 'border-muted hover:bg-muted'}`}
+                            >
+                                <Smartphone className={`h-5 w-5 mb-1 ${withdrawalForm.method === 'airtime' ? 'text-purple-600' : 'text-muted-foreground'}`} />
+                                <span className={`text-xs font-medium ${withdrawalForm.method === 'airtime' ? 'text-purple-700' : 'text-muted-foreground'}`}>Airtime</span>
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setWithdrawalForm(prev => ({ ...prev, method: 'paypal' }))}
                                 className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${withdrawalForm.method === 'paypal' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-muted hover:bg-muted'}`}
                             >
-                                <span className={`text-xl font-bold mb-1 ${withdrawalForm.method === 'paypal' ? 'text-blue-600' : 'text-muted-foreground'}`}>P</span>
+                                <span className={`text-lg font-bold mb-1 ${withdrawalForm.method === 'paypal' ? 'text-blue-600' : 'text-muted-foreground'}`}>P</span>
                                 <span className={`text-xs font-medium ${withdrawalForm.method === 'paypal' ? 'text-blue-700' : 'text-muted-foreground'}`}>PayPal</span>
                             </button>
                             <button
@@ -1271,7 +1325,7 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
                                 onClick={() => setWithdrawalForm(prev => ({ ...prev, method: 'crypto' }))}
                                 className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${withdrawalForm.method === 'crypto' ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20' : 'border-muted hover:bg-muted'}`}
                             >
-                                <Bitcoin className={`h-6 w-6 mb-1 ${withdrawalForm.method === 'crypto' ? 'text-orange-600' : 'text-muted-foreground'}`} />
+                                <Bitcoin className={`h-5 w-5 mb-1 ${withdrawalForm.method === 'crypto' ? 'text-orange-600' : 'text-muted-foreground'}`} />
                                 <span className={`text-xs font-medium ${withdrawalForm.method === 'crypto' ? 'text-orange-700' : 'text-muted-foreground'}`}>Crypto</span>
                             </button>
                         </div>
@@ -1288,7 +1342,24 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
                                 onChange={(e) => setWithdrawalForm(prev => ({ ...prev, amount: e.target.value }))}
                                 required
                             />
+                            {/* Diesel Economy: Show estimated USD value */}
+                            {withdrawalForm.amount && (
+                                <div className="mt-2 p-3 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm text-muted-foreground">Estimated Value:</span>
+                                        <span className="text-lg font-bold text-green-600 dark:text-green-400">
+                                            ${estimatedUSD} USD
+                                        </span>
+                                    </div>
+                                    {rateInfo && (
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Rate: {rateInfo.country} × {rateInfo.multiplier} | Daily limit: $10 USD
+                                        </p>
+                                    )}
+                                </div>
+                            )}
                         </div>
+
 
                         {withdrawalForm.method === 'bank_transfer' && (
                             <>
@@ -1380,6 +1451,31 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
                                     <p className="text-xs text-muted-foreground mt-1">Ensure the network matches your address!</p>
                                 </div>
                             </>
+                        )}
+
+                        {withdrawalForm.method === 'airtime' && (
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="text-sm font-medium">Phone Number</label>
+                                    <input
+                                        type="tel"
+                                        className="w-full mt-1 px-3 py-2 border rounded-md"
+                                        placeholder="+234 XXX XXX XXXX"
+                                        value={withdrawalForm.phoneNumber}
+                                        onChange={(e) => setWithdrawalForm(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                                        required={withdrawalForm.method === 'airtime'}
+                                    />
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        Enter your phone number with country code. Airtime will be sent instantly upon approval.
+                                    </p>
+                                </div>
+                                <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                                    <p className="text-xs text-purple-700 dark:text-purple-300">
+                                        ⚡ <strong>Instant Delivery:</strong> Airtime is delivered within minutes after admin approval.
+                                        Supported networks: MTN, Airtel, Glo, 9mobile (Nigeria) and more.
+                                    </p>
+                                </div>
+                            </div>
                         )}
 
                         <Button type="submit" className="w-full" disabled={isLoadingWithdrawal || userPoints < 1000}>
@@ -1489,6 +1585,7 @@ interface ProfileTabProps {
 }
 
 function ProfileTab({ user, setUser, resolvedTheme, setTheme, onLogout, onShowLegal, syncUserFromServer }: ProfileTabProps) {
+    const earningRates = useEconomyStore(state => state.earningRates)
     const [profileForm, setProfileForm] = useState({
         name: user?.name || '',
         phone: user?.phone || '',
@@ -1784,6 +1881,7 @@ function ProfileTab({ user, setUser, resolvedTheme, setTheme, onLogout, onShowLe
 }
 
 export default function EarnApp() {
+    useEconomyInit()
     const [activeTab, setActiveTab] = useState('home')
     const [activeView, setActiveView] = useState<'news' | 'trivia' | 'ads' | null>(null)
     const [activeLegalPage, setActiveLegalPage] = useState<LegalPageType | null>(null)

@@ -15,7 +15,7 @@ import {
     Users, DollarSign, TrendingUp, Clock, CheckCircle, XCircle,
     RefreshCw, Search, Eye, Download, Ban, Gift, Wallet,
     ArrowUpRight, ArrowDownRight, Activity, AlertCircle, Mail,
-    Calendar, Globe, Smartphone, BarChart3, Settings, Shield,
+    Calendar, Globe, Smartphone, BarChart3, Settings, Shield, AlertTriangle,
     FileText, Link, ExternalLink, Check, X, Loader2, LogOut, Bell, Send
 } from 'lucide-react'
 import { apiCall } from '@/lib/api-client'
@@ -33,6 +33,11 @@ interface DashboardStats {
     totalOffers: number
     activeMissions: number
     completedMissions24h: number
+    // Diesel Metrics
+    totalLiabilityPoints?: number
+    adRevenue24h?: number
+    payouts24h?: number
+    netMargin?: number
 }
 
 interface User {
@@ -66,6 +71,9 @@ interface Withdrawal {
     processedAt?: number
     processedBy?: string
     rejectionReason?: string
+    riskScore?: number
+    fraudSignals?: string[]
+    adminNote?: string
 }
 
 interface Transaction {
@@ -120,6 +128,10 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     const [sendingBroadcast, setSendingBroadcast] = useState(false)
     const [broadcastResult, setBroadcastResult] = useState<{ success: boolean; message: string; totalUsers?: number } | null>(null)
 
+    // Economy Config State
+    const [config, setConfig] = useState<any>(null)
+    const [isSavingConfig, setIsSavingConfig] = useState(false)
+
     const authApiCall = (path: string, options: any = {}) => {
         const token = getAdminToken()
         return apiCall(path, {
@@ -146,8 +158,102 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
             loadUsers()
         } else if (activeTab === 'transactions') {
             loadTransactions()
+        } else if (activeTab === 'economy') {
+            loadConfig()
         }
     }, [activeTab, withdrawalFilter])
+
+    const loadConfig = async () => {
+        try {
+            const token = getAdminToken()
+            if (!token) return
+
+            const res = await apiCall('/api/admin/config', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            const data = await res.json()
+            if (res.ok) {
+                setConfig(data)
+            }
+        } catch (error) {
+            console.error('Failed to load config', error)
+        }
+    }
+
+    const handleSaveConfig = async () => {
+        if (!config) return
+        setIsSavingConfig(true)
+        try {
+            const token = getAdminToken()
+            const res = await apiCall('/api/admin/config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(config)
+            })
+
+            if (res.ok) {
+                alert('Configuration saved successfully!')
+            } else {
+                alert('Failed to save configuration.')
+            }
+        } catch (error) {
+            console.error('Failed to save config', error)
+            alert('Error saving configuration.')
+        } finally {
+            setIsSavingConfig(false)
+        }
+    }
+
+    const updateConfigRate = (key: string, value: string) => {
+        if (!config) return
+        setConfig({
+            ...config,
+            earningRates: {
+                ...config.earningRates,
+                [key]: parseFloat(value) || 0
+            }
+        })
+    }
+
+    const updateConfigLimit = (key: string, value: string) => {
+        if (!config) return
+        setConfig({
+            ...config,
+            dailyLimits: {
+                ...config.dailyLimits,
+                [key]: parseInt(value) || 0
+            }
+        })
+    }
+
+    const updateGlobalMargin = (value: string) => {
+        if (!config) return
+        setConfig({
+            ...config,
+            globalMargin: parseFloat(value) || 1.0
+        })
+    }
+
+    const updateCountryMultiplier = (code: string, value: string) => {
+        if (!config) return
+        setConfig({
+            ...config,
+            countryMultipliers: {
+                ...(config.countryMultipliers || {}),
+                [code]: parseFloat(value) || 0
+            }
+        })
+    }
+
+    const removeCountryMultiplier = (code: string) => {
+        if (!config || !config.countryMultipliers) return
+        const newMultipliers = { ...config.countryMultipliers }
+        delete newMultipliers[code]
+        setConfig({ ...config, countryMultipliers: newMultipliers })
+    }
 
     const loadDashboardData = async () => {
         setIsLoading(true)
@@ -527,6 +633,9 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                         <TabsTrigger value="broadcast" className="flex items-center gap-2">
                             <Bell className="h-4 w-4" /> Broadcast
                         </TabsTrigger>
+                        <TabsTrigger value="economy" className="flex items-center gap-2">
+                            <DollarSign className="h-4 w-4" /> Economy
+                        </TabsTrigger>
                     </TabsList>
 
                     {/* OVERVIEW TAB */}
@@ -534,31 +643,34 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                         {/* Stats Grid */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <StatsCard
-                                title="Total Users"
-                                value={stats?.totalUsers || 0}
+                                title="Points Liability"
+                                value={stats?.totalLiabilityPoints || 0}
                                 icon={Users}
-                                trend={stats?.newUsersToday ? `+${stats.newUsersToday} today` : undefined}
+                                format="number"
+                                loading={isLoading}
+                            />
+                            <StatsCard
+                                title="Ad Revenue (24h)"
+                                value={stats?.adRevenue24h || 0}
+                                icon={TrendingUp}
+                                format="currency"
                                 trendUp={true}
                                 loading={isLoading}
                             />
                             <StatsCard
-                                title="Active Users"
-                                value={stats?.activeUsers || 0}
-                                icon={Activity}
+                                title="Payouts (24h)"
+                                value={stats?.payouts24h || 0}
+                                icon={Wallet}
+                                format="currency"
                                 loading={isLoading}
                             />
                             <StatsCard
-                                title="Pending Withdrawals"
-                                value={stats?.pendingWithdrawals || 0}
-                                icon={Clock}
-                                highlight={(stats?.pendingWithdrawals || 0) > 0}
-                                loading={isLoading}
-                            />
-                            <StatsCard
-                                title="Points Distributed"
-                                value={stats?.totalPointsDistributed || 0}
-                                icon={TrendingUp}
-                                format="number"
+                                title="Net Margin"
+                                value={stats?.netMargin || 0}
+                                icon={DollarSign}
+                                format="currency"
+                                highlight={true}
+                                className={(stats?.netMargin || 0) < 0 ? "border-red-500 bg-red-50 dark:bg-red-900/10" : "border-green-500 bg-green-50 dark:bg-green-900/10"}
                                 loading={isLoading}
                             />
                         </div>
@@ -666,6 +778,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                                         <TableHead>Amount</TableHead>
                                         <TableHead>Method</TableHead>
                                         <TableHead>Account</TableHead>
+                                        <TableHead>Risk</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead>Date</TableHead>
                                         <TableHead>Actions</TableHead>
@@ -701,6 +814,15 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                                                 </TableCell>
                                                 <TableCell className="max-w-[200px] truncate">
                                                     {withdrawal.accountDetails}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {(withdrawal.riskScore || 0) > 0 ? (
+                                                        <Badge variant={(withdrawal.riskScore || 0) > 50 ? "destructive" : "outline"} className={(withdrawal.riskScore || 0) > 50 ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-100 hover:bg-red-200" : ""}>
+                                                            Risk: {withdrawal.riskScore}
+                                                        </Badge>
+                                                    ) : (
+                                                        <span className="text-muted-foreground text-xs">Low</span>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell>{getStatusBadge(withdrawal.status)}</TableCell>
                                                 <TableCell className="text-sm text-muted-foreground">
@@ -1057,6 +1179,296 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                             </Card>
                         </div>
                     </TabsContent>
+
+                    {/* ECONOMY TAB */}
+                    <TabsContent value="economy" className="space-y-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-2xl font-bold tracking-tight">Economy Control</h3>
+                                <p className="text-muted-foreground">Manage earning rates and daily limits for users.</p>
+                            </div>
+                            <Button onClick={handleSaveConfig} disabled={isSavingConfig || !config}>
+                                {isSavingConfig ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                                Save Changes
+                            </Button>
+                        </div>
+
+                        {config ? (
+                            <div className="grid gap-6 md:grid-cols-2">
+                                {/* Diesel Control: Global Margin */}
+                                <Card className="border-l-4 border-l-red-500 bg-red-50/10 md:col-span-2">
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2 text-red-600">
+                                            <AlertCircle className="h-5 w-5" />
+                                            Profit Margin "Kill Switch"
+                                        </CardTitle>
+                                        <CardDescription>
+                                            Global Margin Adjustment. Lowering this increases the cost of rewards for everyone.
+                                            Current Factor: {config.globalMargin || 1.0}
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-4">
+                                                <span className="text-sm font-bold">0.1</span>
+                                                <input
+                                                    type="range"
+                                                    min="0.1"
+                                                    max="2.0"
+                                                    step="0.05"
+                                                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-red-600"
+                                                    value={config.globalMargin || 1.0}
+                                                    onChange={(e) => updateGlobalMargin(e.target.value)}
+                                                />
+                                                <span className="text-sm font-bold">2.0</span>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground">
+                                                1.0 = Standard. 0.8 = Users pay 20% more points for same $ value.
+                                            </p>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+
+                                {/* Diesel Control: Country Matrix */}
+                                <Card className="md:col-span-2">
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <Globe className="h-5 w-5 text-indigo-500" />
+                                            Global Currency Matrix
+                                        </CardTitle>
+                                        <CardDescription>
+                                            Country-specific exchange rate multipliers.
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Country Code</TableHead>
+                                                    <TableHead>Multiplier</TableHead>
+                                                    <TableHead>Value of 1000 pts</TableHead>
+                                                    <TableHead>Action</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {Object.entries(config.countryMultipliers || {}).map(([code, mult]) => (
+                                                    <TableRow key={code}>
+                                                        <TableCell className="font-mono">{code}</TableCell>
+                                                        <TableCell>
+                                                            <Input
+                                                                type="number"
+                                                                className="w-24 h-8"
+                                                                value={mult as number}
+                                                                step="0.01"
+                                                                onChange={(e) => updateCountryMultiplier(code, e.target.value)}
+                                                            />
+                                                        </TableCell>
+                                                        <TableCell className="text-muted-foreground text-xs">
+                                                            ${((1000 / 10000) * (mult as number)).toFixed(2)} USD (approx)
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Button variant="ghost" size="sm" onClick={() => removeCountryMultiplier(code)}>
+                                                                <X className="h-4 w-4 text-red-500" />
+                                                            </Button>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                                <TableRow>
+                                                    <TableCell colSpan={4}>
+                                                        <div className="flex gap-2 items-center">
+                                                            <Input
+                                                                placeholder="Code (e.g. GH)"
+                                                                className="w-24 h-8"
+                                                                id="new-country-code"
+                                                            />
+                                                            <Button size="sm" variant="outline" onClick={() => {
+                                                                const el = document.getElementById('new-country-code') as HTMLInputElement
+                                                                if (el && el.value) {
+                                                                    updateCountryMultiplier(el.value.toUpperCase(), '1.0')
+                                                                    el.value = ''
+                                                                }
+                                                            }}>Add Country</Button>
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            </TableBody>
+                                        </Table>
+                                    </CardContent>
+                                </Card>
+
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <Activity className="h-5 w-5 text-green-500" />
+                                            Earning Rates (Points)
+                                        </CardTitle>
+                                        <CardDescription>
+                                            Set how many points users earn for each action. (1000 pts = $0.10)
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label>Watch Ad</Label>
+                                                <Input
+                                                    type="number"
+                                                    value={config.earningRates?.watchAd ?? 0}
+                                                    onChange={(e) => updateConfigRate('watchAd', e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Read News</Label>
+                                                <Input
+                                                    type="number"
+                                                    value={config.earningRates?.readNews ?? 0}
+                                                    onChange={(e) => updateConfigRate('readNews', e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Trivia Correct Answer</Label>
+                                                <Input
+                                                    type="number"
+                                                    value={config.earningRates?.triviaCorrect ?? 0}
+                                                    onChange={(e) => updateConfigRate('triviaCorrect', e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Trivia 5/5 Bonus</Label>
+                                                <Input
+                                                    type="number"
+                                                    value={config.earningRates?.triviaBonus ?? 0}
+                                                    onChange={(e) => updateConfigRate('triviaBonus', e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Game Playtime (per min)</Label>
+                                                <Input
+                                                    type="number"
+                                                    value={config.earningRates?.gamePlaytimePerMin ?? 0}
+                                                    onChange={(e) => updateConfigRate('gamePlaytimePerMin', e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Referral Signup Bonus</Label>
+                                                <Input
+                                                    type="number"
+                                                    value={config.earningRates?.referralSignup ?? 0}
+                                                    onChange={(e) => updateConfigRate('referralSignup', e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <Ban className="h-5 w-5 text-red-500" />
+                                            Daily Limits
+                                        </CardTitle>
+                                        <CardDescription>
+                                            Cap the maximum actions a user can perform per day.
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <div className="space-y-2">
+                                            <Label>Max Ads per Day</Label>
+                                            <Input
+                                                type="number"
+                                                value={config.dailyLimits?.maxAds ?? 0}
+                                                onChange={(e) => updateConfigLimit('maxAds', e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Max News Stories per Day</Label>
+                                            <Input
+                                                type="number"
+                                                value={config.dailyLimits?.maxNews ?? 0}
+                                                onChange={(e) => updateConfigLimit('maxNews', e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Max Surveys per Day</Label>
+                                            <Input
+                                                type="number"
+                                                value={config.dailyLimits?.maxSurveys ?? 0}
+                                                onChange={(e) => updateConfigLimit('maxSurveys', e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Max Game Minutes per Day</Label>
+                                            <Input
+                                                type="number"
+                                                value={config.dailyLimits?.maxGamesMinutes ?? 0}
+                                                onChange={(e) => updateConfigLimit('maxGamesMinutes', e.target.value)}
+                                            />
+                                        </div>
+                                    </CardContent>
+                                </Card>
+
+                                <Card className="md:col-span-2">
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <Settings className="h-5 w-5 text-blue-500" />
+                                            Advanced & Random Ranges
+                                        </CardTitle>
+                                        <CardDescription>
+                                            Configure ranges for variable rewards.
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="grid md:grid-cols-2 gap-6">
+                                        <div className="space-y-4">
+                                            <h4 className="font-semibold text-sm">Daily Spin Range</h4>
+                                            <div className="flex items-center gap-4">
+                                                <div className="space-y-2 flex-1">
+                                                    <Label>Min Points</Label>
+                                                    <Input
+                                                        type="number"
+                                                        value={config.earningRates?.dailySpinMin ?? 0}
+                                                        onChange={(e) => updateConfigRate('dailySpinMin', e.target.value)}
+                                                    />
+                                                </div>
+                                                <div className="space-y-2 flex-1">
+                                                    <Label>Max Points</Label>
+                                                    <Input
+                                                        type="number"
+                                                        value={config.earningRates?.dailySpinMax ?? 0}
+                                                        onChange={(e) => updateConfigRate('dailySpinMax', e.target.value)}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <h4 className="font-semibold text-sm">Offerwall Range</h4>
+                                            <div className="flex items-center gap-4">
+                                                <div className="space-y-2 flex-1">
+                                                    <Label>Min Points</Label>
+                                                    <Input
+                                                        type="number"
+                                                        value={config.earningRates?.offerwallMin ?? 0}
+                                                        onChange={(e) => updateConfigRate('offerwallMin', e.target.value)}
+                                                    />
+                                                </div>
+                                                <div className="space-y-2 flex-1">
+                                                    <Label>Max Points</Label>
+                                                    <Input
+                                                        type="number"
+                                                        value={config.earningRates?.offerwallMax ?? 0}
+                                                        onChange={(e) => updateConfigRate('offerwallMax', e.target.value)}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        ) : (
+                            <div className="flex items-center justify-center p-12">
+                                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                            </div>
+                        )}
+                    </TabsContent>
                 </Tabs>
             </main>
 
@@ -1091,6 +1503,23 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                                     <p className="font-mono text-sm">{selectedWithdrawal.accountDetails}</p>
                                 </div>
                             </div>
+
+                            {/* Fraud Analysis Section */}
+                            {(selectedWithdrawal.riskScore || 0) > 0 && (
+                                <div className="space-y-2 p-3 bg-red-50 dark:bg-red-900/10 rounded-md border border-red-200 dark:border-red-800">
+                                    <Label className="text-red-700 dark:text-red-400 font-semibold flex items-center gap-2">
+                                        <AlertTriangle className="h-4 w-4" />
+                                        Fraud Analysis (Risk: {selectedWithdrawal.riskScore})
+                                    </Label>
+                                    <div className="text-sm space-y-1 text-red-600 dark:text-red-300">
+                                        {selectedWithdrawal.fraudSignals?.map((sig, i) => (
+                                            <p key={i} className="flex items-center gap-2">• {sig}</p>
+                                        ))}
+                                        {!selectedWithdrawal.fraudSignals?.length && <p>High risk detected.</p>}
+                                    </div>
+                                    {selectedWithdrawal.adminNote && <p className="text-xs text-muted-foreground pt-1 border-t border-red-200 dark:border-red-800 mt-2">Note: {selectedWithdrawal.adminNote}</p>}
+                                </div>
+                            )}
 
                             <div className="space-y-2">
                                 <Label>Rejection Reason (if rejecting)</Label>
@@ -1338,7 +1767,8 @@ function StatsCard({
     trendUp,
     highlight,
     format = 'default',
-    loading
+    loading,
+    className
 }: {
     title: string
     value: number
@@ -1348,6 +1778,7 @@ function StatsCard({
     highlight?: boolean
     format?: 'default' | 'number' | 'currency'
     loading?: boolean
+    className?: string
 }) {
     const formattedValue = format === 'number'
         ? value.toLocaleString()
@@ -1367,7 +1798,7 @@ function StatsCard({
     }
 
     return (
-        <Card className={highlight ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/10' : ''}>
+        <Card className={`${highlight ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/10' : ''} ${className || ''}`}>
             <CardContent className="p-4">
                 <div className="flex justify-between items-start mb-2">
                     <span className="text-sm text-muted-foreground">{title}</span>
