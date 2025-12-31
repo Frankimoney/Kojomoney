@@ -51,6 +51,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
         if (action === 'approve') {
             // Execution Logic (Airtime) - Auto-send via Reloadly
+            // Set AUTO_PAYMENTS_ENABLED=true in .env to enable automatic airtime
+            const autoPaymentsEnabled = process.env.AUTO_PAYMENTS_ENABLED === 'true'
+
             let airtimeResult: {
                 success: boolean
                 transactionId?: string
@@ -58,7 +61,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
                 deliveredCurrency?: string
                 message?: string
             } | null = null
-            if (withdrawal.method === 'airtime') {
+
+            if (withdrawal.method === 'airtime' && autoPaymentsEnabled) {
                 // Import Reloadly service dynamically to avoid issues if not configured
                 try {
                     const { sendTopup, isReloadlyConfigured, COUNTRY_CODES } = await import('@/services/reloadlyService')
@@ -87,15 +91,15 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
                         console.log(`[Reloadly] Success! Transaction ID: ${airtimeResult.transactionId}`)
                     } else {
-                        console.warn('[Reloadly] Not configured - skipping automatic airtime. Process manually.')
+                        console.log('[Reloadly] Not configured - marking as approved for manual processing.')
                     }
                 } catch (reloadlyError: any) {
                     console.error('[Reloadly] Service error:', reloadlyError)
-                    return res.status(500).json({
-                        error: 'Airtime service error',
-                        details: reloadlyError.message
-                    })
+                    // In case of error, still allow manual approval
+                    console.log('[Reloadly] Continuing with manual approval due to service error.')
                 }
+            } else if (withdrawal.method === 'airtime') {
+                console.log(`[Manual Mode] Airtime withdrawal approved. Please top-up ${withdrawal.phoneNumber} manually with $${withdrawal.amountUSD}`)
             }
 
             // Update withdrawal status

@@ -69,13 +69,82 @@ export function exportUsers(users: any[]): void {
 export function exportWithdrawals(withdrawals: any[]): void {
     downloadCSV({
         filename: 'kojomoney_withdrawals',
-        headers: ['id', 'userId', 'userEmail', 'amount', 'amountUSD', 'method', 'accountDetails', 'status', 'createdAt', 'processedAt', 'rejectionReason'],
+        headers: ['id', 'userId', 'userEmail', 'amount', 'amountUSD', 'method', 'accountDetails', 'status', 'riskScore', 'createdAt', 'processedAt', 'rejectionReason'],
         data: withdrawals.map(w => ({
             ...w,
             createdAt: w.createdAt ? new Date(w.createdAt).toISOString() : '',
             processedAt: w.processedAt ? new Date(w.processedAt).toISOString() : '',
+            riskScore: w.riskScore || 0,
         })),
     })
+}
+
+/**
+ * Export PENDING withdrawals optimized for manual payment processing
+ * This creates a clean spreadsheet for Bank/PayPal/Airtime payments
+ */
+export function exportPendingPayments(withdrawals: any[]): void {
+    const pending = withdrawals.filter(w => w.status === 'pending')
+
+    if (pending.length === 0) {
+        alert('No pending withdrawals to export!')
+        return
+    }
+
+    // Separate by payment method for easier processing
+    const byMethod: Record<string, any[]> = {}
+    pending.forEach(w => {
+        const method = w.method || 'other'
+        if (!byMethod[method]) byMethod[method] = []
+        byMethod[method].push(w)
+    })
+
+    // Create payment-focused export
+    downloadCSV({
+        filename: 'pending_payments',
+        headers: [
+            'ID',
+            'User Email',
+            'Method',
+            'Amount (Points)',
+            'Amount (USD)',
+            'Payment Details',
+            'Bank Name',
+            'Account Number',
+            'Account Name',
+            'Phone Number',
+            'PayPal Email',
+            'Crypto Address',
+            'Risk Score',
+            'Request Date',
+            'Notes'
+        ],
+        data: pending.map(w => ({
+            'ID': w.id,
+            'User Email': w.userEmail || '',
+            'Method': w.method?.toUpperCase() || '',
+            'Amount (Points)': w.amount || 0,
+            'Amount (USD)': `$${(w.amountUSD || 0).toFixed(2)}`,
+            'Payment Details': w.accountDetails || '',
+            'Bank Name': w.bankName || '',
+            'Account Number': w.accountNumber || '',
+            'Account Name': w.accountName || '',
+            'Phone Number': w.phoneNumber || '',
+            'PayPal Email': w.paypalEmail || '',
+            'Crypto Address': w.walletAddress || '',
+            'Risk Score': w.riskScore || 0,
+            'Request Date': w.createdAt ? new Date(w.createdAt).toLocaleDateString() : '',
+            'Notes': w.riskScore > 50 ? '⚠️ HIGH RISK - Review carefully!' : ''
+        })),
+    })
+
+    // Show summary
+    const summary = Object.entries(byMethod).map(([method, items]) => {
+        const total = items.reduce((sum, w) => sum + (w.amountUSD || 0), 0)
+        return `${method}: ${items.length} payments = $${total.toFixed(2)}`
+    }).join('\n')
+
+    alert(`📋 Exported ${pending.length} pending payments!\n\n${summary}\n\nOpen the CSV in Excel to process manually.`)
 }
 
 /**
@@ -166,6 +235,7 @@ export default {
     downloadCSV,
     exportUsers,
     exportWithdrawals,
+    exportPendingPayments,
     exportTransactions,
     exportMissions,
     generateAdminReport,

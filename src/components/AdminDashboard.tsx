@@ -20,7 +20,7 @@ import {
 } from 'lucide-react'
 import { apiCall } from '@/lib/api-client'
 import { logoutAdmin, getAdminEmail, getAdminToken } from '@/components/AdminLogin'
-import { exportUsers, exportWithdrawals, exportTransactions, generateAdminReport } from '@/services/exportService'
+import { exportUsers, exportWithdrawals, exportTransactions, generateAdminReport, exportPendingPayments } from '@/services/exportService'
 
 interface DashboardStats {
     totalUsers: number
@@ -764,8 +764,19 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                                     variant="outline"
                                     onClick={() => exportWithdrawals(withdrawals)}
                                     disabled={withdrawals.length === 0}
+                                    title="Export all withdrawals"
                                 >
                                     <Download className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="default"
+                                    className="bg-green-600 hover:bg-green-700"
+                                    onClick={() => exportPendingPayments(withdrawals)}
+                                    disabled={withdrawals.filter(w => w.status === 'pending').length === 0}
+                                    title="Export pending for manual payment"
+                                >
+                                    <DollarSign className="h-4 w-4 mr-1" />
+                                    Export for Payment
                                 </Button>
                             </div>
                         </div>
