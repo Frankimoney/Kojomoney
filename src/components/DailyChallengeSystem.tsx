@@ -139,21 +139,42 @@ export default function DailyChallengeSystem({ userId, onClose }: DailyChallenge
     }
 
     const triggerConfetti = (big: boolean) => {
-        if (big) {
-            confetti({
-                particleCount: 200,
-                spread: 100,
-                origin: { y: 0.6 },
-                zIndex: 9999
-            })
-        } else {
-            confetti({
-                particleCount: 50,
-                spread: 40,
-                origin: { y: 0.8 }, // Bottom triggered usually
-                zIndex: 9999
-            })
-        }
+        // Use setTimeout and try-catch for Android WebView compatibility
+        setTimeout(() => {
+            try {
+                if (typeof confetti !== 'function') return
+
+                // Reduce particles on mobile
+                const isNative = typeof window !== 'undefined' && (
+                    ((window as any)?.Capacitor?.isNativePlatform?.() === true) ||
+                    (((window as any)?.Capacitor?.getPlatform?.() && (window as any).Capacitor.getPlatform() !== 'web'))
+                )
+
+                const baseOptions = {
+                    zIndex: 9999,
+                    useWorker: false,
+                    disableForReducedMotion: false
+                } as any
+
+                if (big) {
+                    confetti({
+                        ...baseOptions,
+                        particleCount: isNative ? 100 : 200,
+                        spread: 100,
+                        origin: { y: 0.6 }
+                    })
+                } else {
+                    confetti({
+                        ...baseOptions,
+                        particleCount: isNative ? 30 : 50,
+                        spread: 40,
+                        origin: { y: 0.8 }
+                    })
+                }
+            } catch (e) {
+                console.error('[DailyChallenges] Confetti error:', e)
+            }
+        }, 50)
     }
 
     return (

@@ -89,12 +89,7 @@ export default function ReferralSystem({ user, onClose }: ReferralSystemProps) {
             })
 
             if (response.success) {
-                confetti({
-                    particleCount: 150,
-                    spread: 60,
-                    origin: { y: 0.7 },
-                    zIndex: 9999
-                })
+                triggerConfetti()
                 loadReferralData() // Refresh data
             }
         } catch (error) {
@@ -134,6 +129,34 @@ export default function ReferralSystem({ user, onClose }: ReferralSystemProps) {
         }
     }
 
+    const triggerConfetti = () => {
+        // Use setTimeout and try-catch for Android WebView compatibility
+        setTimeout(() => {
+            try {
+                if (typeof confetti !== 'function') return
+
+                // Reduce particles on mobile
+                const isNative = typeof window !== 'undefined' && (
+                    ((window as any)?.Capacitor?.isNativePlatform?.() === true) ||
+                    (((window as any)?.Capacitor?.getPlatform?.() && (window as any).Capacitor.getPlatform() !== 'web'))
+                )
+
+                const count = isNative ? 100 : 150
+
+                confetti({
+                    particleCount: count,
+                    spread: 60,
+                    origin: { y: 0.7 },
+                    zIndex: 9999,
+                    useWorker: false,
+                    disableForReducedMotion: false
+                } as any)
+            } catch (e) {
+                console.error('[ReferralSystem] Confetti error:', e)
+            }
+        }, 50)
+    }
+
     const handleDownloadPoster = async () => {
         if (!posterRef.current) return
         try {
@@ -142,12 +165,7 @@ export default function ReferralSystem({ user, onClose }: ReferralSystemProps) {
             link.download = `kojo-invite-${user?.referralCode}.png`
             link.href = canvas.toDataURL()
             link.click()
-            confetti({
-                particleCount: 150,
-                spread: 60,
-                origin: { y: 0.7 },
-                zIndex: 9999
-            })
+            triggerConfetti()
         } catch (e) {
             console.error('Poster generation failed', e)
         }
