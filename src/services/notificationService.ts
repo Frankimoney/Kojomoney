@@ -3,6 +3,7 @@ import { FirebaseMessaging } from '@capacitor-firebase/messaging';
 import { Capacitor } from '@capacitor/core';
 import { useNotificationStore } from '@/lib/notificationStore';
 import { toast } from 'sonner';
+import { apiCall } from '@/lib/api-client';
 
 class NotificationService {
     private static instance: NotificationService;
@@ -59,27 +60,33 @@ class NotificationService {
 
         try {
             const { token } = await FirebaseMessaging.getToken();
-            console.log('Push Token:', token);
+            console.log('Push Token:', token?.substring(0, 30) + '...');
 
             // Get userId from localStorage
             const savedUser = localStorage.getItem('kojomoneyUser');
             const userId = savedUser ? JSON.parse(savedUser)?.id : null;
 
             if (userId && token) {
-                // Register token with backend
+                // Register token with backend using apiCall (handles Capacitor URL routing)
                 const platform = Capacitor.getPlatform() as 'ios' | 'android' | 'web';
 
-                const response = await fetch('/api/notifications/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId, token, platform })
-                });
+                try {
+                    const response = await apiCall('/api/notifications/register', {
+                        method: 'POST',
+                        body: JSON.stringify({ userId, token, platform })
+                    });
 
-                if (response.ok) {
-                    console.log('Push token registered with backend');
-                } else {
-                    console.error('Failed to register push token with backend');
+                    if (response.ok) {
+                        console.log('Push token registered with backend successfully');
+                    } else {
+                        const errorData = await response.json().catch(() => ({}));
+                        console.error('Failed to register push token:', errorData);
+                    }
+                } catch (apiError) {
+                    console.error('API error registering push token:', apiError);
                 }
+            } else {
+                console.warn('Missing userId or token for push registration');
             }
         } catch (error) {
             console.error('Error getting/registering token:', error);

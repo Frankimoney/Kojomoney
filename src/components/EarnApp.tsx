@@ -1875,6 +1875,8 @@ export default function EarnApp() {
     }, [activeTab])
 
     // Push notifications setup (must be before conditional returns)
+    // Note: Token registration is handled by notificationService.ts
+    // This effect only sets up the listeners for when notifications are received/tapped
     useEffect(() => {
         const isNative = typeof window !== 'undefined' && (
             ((window as any)?.Capacitor?.isNativePlatform?.() === true) ||
@@ -1882,56 +1884,32 @@ export default function EarnApp() {
         )
         if (!isNative || !user?.id) return
 
-        const setupPush = async () => {
+        const setupPushListeners = async () => {
             try {
-                console.log('[PushNotifications] Setting up push notifications...')
+                console.log('[PushNotifications] Setting up notification listeners...')
 
                 // Dynamically import push notifications
                 const { PushNotifications } = await import('@capacitor/push-notifications')
 
-                // Request permission
-                const perm = await PushNotifications.requestPermissions()
-                console.log('[PushNotifications] Permission result:', perm)
+                // Remove any existing listeners to avoid duplicates
+                await PushNotifications.removeAllListeners()
 
-                if (perm.receive !== 'granted') {
-                    console.log('[PushNotifications] Permission not granted')
-                    return
-                }
-
-                // Register for push
-                await PushNotifications.register()
-                console.log('[PushNotifications] Registered successfully')
-
-                // Listen for registration token
-                PushNotifications.addListener('registration', async (token) => {
-                    console.log('[PushNotifications] Got token:', token.value?.substring(0, 20) + '...')
-
-                    if (token.value) {
-                        try {
-                            const platform = (window as any).Capacitor?.getPlatform?.() || 'android'
-                            await apiCall('/api/notifications/register', {
-                                method: 'POST',
-                                body: JSON.stringify({
-                                    userId: user.id,
-                                    token: token.value,
-                                    platform
-                                })
-                            })
-                            console.log('[PushNotifications] Token registered with server')
-                        } catch (err) {
-                            console.error('[PushNotifications] Failed to register token:', err)
-                        }
-                    }
-                })
-
-                // Listen for push notifications
+                // Listen for push notifications (when app is in foreground)
                 PushNotifications.addListener('pushNotificationReceived', (notification) => {
                     console.log('[PushNotifications] Received:', notification)
+                    // Can show a toast or update UI here
                 })
 
-                // Listen for push notification action (tap)
+                // Listen for push notification action (when user taps notification)
                 PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
                     console.log('[PushNotifications] Action performed:', action)
+                    // Handle deep linking or navigation here
+                    const data = action.notification?.data
+                    if (data?.type === 'streak_warning') {
+                        setActiveView('trivia')
+                    } else if (data?.type === 'tournament_reminder') {
+                        setActiveTab('home')
+                    }
                 })
 
                 // Listen for errors
@@ -1939,12 +1917,14 @@ export default function EarnApp() {
                     console.error('[PushNotifications] Registration error:', error)
                 })
 
+                console.log('[PushNotifications] Listeners set up successfully')
+
             } catch (err) {
-                console.error('[PushNotifications] Setup failed:', err)
+                console.error('[PushNotifications] Listener setup failed:', err)
             }
         }
 
-        setupPush()
+        setupPushListeners()
     }, [user?.id])
 
     // Analytics screen tracking (must be before conditional returns)
