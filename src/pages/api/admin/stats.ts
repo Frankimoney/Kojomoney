@@ -122,24 +122,68 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             console.error('Error fetching offers:', e)
         }
 
-        // Calculate total points distributed (safely)
+        // Calculate total points distributed by source (safely)
+        const earningsBySource: Record<string, number> = {
+            ad_watch: 0,
+            news_read: 0,
+            trivia_complete: 0,
+            game_reward: 0,
+            offerwall: 0,
+            survey: 0,
+            referral: 0,
+            daily_spin: 0,
+            mission: 0,
+            other: 0
+        }
+
         try {
             const transactionsSnapshot = await db.collection('transactions').get()
             transactionsSnapshot.forEach(doc => {
                 const data = doc.data()
                 if (data.type === 'credit') {
                     totalPointsDistributed += data.amount || 0
-                }
-                if (data.source === 'ad_watch' && data.createdAt > oneDayAgo) {
-                    // Estimate: 10000 pts = $1 to user. We earn approx $2 (100% margin).
-                    // Formula: (Points / 10000) * 2
-                    const userValue = (data.amount || 0) / 10000
-                    adRevenue24h += (userValue * 2)
+
+                    // Track by source (last 24h)
+                    if (data.createdAt > oneDayAgo) {
+                        const source = data.source || 'other'
+
+                        // Normalize source names
+                        if (source.includes('ad') || source === 'ad_reward') {
+                            earningsBySource.ad_watch += data.amount || 0
+                        } else if (source.includes('news') || source === 'news_reward') {
+                            earningsBySource.news_read += data.amount || 0
+                        } else if (source.includes('trivia')) {
+                            earningsBySource.trivia_complete += data.amount || 0
+                        } else if (source.includes('game') || source === 'mini_game') {
+                            earningsBySource.game_reward += data.amount || 0
+                        } else if (source.includes('offer') || source === 'offer_complete') {
+                            earningsBySource.offerwall += data.amount || 0
+                        } else if (source.includes('survey')) {
+                            earningsBySource.survey += data.amount || 0
+                        } else if (source.includes('referral')) {
+                            earningsBySource.referral += data.amount || 0
+                        } else if (source.includes('spin') || source === 'daily_spin') {
+                            earningsBySource.daily_spin += data.amount || 0
+                        } else if (source.includes('mission')) {
+                            earningsBySource.mission += data.amount || 0
+                        } else {
+                            earningsBySource.other += data.amount || 0
+                        }
+                    }
                 }
             })
+
+            // Calculate estimated revenue
+            // Ads: We earn ~$0.002-0.005 per view, users get ~$0.005
+            // So roughly 1:1 margin on ads
+            adRevenue24h = (earningsBySource.ad_watch / 10000) * 1.5
+
         } catch (e) {
             console.error('Error fetching transactions:', e)
         }
+
+        // Calculate total points given out in 24h
+        const totalPoints24h = Object.values(earningsBySource).reduce((a, b) => a + b, 0)
 
         return res.status(200).json({
             totalUsers,
@@ -156,7 +200,24 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             totalLiabilityPoints,
             adRevenue24h,
             payouts24h,
-            netMargin: adRevenue24h - payouts24h
+            netMargin: adRevenue24h - payouts24h,
+            // Earnings Breakdown (24h)
+            totalPoints24h,
+            earningsBySource,
+            // Convert to USD for display
+            earningsUSD24h: {
+                ads: (earningsBySource.ad_watch / 10000).toFixed(2),
+                news: (earningsBySource.news_read / 10000).toFixed(2),
+                trivia: (earningsBySource.trivia_complete / 10000).toFixed(2),
+                games: (earningsBySource.game_reward / 10000).toFixed(2),
+                offerwalls: (earningsBySource.offerwall / 10000).toFixed(2),
+                surveys: (earningsBySource.survey / 10000).toFixed(2),
+                referrals: (earningsBySource.referral / 10000).toFixed(2),
+                spins: (earningsBySource.daily_spin / 10000).toFixed(2),
+                missions: (earningsBySource.mission / 10000).toFixed(2),
+                other: (earningsBySource.other / 10000).toFixed(2),
+                total: (totalPoints24h / 10000).toFixed(2)
+            }
         })
     } catch (error) {
         console.error('Error fetching admin stats:', error)

@@ -38,6 +38,22 @@ interface DashboardStats {
     adRevenue24h?: number
     payouts24h?: number
     netMargin?: number
+    // Earnings Breakdown
+    totalPoints24h?: number
+    earningsBySource?: Record<string, number>
+    earningsUSD24h?: {
+        ads: string
+        news: string
+        trivia: string
+        games: string
+        offerwalls: string
+        surveys: string
+        referrals: string
+        spins: string
+        missions: string
+        other: string
+        total: string
+    }
 }
 
 interface User {
@@ -738,6 +754,63 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                                 </CardContent>
                             </Card>
                         </div>
+
+                        {/* Earnings Breakdown (24h) */}
+                        <Card className="mt-6">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <TrendingUp className="h-5 w-5" />
+                                    Earnings Breakdown (24h)
+                                </CardTitle>
+                                <p className="text-sm text-muted-foreground">
+                                    Points distributed to users by source
+                                </p>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                        <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">📺 Ads</div>
+                                        <div className="text-lg font-bold">${stats?.earningsUSD24h?.ads || '0.00'}</div>
+                                    </div>
+                                    <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                                        <div className="text-xs text-green-600 dark:text-green-400 font-medium">📰 News</div>
+                                        <div className="text-lg font-bold">${stats?.earningsUSD24h?.news || '0.00'}</div>
+                                    </div>
+                                    <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                                        <div className="text-xs text-purple-600 dark:text-purple-400 font-medium">🧠 Trivia</div>
+                                        <div className="text-lg font-bold">${stats?.earningsUSD24h?.trivia || '0.00'}</div>
+                                    </div>
+                                    <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+                                        <div className="text-xs text-orange-600 dark:text-orange-400 font-medium">🎮 Games</div>
+                                        <div className="text-lg font-bold">${stats?.earningsUSD24h?.games || '0.00'}</div>
+                                    </div>
+                                    <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                                        <div className="text-xs text-yellow-600 dark:text-yellow-400 font-medium">🎰 Spins</div>
+                                        <div className="text-lg font-bold">${stats?.earningsUSD24h?.spins || '0.00'}</div>
+                                    </div>
+                                    <div className="p-3 bg-pink-50 dark:bg-pink-900/20 rounded-lg border border-pink-200 dark:border-pink-800">
+                                        <div className="text-xs text-pink-600 dark:text-pink-400 font-medium">📋 Offerwalls</div>
+                                        <div className="text-lg font-bold">${stats?.earningsUSD24h?.offerwalls || '0.00'}</div>
+                                    </div>
+                                    <div className="p-3 bg-cyan-50 dark:bg-cyan-900/20 rounded-lg border border-cyan-200 dark:border-cyan-800">
+                                        <div className="text-xs text-cyan-600 dark:text-cyan-400 font-medium">📝 Surveys</div>
+                                        <div className="text-lg font-bold">${stats?.earningsUSD24h?.surveys || '0.00'}</div>
+                                    </div>
+                                    <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
+                                        <div className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">👥 Referrals</div>
+                                        <div className="text-lg font-bold">${stats?.earningsUSD24h?.referrals || '0.00'}</div>
+                                    </div>
+                                    <div className="p-3 bg-teal-50 dark:bg-teal-900/20 rounded-lg border border-teal-200 dark:border-teal-800">
+                                        <div className="text-xs text-teal-600 dark:text-teal-400 font-medium">🎯 Missions</div>
+                                        <div className="text-lg font-bold">${stats?.earningsUSD24h?.missions || '0.00'}</div>
+                                    </div>
+                                    <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-lg border-2 border-slate-400 dark:border-slate-600">
+                                        <div className="text-xs text-slate-600 dark:text-slate-400 font-medium">💰 TOTAL</div>
+                                        <div className="text-xl font-black">${stats?.earningsUSD24h?.total || '0.00'}</div>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
                     </TabsContent>
 
                     {/* WITHDRAWALS TAB */}
