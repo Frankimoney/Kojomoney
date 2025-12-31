@@ -456,27 +456,43 @@ export async function showRewarded(): Promise<{ type: string; amount: number } |
             const rewardEvent = RewardAdPluginEvents?.Rewarded || 'onRewardedVideoAdReward'
             const dismissEvent = RewardAdPluginEvents?.Dismissed || 'onRewardedVideoAdDismissed'
 
+            let rewarded: { type: string; amount: number } | null = null
+            let resolved = false
+
             // Set up reward listener
             const rewardListener = AdMob.addListener(rewardEvent, (reward: any) => {
                 console.log('[AdService] User earned reward:', reward)
-                rewardListener.remove()
-                resolve({ type: reward.type || 'points', amount: reward.amount || 1 })
+                rewarded = { type: reward.type || 'points', amount: reward.amount || 1 }
             })
 
-            // Set up dismiss listener (user closed without reward)
+            // Set up dismiss listener - ALWAYS resolve the promise here
             const dismissListener = AdMob.addListener(dismissEvent, () => {
-                dismissListener.remove()
-                // Note: reward listener may have already resolved
+                console.log('[AdService] Rewarded ad dismissed, rewarded:', !!rewarded)
+
+                // Clean up listeners
+                rewardListener?.remove?.()
+                dismissListener?.remove?.()
+
+                // Resolve the promise (only once)
+                if (!resolved) {
+                    resolved = true
+                    resolve(rewarded)
+                }
+
+                // Pre-load next ad
+                preloadRewarded()
             })
 
             // If not pre-loaded, load now
             if (!rewardedReady) {
+                console.log('[AdService] Loading rewarded ad on demand...')
                 await AdMob.prepareRewardVideoAd({
                     adId: getAdUnitId('rewarded'),
                     isTesting: AD_CONFIG.useTestAds,
                 })
             }
 
+            console.log('[AdService] Showing rewarded ad...')
             await AdMob.showRewardVideoAd()
             rewardedReady = false
 
