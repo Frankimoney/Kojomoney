@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { motion, useAnimation, useSpring } from 'framer-motion'
 import { celebrationConfetti } from '@/lib/safe-confetti'
+import { ReviewPrompt } from '@/components/ReviewPrompt'
 import { Trophy, Star, Sparkles, Clock, Play } from 'lucide-react'
 import { apiCall } from '@/lib/api-client'
 import { Badge } from '@/components/ui/badge'
@@ -39,6 +40,7 @@ export default function LuckySpin({ userId, onClose }: LuckySpinProps) {
     const [nextSpinTime, setNextSpinTime] = useState<number | null>(null)
     const [lastWin, setLastWin] = useState<SpinSegment | null>(null)
     const [showWinDialog, setShowWinDialog] = useState(false)
+    const [showReviewPrompt, setShowReviewPrompt] = useState(false)
     const [rotation, setRotation] = useState(0)
 
     // Bonus spin from watching ad
@@ -445,7 +447,12 @@ export default function LuckySpin({ userId, onClose }: LuckySpinProps) {
                             className="w-full bg-green-600 hover:bg-green-700 text-white font-bold h-12"
                             onClick={() => {
                                 setShowWinDialog(false)
-                                onClose && onClose()
+                                // If they won something, ask for a review!
+                                if (lastWin && lastWin.value > 0) {
+                                    setShowReviewPrompt(true)
+                                } else {
+                                    onClose && onClose()
+                                }
                             }}
                         >
                             CLAIM REWARD
@@ -453,6 +460,15 @@ export default function LuckySpin({ userId, onClose }: LuckySpinProps) {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <ReviewPrompt
+                isOpen={showReviewPrompt}
+                onClose={() => {
+                    setShowReviewPrompt(false)
+                    onClose && onClose()
+                }}
+                triggerSource="spin"
+            />
         </div>
     )
 }
