@@ -15,7 +15,7 @@ import nodemailer from 'nodemailer'
 
 // Admin credentials from environment
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'NshumB@EMMANDAK2'
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'manamongmen99@gmail.com,francistogor@gmail.com').split(',').map(e => e.trim().toLowerCase())
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'admin@kojomoney.com').split(',').map(e => e.trim().toLowerCase())
 
 // Store for pending 2FA codes (in production, use Redis or database)
 // Map: email -> { code: string, expiresAt: number, attempts: number }

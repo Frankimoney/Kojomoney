@@ -110,30 +110,42 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
     try {
         const { userId, type, status } = req.query
         const userIdStr = Array.isArray(userId) ? userId[0] : userId
+        const isAdmin = userIdStr === 'admin'
 
         // Fetch ALL missions from Firestore (no compound queries to avoid index requirements)
         const snapshot = await db!.collection('missions').get()
 
         let missions: Mission[] = []
 
+        // Check if we need to seed - only if truly empty AND no "seeded" flag exists
         if (snapshot.empty) {
-            // Seed default missions if database is empty
-            console.log('No missions found, seeding default missions...')
-            const batch = db!.batch()
+            // Check if we've already seeded before (using a flag document)
+            const seedFlagDoc = await db!.collection('system_config').doc('missions_seeded').get()
+            
+            if (!seedFlagDoc.exists) {
+                // First time - seed default missions
+                console.log('No missions found, seeding default missions...')
+                const batch = db!.batch()
 
-            for (const mission of DEFAULT_MISSIONS) {
-                const docRef = db!.collection('missions').doc()
-                batch.set(docRef, mission)
-                missions.push({ ...mission, id: docRef.id } as Mission)
+                for (const mission of DEFAULT_MISSIONS) {
+                    const docRef = db!.collection('missions').doc()
+                    batch.set(docRef, mission)
+                    missions.push({ ...mission, id: docRef.id } as Mission)
+                }
+
+                // Set the flag so we don't re-seed
+                const flagRef = db!.collection('system_config').doc('missions_seeded')
+                batch.set(flagRef, { seededAt: Date.now() })
+
+                await batch.commit()
+                console.log('Seeded', missions.length, 'default missions')
             }
-
-            await batch.commit()
-            console.log('Seeded', missions.length, 'default missions')
+            // If flag exists but snapshot is empty, don't re-seed (admin deleted all missions)
         } else {
             snapshot.forEach(doc => {
                 const data = doc.data()
-                // Only include active missions
-                if (data.active === true) {
+                // Admin sees ALL missions, users only see active ones
+                if (isAdmin || data.active === true) {
                     missions.push({ id: doc.id, ...data } as Mission)
                 }
             })

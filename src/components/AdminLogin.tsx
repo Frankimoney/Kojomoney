@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Shield, Lock, Eye, EyeOff, Loader2, AlertCircle, KeyRound, Mail, ArrowLeft, CheckCircle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { apiCall } from '@/lib/api-client'
 
 interface AdminLoginProps {
     onLogin: () => void
@@ -99,9 +100,8 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
         setIsLoading(true)
 
         try {
-            const res = await fetch('/api/auth/admin-login', {
+            const res = await apiCall('/api/auth/admin-login', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
             })
 
@@ -135,9 +135,8 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
         setError(null)
 
         try {
-            const res = await fetch('/api/auth/admin-login', {
+            const res = await apiCall('/api/auth/admin-login', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, code: verificationCode })
             })
 

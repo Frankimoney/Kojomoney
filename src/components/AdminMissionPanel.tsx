@@ -901,7 +901,10 @@ export default function AdminMissionPanel() {
                     <AlertDialogFooter>
                         <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
                         <AlertDialogAction
-                            onClick={handleDeleteMission}
+                            onClick={(e) => {
+                                e.preventDefault()
+                                handleDeleteMission()
+                            }}
                             disabled={isDeleting}
                             className="bg-red-600 hover:bg-red-700"
                         >
