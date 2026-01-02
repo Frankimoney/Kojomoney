@@ -1147,12 +1147,20 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
 
                     {/* MISSIONS TAB */}
                     <TabsContent value="missions">
-                        <div className="text-center py-8">
+                        <div className="text-center py-8 space-y-4">
                             <Gift className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                             <p className="text-muted-foreground mb-4">Manage your affiliate missions and offers</p>
-                            <Button onClick={() => window.location.href = '/admin/missions'}>
-                                Open Mission Manager
-                            </Button>
+                            <div className="flex flex-wrap justify-center gap-3">
+                                <Button onClick={() => window.location.href = '/admin/missions'}>
+                                    Open Mission Manager
+                                </Button>
+                                <Button variant="outline" onClick={() => window.location.href = '/admin/social-missions'}>
+                                    Social Missions (TikTok/Telegram)
+                                </Button>
+                                <Button variant="outline" onClick={() => window.location.href = '/admin/social-proofs'}>
+                                    Review Social Proofs
+                                </Button>
+                            </div>
                         </div>
                     </TabsContent>
 
