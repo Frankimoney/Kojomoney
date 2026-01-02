@@ -100,6 +100,7 @@ export default function AdminMissionPanel() {
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState<string | null>(null)
     const [deletingMission, setDeletingMission] = useState<Mission | null>(null)
+    const [deletingOffer, setDeletingOffer] = useState<Offer | null>(null)
     const [isDeleting, setIsDeleting] = useState(false)
     const [isFetchingMeta, setIsFetchingMeta] = useState(false)
 
@@ -317,6 +318,33 @@ export default function AdminMissionPanel() {
             setError('Failed to save offer')
         } finally {
             setIsSaving(false)
+        }
+    }
+
+    const handleDeleteOffer = async () => {
+        if (!deletingOffer?.id) return
+
+        setIsDeleting(true)
+        setError(null)
+
+        try {
+            const response = await authApiCall('/api/offers', {
+                method: 'DELETE',
+                body: JSON.stringify({ id: deletingOffer.id }),
+            })
+
+            if (response.ok) {
+                setSuccess('Offer deleted!')
+                setDeletingOffer(null)
+                loadData()
+            } else {
+                const data = await response.json()
+                setError(data.error || 'Failed to delete offer')
+            }
+        } catch (err) {
+            setError('Failed to delete offer')
+        } finally {
+            setIsDeleting(false)
         }
     }
 
@@ -599,10 +627,17 @@ export default function AdminMissionPanel() {
 
                         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                             {offers.map((offer) => (
-                                <Card key={offer.id}>
+                                <Card key={offer.id} className={`${!offer.active ? 'opacity-60' : ''}`}>
                                     <CardContent className="p-4">
                                         <div className="flex justify-between items-start mb-2">
-                                            <h3 className="font-semibold">{offer.title}</h3>
+                                            <div>
+                                                <h3 className="font-semibold">{offer.title}</h3>
+                                                <div className="flex gap-1 mt-1">
+                                                    <Badge variant={offer.active ? 'default' : 'secondary'} className="text-xs">
+                                                        {offer.active ? 'Active' : 'Inactive'}
+                                                    </Badge>
+                                                </div>
+                                            </div>
                                             <span className="font-bold text-green-600">+{offer.payout}</span>
                                         </div>
                                         <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{offer.description}</p>
@@ -610,10 +645,34 @@ export default function AdminMissionPanel() {
                                             <Badge variant="outline" className="text-xs">{offer.category}</Badge>
                                             <Badge variant="secondary" className="text-xs">{offer.difficulty}</Badge>
                                         </div>
-                                        <span className="text-xs text-muted-foreground">{offer.provider}</span>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-xs text-muted-foreground">{offer.provider}</span>
+                                            <div className="flex gap-1">
+                                                {offer.url && (
+                                                    <Button size="sm" variant="ghost" onClick={() => window.open(offer.url, '_blank')}>
+                                                        <ExternalLink className="h-4 w-4" />
+                                                    </Button>
+                                                )}
+                                                <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => setDeletingOffer(offer)}>
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </div>
                                     </CardContent>
                                 </Card>
                             ))}
+
+                            {offers.length === 0 && (
+                                <Card className="col-span-full">
+                                    <CardContent className="p-8 text-center">
+                                        <Gift className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                                        <h3 className="font-semibold mb-2">No offers yet</h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            Create your first offer using the form above
+                                        </p>
+                                    </CardContent>
+                                </Card>
+                            )}
                         </div>
                     </TabsContent>
 
@@ -904,6 +963,32 @@ export default function AdminMissionPanel() {
                             onClick={(e) => {
                                 e.preventDefault()
                                 handleDeleteMission()
+                            }}
+                            disabled={isDeleting}
+                            className="bg-red-600 hover:bg-red-700"
+                        >
+                            {isDeleting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* DELETE OFFER CONFIRMATION DIALOG */}
+            <AlertDialog open={!!deletingOffer} onOpenChange={() => setDeletingOffer(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Offer</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete <strong>{deletingOffer?.title}</strong>? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={(e) => {
+                                e.preventDefault()
+                                handleDeleteOffer()
                             }}
                             disabled={isDeleting}
                             className="bg-red-600 hover:bg-red-700"

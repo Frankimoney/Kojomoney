@@ -135,6 +135,10 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         return handleGet(req, res)
     } else if (req.method === 'POST') {
         return handlePost(req, res)
+    } else if (req.method === 'PUT') {
+        return handlePut(req, res)
+    } else if (req.method === 'DELETE') {
+        return handleDelete(req, res)
     } else {
         return res.status(405).json({ error: 'Method not allowed' })
     }
@@ -159,30 +163,42 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
 
         const pageNum = parseInt(page as string) || 1
         const limitNum = Math.min(parseInt(limit as string) || 20, 50)
+        const isAdmin = userId === 'admin'
 
         // Fetch ALL offers from Firestore (no compound queries to avoid index requirements)
         const snapshot = await db!.collection('offers').get()
 
         let offers: Offer[] = []
 
+        // Check if we need to seed - only if truly empty AND no "seeded" flag exists
         if (snapshot.empty) {
-            // Seed default offers if database is empty
-            console.log('No offers found, seeding default offers...')
-            const batch = db!.batch()
+            // Check if we've already seeded before (using a flag document)
+            const seedFlagDoc = await db!.collection('system_config').doc('offers_seeded').get()
 
-            for (const offer of DEFAULT_OFFERS) {
-                const docRef = db!.collection('offers').doc()
-                batch.set(docRef, offer)
-                offers.push({ ...offer, id: docRef.id } as Offer)
+            if (!seedFlagDoc.exists) {
+                // First time - seed default offers
+                console.log('No offers found, seeding default offers...')
+                const batch = db!.batch()
+
+                for (const offer of DEFAULT_OFFERS) {
+                    const docRef = db!.collection('offers').doc()
+                    batch.set(docRef, offer)
+                    offers.push({ ...offer, id: docRef.id } as Offer)
+                }
+
+                // Set the flag so we don't re-seed
+                const flagRef = db!.collection('system_config').doc('offers_seeded')
+                batch.set(flagRef, { seededAt: Date.now() })
+
+                await batch.commit()
+                console.log('Seeded', offers.length, 'default offers')
             }
-
-            await batch.commit()
-            console.log('Seeded', offers.length, 'default offers')
+            // If flag exists but snapshot is empty, don't re-seed (admin deleted all offers)
         } else {
             snapshot.forEach(doc => {
                 const data = doc.data()
-                // Only include active offers
-                if (data.active === true) {
+                // Admin sees ALL offers, users only see active ones
+                if (isAdmin || data.active === true) {
                     offers.push({ id: doc.id, ...data } as Offer)
                 }
             })
@@ -285,5 +301,88 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
     } catch (error) {
         console.error('Error creating offer:', error)
         return res.status(500).json({ error: 'Failed to create offer' })
+    }
+}
+
+async function handlePut(req: NextApiRequest, res: NextApiResponse) {
+    try {
+        const authHeader = req.headers.authorization
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ error: 'Unauthorized' })
+        }
+
+        const token = authHeader.split(' ')[1]
+        const decoded = verifyAdminToken(token)
+
+        if (!decoded || decoded.role !== 'node_admin') {
+            return res.status(403).json({ error: 'Forbidden' })
+        }
+
+        const { id, ...updates } = req.body
+
+        if (!id) {
+            return res.status(400).json({ error: 'Offer ID is required' })
+        }
+
+        // Validate offer exists
+        const offerRef = db!.collection('offers').doc(id)
+        const offerDoc = await offerRef.get()
+
+        if (!offerDoc.exists) {
+            return res.status(404).json({ error: 'Offer not found' })
+        }
+
+        // Only allow specific fields to be updated
+        const allowedFields = [
+            'title', 'description', 'payout', 'provider', 'category',
+            'difficulty', 'url', 'logoUrl', 'estimatedTime', 'tags',
+            'active', 'priority', 'requirements', 'countries'
+        ]
+
+        const sanitizedUpdates: Record<string, any> = { updatedAt: Date.now() }
+        for (const field of allowedFields) {
+            if (updates[field] !== undefined) {
+                sanitizedUpdates[field] = updates[field]
+            }
+        }
+
+        await offerRef.update(sanitizedUpdates)
+
+        return res.status(200).json({
+            success: true,
+            offer: { id, ...offerDoc.data(), ...sanitizedUpdates },
+        })
+    } catch (error) {
+        console.error('Error updating offer:', error)
+        return res.status(500).json({ error: 'Failed to update offer' })
+    }
+}
+
+async function handleDelete(req: NextApiRequest, res: NextApiResponse) {
+    try {
+        const authHeader = req.headers.authorization
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ error: 'Unauthorized' })
+        }
+
+        const token = authHeader.split(' ')[1]
+        const decoded = verifyAdminToken(token)
+
+        if (!decoded || decoded.role !== 'node_admin') {
+            return res.status(403).json({ error: 'Forbidden' })
+        }
+
+        const { id } = req.body
+
+        if (!id) {
+            return res.status(400).json({ error: 'Offer ID is required' })
+        }
+
+        await db!.collection('offers').doc(id).delete()
+
+        return res.status(200).json({ success: true })
+    } catch (error) {
+        console.error('Error deleting offer:', error)
+        return res.status(500).json({ error: 'Failed to delete offer' })
     }
 }

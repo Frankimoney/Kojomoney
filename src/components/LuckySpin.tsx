@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { motion, useAnimation, useSpring } from 'framer-motion'
-import confetti from 'canvas-confetti'
+import { celebrationConfetti } from '@/lib/safe-confetti'
 import { Trophy, Star, Sparkles, Clock, Play } from 'lucide-react'
 import { apiCall } from '@/lib/api-client'
 import { Badge } from '@/components/ui/badge'
@@ -170,67 +170,8 @@ export default function LuckySpin({ userId, onClose }: LuckySpinProps) {
     }
 
     const triggerConfetti = () => {
-        // Use setTimeout to ensure DOM is ready (helps with Android WebView)
-        setTimeout(() => {
-            try {
-                // Check if confetti is available and canvas is supported
-                if (typeof confetti !== 'function') {
-                    console.warn('[LuckySpin] Confetti not available')
-                    return
-                }
-
-                // Check if we're on a low-end device (Android WebView)
-                const isNative = typeof window !== 'undefined' && (
-                    ((window as any)?.Capacitor?.isNativePlatform?.() === true) ||
-                    (((window as any)?.Capacitor?.getPlatform?.() && (window as any).Capacitor.getPlatform() !== 'web'))
-                )
-
-                // Reduce particle count on mobile to prevent memory issues
-                const count = isNative ? 100 : 200
-
-                const defaults = {
-                    origin: { y: 0.7 },
-                    zIndex: 9999, // Ensure confetti appears above everything
-                    disableForReducedMotion: false,
-                    useWorker: false, // Disable worker for better Android compatibility
-                }
-
-                function fire(particleRatio: number, opts: any) {
-                    try {
-                        confetti({
-                            ...defaults,
-                            ...opts,
-                            particleCount: Math.floor(count * particleRatio)
-                        } as any)
-                    } catch (e) {
-                        // Silently fail individual bursts
-                    }
-                }
-
-                // Stagger the confetti bursts with slight delays to reduce CPU spike
-                fire(0.25, { spread: 26, startVelocity: 55 })
-
-                setTimeout(() => {
-                    fire(0.2, { spread: 60 })
-                }, 50)
-
-                setTimeout(() => {
-                    fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 })
-                }, 100)
-
-                setTimeout(() => {
-                    fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 })
-                }, 150)
-
-                setTimeout(() => {
-                    fire(0.1, { spread: 120, startVelocity: 45 })
-                }, 200)
-
-            } catch (e) {
-                console.error('[LuckySpin] Confetti error:', e)
-                // Don't crash the app, just skip confetti
-            }
-        }, 100) // Small delay to ensure the dialog animation has started
+        // Use safe confetti wrapper that handles Android compatibility
+        celebrationConfetti()
     }
 
     // Timer Component for cooldown

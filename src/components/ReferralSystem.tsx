@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { apiCall, apiJson } from '@/lib/api-client'
 import { useBannerAd } from '@/hooks/useAds'
 import html2canvas from 'html2canvas'
-import confetti from 'canvas-confetti'
+import { safeConfetti } from '@/lib/safe-confetti'
 
 interface Referral {
     id: string
@@ -130,31 +130,12 @@ export default function ReferralSystem({ user, onClose }: ReferralSystemProps) {
     }
 
     const triggerConfetti = () => {
-        // Use setTimeout and try-catch for Android WebView compatibility
-        setTimeout(() => {
-            try {
-                if (typeof confetti !== 'function') return
-
-                // Reduce particles on mobile
-                const isNative = typeof window !== 'undefined' && (
-                    ((window as any)?.Capacitor?.isNativePlatform?.() === true) ||
-                    (((window as any)?.Capacitor?.getPlatform?.() && (window as any).Capacitor.getPlatform() !== 'web'))
-                )
-
-                const count = isNative ? 100 : 150
-
-                confetti({
-                    particleCount: count,
-                    spread: 60,
-                    origin: { y: 0.7 },
-                    zIndex: 9999,
-                    useWorker: false,
-                    disableForReducedMotion: false
-                } as any)
-            } catch (e) {
-                console.error('[ReferralSystem] Confetti error:', e)
-            }
-        }, 50)
+        // Use safe confetti wrapper that handles Android compatibility
+        safeConfetti({
+            particleCount: 100,
+            spread: 60,
+            origin: { y: 0.7 }
+        })
     }
 
     const handleDownloadPoster = async () => {

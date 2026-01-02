@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { CheckCircle2, Circle, Flame, Timer, Gift, Lock, Calendar, Trophy, ChevronRight, ArrowLeft } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import confetti from 'canvas-confetti'
+import { safeConfetti, celebrationConfetti } from '@/lib/safe-confetti'
 import { apiJson } from '@/lib/api-client'
 
 interface Challenge {
@@ -139,42 +139,16 @@ export default function DailyChallengeSystem({ userId, onClose }: DailyChallenge
     }
 
     const triggerConfetti = (big: boolean) => {
-        // Use setTimeout and try-catch for Android WebView compatibility
-        setTimeout(() => {
-            try {
-                if (typeof confetti !== 'function') return
-
-                // Reduce particles on mobile
-                const isNative = typeof window !== 'undefined' && (
-                    ((window as any)?.Capacitor?.isNativePlatform?.() === true) ||
-                    (((window as any)?.Capacitor?.getPlatform?.() && (window as any).Capacitor.getPlatform() !== 'web'))
-                )
-
-                const baseOptions = {
-                    zIndex: 9999,
-                    useWorker: false,
-                    disableForReducedMotion: false
-                } as any
-
-                if (big) {
-                    confetti({
-                        ...baseOptions,
-                        particleCount: isNative ? 100 : 200,
-                        spread: 100,
-                        origin: { y: 0.6 }
-                    })
-                } else {
-                    confetti({
-                        ...baseOptions,
-                        particleCount: isNative ? 30 : 50,
-                        spread: 40,
-                        origin: { y: 0.8 }
-                    })
-                }
-            } catch (e) {
-                console.error('[DailyChallenges] Confetti error:', e)
-            }
-        }, 50)
+        // Use safe confetti wrapper that handles Android compatibility
+        if (big) {
+            celebrationConfetti()
+        } else {
+            safeConfetti({
+                particleCount: 30,
+                spread: 40,
+                origin: { y: 0.8 }
+            })
+        }
     }
 
     return (
