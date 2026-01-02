@@ -191,7 +191,7 @@ export default function GameRewardSystem({ userId, onClose }: GameRewardSystemPr
                                     Play & Earn
                                 </h1>
                                 <p className="text-xs text-muted-foreground">
-                                    Play games, quizzes and earn real money
+                                    Play games, quizzes and collect rewards
                                 </p>
                             </div>
                         </div>

@@ -231,7 +231,7 @@ export default function LuckySpin({ userId, onClose }: LuckySpinProps) {
                             <Sparkles className="h-6 w-6 text-yellow-400" />
                         </CardTitle>
                         <CardDescription className="text-purple-200">
-                            Spin every 24 hours for guaranteed rewards!
+                            Spin every 24 hours for free rewards!
                         </CardDescription>
                     </CardHeader>
 

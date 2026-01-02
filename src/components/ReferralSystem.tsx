@@ -116,7 +116,7 @@ export default function ReferralSystem({ user, onClose }: ReferralSystemProps) {
         }
         setLastShareTime(now)
 
-        const text = `Join me on KojoMoney and start earning! Use my code ${user?.referralCode || 'KOJO'} for a bonus.`
+        const text = `Join me on KojoMoney! Use my code ${user?.referralCode || 'KOJO'} for a welcome bonus.`
         const url = `https://kojomoney.com/?ref=${user?.referralCode}`
 
         if (platform === 'native' && typeof navigator.share !== 'undefined') {
