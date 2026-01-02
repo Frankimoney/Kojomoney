@@ -3,7 +3,7 @@ import { NextApiRequest, NextApiResponse } from 'next'
 import { sign, verify } from 'jsonwebtoken'
 
 const ADMIN_SECRET = process.env.ADMIN_SECRET || process.env.NEXTAUTH_SECRET || 'dev-admin-secret-key-change-in-prod'
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'admin@kojomoney.com').split(',').map(e => e.trim().toLowerCase())
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'admin@kojomoney.com,manamongmen99@gmail.com,francistogor@gmail.com').split(',').map(e => e.trim().toLowerCase())
 
 export function generateAdminToken(email: string) {
     return sign({ email, role: 'node_admin' }, ADMIN_SECRET, { expiresIn: '24h' })
