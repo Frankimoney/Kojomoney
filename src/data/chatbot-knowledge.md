@@ -64,6 +64,14 @@
 - Skill Games: Compete in tournaments
 - Quiz Games: Test your knowledge
 
+### Post Payment Proof (500 bonus points)
+- After you receive a payment/withdrawal
+- Post your payment screenshot on TikTok or Telegram
+- Tag @KojoMoney in your post
+- Upload screenshot as proof in the app
+- Admin reviews and approves for 500 bonus points
+- Great way to earn extra after each withdrawal!
+
 ## Referral System
 
 ### How It Works

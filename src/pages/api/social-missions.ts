@@ -93,9 +93,9 @@ async function handleCreate(req: NextApiRequest, res: NextApiResponse) {
             })
         }
 
-        if (!['telegram', 'tiktok', 'twitter', 'instagram'].includes(socialType)) {
+        if (!['telegram', 'tiktok', 'payment_proof'].includes(socialType)) {
             return res.status(400).json({
-                error: 'socialType must be telegram, tiktok, twitter, or instagram'
+                error: 'socialType must be telegram, tiktok, or payment_proof'
             })
         }
 
