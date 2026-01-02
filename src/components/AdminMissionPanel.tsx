@@ -417,34 +417,36 @@ export default function AdminMissionPanel() {
                                             <Share2 className="h-6 w-6 text-white" />
                                         </div>
                                         <div>
-                                            <h3 className="font-bold text-lg">Social Follow Missions</h3>
+                                            <h3 className="font-bold text-lg">Social Missions</h3>
                                             <p className="text-sm text-muted-foreground">
-                                                Create Telegram/TikTok follow missions & review proof screenshots
+                                                Manage Telegram, TikTok follows & Payment Proof missions
                                             </p>
                                         </div>
                                     </div>
-                                    <Button onClick={() => window.location.href = '/admin/social-proofs'}>
-                                        <ExternalLink className="h-4 w-4 mr-2" />
-                                        Open Panel
-                                    </Button>
                                 </div>
                             </CardContent>
                         </Card>
                         <div className="grid md:grid-cols-2 gap-4">
-                            <Card>
+                            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => window.location.href = '/admin/social-missions'}>
                                 <CardContent className="p-4">
                                     <h4 className="font-semibold mb-2">✨ Create Missions</h4>
-                                    <p className="text-sm text-muted-foreground">
-                                        Add Telegram, TikTok, Twitter, or Instagram follow missions with points rewards.
+                                    <p className="text-sm text-muted-foreground mb-3">
+                                        Add Telegram, TikTok follow missions or Payment Proof missions with points rewards.
                                     </p>
+                                    <Button size="sm">
+                                        <Plus className="h-4 w-4 mr-2" /> Create Mission
+                                    </Button>
                                 </CardContent>
                             </Card>
-                            <Card>
+                            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => window.location.href = '/admin/social-proofs'}>
                                 <CardContent className="p-4">
                                     <h4 className="font-semibold mb-2">📸 Review Screenshots</h4>
-                                    <p className="text-sm text-muted-foreground">
+                                    <p className="text-sm text-muted-foreground mb-3">
                                         Approve or reject user-submitted proof screenshots to credit points.
                                     </p>
+                                    <Button size="sm" variant="outline">
+                                        Review Proofs
+                                    </Button>
                                 </CardContent>
                             </Card>
                         </div>
