@@ -13,83 +13,6 @@ import { allowCors } from '@/lib/cors'
 
 export const dynamic = 'force-dynamic'
 
-// Default missions to seed the database if empty
-const DEFAULT_MISSIONS: Omit<Mission, 'id'>[] = [
-    {
-        title: 'Follow us on Twitter',
-        description: 'Follow our official account and retweet the pinned post.',
-        payout: 200,
-        type: 'social',
-        difficulty: 'Easy',
-        affiliateUrl: 'https://twitter.com/KojoMoneyApp', // Your social link
-        steps: [
-            { id: 's1', instruction: 'Open Twitter/X app', order: 1 },
-            { id: 's2', instruction: 'Follow @KojoMoneyApp', order: 2 },
-            { id: 's3', instruction: 'Retweet pinned post', order: 3 },
-            { id: 's4', instruction: 'Take a screenshot of your profile following us', order: 4 },
-        ],
-        proofRequired: true,
-        active: true,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-    },
-    {
-        title: 'Post a Trustpilot Review',
-        description: 'Share your honest experience with KojoMoney.',
-        payout: 1000,
-        type: 'review',
-        difficulty: 'Medium',
-        affiliateUrl: 'https://trustpilot.com/review/kojomoney.com', // Your Trustpilot page
-        expiresAt: Date.now() + 48 * 60 * 60 * 1000, // 48 hours from now
-        steps: [
-            { id: 's1', instruction: 'Go to Trustpilot page', order: 1 },
-            { id: 's2', instruction: 'Write a review (min 20 words)', order: 2 },
-            { id: 's3', instruction: 'Wait for review to be published', order: 3 },
-            { id: 's4', instruction: 'Upload screenshot of published review', order: 4 },
-        ],
-        proofRequired: true,
-        active: true,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-    },
-    {
-        title: 'Invite 3 Friends',
-        description: 'Get 3 friends to sign up using your referral code.',
-        payout: 1500,
-        type: 'referral',
-        difficulty: 'Hard',
-        // No affiliate URL - uses in-app referral system
-        expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
-        steps: [
-            { id: 's1', instruction: 'Share your referral link', order: 1 },
-            { id: 's2', instruction: 'Friend 1 signs up', order: 2 },
-            { id: 's3', instruction: 'Friend 2 signs up', order: 3 },
-            { id: 's4', instruction: 'Friend 3 signs up', order: 4 },
-        ],
-        proofRequired: false, // Auto-tracked
-        active: true,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-    },
-    {
-        title: 'Join Telegram Channel',
-        description: 'Join our community for daily codes and updates.',
-        payout: 300,
-        type: 'social',
-        difficulty: 'Easy',
-        affiliateUrl: 'https://t.me/KojoMoneyCommunity', // Your Telegram link
-        steps: [
-            { id: 's1', instruction: 'Open Telegram', order: 1 },
-            { id: 's2', instruction: 'Join channel', order: 2 },
-            { id: 's3', instruction: 'Upload proof', order: 3 },
-        ],
-        proofRequired: true,
-        active: true,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-    },
-]
-
 async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (!db) {
         return res.status(500).json({ error: 'Database not available' })
@@ -112,44 +35,19 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
         const userIdStr = Array.isArray(userId) ? userId[0] : userId
         const isAdmin = userIdStr === 'admin'
 
-        // Fetch ALL missions from Firestore (no compound queries to avoid index requirements)
+        // Fetch ALL missions from Firestore
         const snapshot = await db!.collection('missions').get()
 
         let missions: Mission[] = []
 
-        // Check if we need to seed - only if truly empty AND no "seeded" flag exists
-        if (snapshot.empty) {
-            // Check if we've already seeded before (using a flag document)
-            const seedFlagDoc = await db!.collection('system_config').doc('missions_seeded').get()
-            
-            if (!seedFlagDoc.exists) {
-                // First time - seed default missions
-                console.log('No missions found, seeding default missions...')
-                const batch = db!.batch()
-
-                for (const mission of DEFAULT_MISSIONS) {
-                    const docRef = db!.collection('missions').doc()
-                    batch.set(docRef, mission)
-                    missions.push({ ...mission, id: docRef.id } as Mission)
-                }
-
-                // Set the flag so we don't re-seed
-                const flagRef = db!.collection('system_config').doc('missions_seeded')
-                batch.set(flagRef, { seededAt: Date.now() })
-
-                await batch.commit()
-                console.log('Seeded', missions.length, 'default missions')
+        // No seeding - admin must manually add missions
+        snapshot.forEach(doc => {
+            const data = doc.data()
+            // Admin sees ALL missions, users only see active ones
+            if (isAdmin || data.active === true) {
+                missions.push({ id: doc.id, ...data } as Mission)
             }
-            // If flag exists but snapshot is empty, don't re-seed (admin deleted all missions)
-        } else {
-            snapshot.forEach(doc => {
-                const data = doc.data()
-                // Admin sees ALL missions, users only see active ones
-                if (isAdmin || data.active === true) {
-                    missions.push({ id: doc.id, ...data } as Mission)
-                }
-            })
-        }
+        })
 
         // Apply type filter (client-side)
         if (type) {
