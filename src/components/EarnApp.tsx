@@ -153,6 +153,10 @@ const SocialProofTicker = dynamic(() => import('./SocialProofTicker'), {
     ssr: false
 })
 
+const Onboarding = dynamic(() => import('./Onboarding'), {
+    ssr: false
+})
+
 
 // Dedicated Page Components for focused activity experience
 interface DedicatedPageProps {
@@ -1890,6 +1894,7 @@ export default function EarnApp() {
     const [isClient, setIsClient] = useState(false)
     const { resolvedTheme, setTheme } = useTheme()
     const [showLuckySpin, setShowLuckySpin] = useState(false)
+    const [showOnboarding, setShowOnboarding] = useState(false)
 
     // Enable engagement notifications (daily reset, streak alerts, opportunities)
     useEngagementNotifications(user)
@@ -1899,6 +1904,8 @@ export default function EarnApp() {
         // Check for existing user session only on client
         if (typeof window !== 'undefined') {
             const savedUser = localStorage.getItem('kojomoneyUser') || localStorage.getItem('earnAppUser')
+            const hasCompletedOnboarding = localStorage.getItem('onboarding_complete')
+
             if (savedUser) {
                 try {
                     const parsedUser = JSON.parse(savedUser)
@@ -1907,6 +1914,9 @@ export default function EarnApp() {
                 } catch (error) {
                     console.error('Failed to parse user data:', error)
                 }
+            } else if (!hasCompletedOnboarding) {
+                // Only show onboarding if no user session and flag not set
+                setShowOnboarding(true)
             }
 
             // Handle Deep Linking via Query Params
@@ -2069,6 +2079,15 @@ export default function EarnApp() {
                 <div className="text-lg">Loading...</div>
             </div>
         )
+    }
+
+    if (showOnboarding) {
+        return <Onboarding onComplete={() => {
+            if (typeof window !== 'undefined') {
+                localStorage.setItem('onboarding_complete', 'true')
+            }
+            setShowOnboarding(false)
+        }} />
     }
 
     // If not authenticated, show auth system
