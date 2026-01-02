@@ -4,7 +4,6 @@ import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MessageCircle, X, Send, Bot, User, Loader2, Sparkles } from 'lucide-react'
 import { apiCall } from '@/lib/api-client'
@@ -14,6 +13,41 @@ interface Message {
     role: 'user' | 'assistant'
     content: string
     timestamp: Date
+}
+
+// Format message content with line breaks and basic styling
+function FormattedMessage({ content, isUser }: { content: string; isUser: boolean }) {
+    // Split by double newlines for paragraphs, single newlines for line breaks
+    const lines = content.split('\n')
+
+    return (
+        <div className={`space-y-1 ${isUser ? 'text-white' : 'text-foreground'}`}>
+            {lines.map((line, i) => {
+                if (!line.trim()) return <div key={i} className="h-1" />
+
+                // Handle bullet points
+                if (line.trim().startsWith('-') || line.trim().startsWith('•')) {
+                    return (
+                        <div key={i} className="flex gap-2 text-sm">
+                            <span>•</span>
+                            <span>{line.replace(/^[-•]\s*/, '')}</span>
+                        </div>
+                    )
+                }
+
+                // Handle numbered lists
+                if (/^\d+\./.test(line.trim())) {
+                    return (
+                        <div key={i} className="text-sm pl-1">
+                            {line}
+                        </div>
+                    )
+                }
+
+                return <p key={i} className="text-sm">{line}</p>
+            })}
+        </div>
+    )
 }
 
 export default function AIChatbot() {
@@ -28,15 +62,20 @@ export default function AIChatbot() {
     ])
     const [input, setInput] = useState('')
     const [isLoading, setIsLoading] = useState(false)
-    const scrollRef = useRef<HTMLDivElement>(null)
+    const messagesEndRef = useRef<HTMLDivElement>(null)
+    const scrollContainerRef = useRef<HTMLDivElement>(null)
     const inputRef = useRef<HTMLInputElement>(null)
 
-    // Auto-scroll to bottom
-    useEffect(() => {
-        if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    // Auto-scroll to bottom when messages change
+    const scrollToBottom = () => {
+        if (messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
         }
-    }, [messages])
+    }
+
+    useEffect(() => {
+        scrollToBottom()
+    }, [messages, isLoading])
 
     // Focus input when opened
     useEffect(() => {
@@ -108,9 +147,9 @@ export default function AIChatbot() {
     }
 
     const quickQuestions = [
-        "How do I earn points?",
-        "How do I withdraw?",
-        "What is Lucky Spin?"
+        "How do I earn?",
+        "How to withdraw?",
+        "What's Lucky Spin?"
     ]
 
     return (
@@ -144,11 +183,11 @@ export default function AIChatbot() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 100, scale: 0.9 }}
                         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                        className="fixed bottom-4 right-4 left-4 sm:left-auto sm:w-[380px] z-50 max-h-[80vh]"
+                        className="fixed bottom-4 right-4 left-4 sm:left-auto sm:w-[380px] z-50"
                     >
-                        <Card className="flex flex-col h-[500px] max-h-[80vh] shadow-2xl border-0 overflow-hidden">
+                        <Card className="flex flex-col h-[70vh] max-h-[600px] shadow-2xl border-0 overflow-hidden">
                             {/* Header */}
-                            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-4 text-white">
+                            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-4 text-white shrink-0">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         <div className="h-10 w-10 bg-white/20 rounded-full flex items-center justify-center">
@@ -170,56 +209,58 @@ export default function AIChatbot() {
                                 </div>
                             </div>
 
-                            {/* Messages */}
-                            <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-                                <div className="space-y-4">
-                                    {messages.map((msg) => (
-                                        <motion.div
-                                            key={msg.id}
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                                        >
-                                            {msg.role === 'assistant' && (
-                                                <div className="h-8 w-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
-                                                    <Bot className="h-4 w-4 text-purple-600" />
-                                                </div>
-                                            )}
-                                            <div
-                                                className={`max-w-[80%] p-3 rounded-2xl text-sm ${msg.role === 'user'
-                                                        ? 'bg-purple-600 text-white rounded-br-sm'
-                                                        : 'bg-muted rounded-bl-sm'
-                                                    }`}
-                                            >
-                                                {msg.content}
-                                            </div>
-                                            {msg.role === 'user' && (
-                                                <div className="h-8 w-8 rounded-full bg-purple-600 flex items-center justify-center shrink-0">
-                                                    <User className="h-4 w-4 text-white" />
-                                                </div>
-                                            )}
-                                        </motion.div>
-                                    ))}
-
-                                    {isLoading && (
-                                        <motion.div
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            className="flex gap-2"
-                                        >
-                                            <div className="h-8 w-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                            {/* Messages - Scrollable */}
+                            <div
+                                ref={scrollContainerRef}
+                                className="flex-1 overflow-y-auto p-4 space-y-4"
+                            >
+                                {messages.map((msg) => (
+                                    <motion.div
+                                        key={msg.id}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                                    >
+                                        {msg.role === 'assistant' && (
+                                            <div className="h-8 w-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0 mt-1">
                                                 <Bot className="h-4 w-4 text-purple-600" />
                                             </div>
-                                            <div className="bg-muted p-3 rounded-2xl rounded-bl-sm">
-                                                <Loader2 className="h-4 w-4 animate-spin text-purple-600" />
+                                        )}
+                                        <div
+                                            className={`max-w-[85%] p-3 rounded-2xl ${msg.role === 'user'
+                                                    ? 'bg-purple-600 text-white rounded-br-sm'
+                                                    : 'bg-muted rounded-bl-sm'
+                                                }`}
+                                        >
+                                            <FormattedMessage content={msg.content} isUser={msg.role === 'user'} />
+                                        </div>
+                                        {msg.role === 'user' && (
+                                            <div className="h-8 w-8 rounded-full bg-purple-600 flex items-center justify-center shrink-0 mt-1">
+                                                <User className="h-4 w-4 text-white" />
                                             </div>
-                                        </motion.div>
-                                    )}
-                                </div>
+                                        )}
+                                    </motion.div>
+                                ))}
+
+                                {isLoading && (
+                                    <motion.div
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        className="flex gap-2"
+                                    >
+                                        <div className="h-8 w-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                                            <Bot className="h-4 w-4 text-purple-600" />
+                                        </div>
+                                        <div className="bg-muted p-3 rounded-2xl rounded-bl-sm flex items-center gap-2">
+                                            <Loader2 className="h-4 w-4 animate-spin text-purple-600" />
+                                            <span className="text-sm text-muted-foreground">Thinking...</span>
+                                        </div>
+                                    </motion.div>
+                                )}
 
                                 {/* Quick Questions - Only show at start */}
                                 {messages.length === 1 && (
-                                    <div className="mt-4 space-y-2">
+                                    <div className="space-y-2 pt-2">
                                         <p className="text-xs text-muted-foreground">Quick questions:</p>
                                         <div className="flex flex-wrap gap-2">
                                             {quickQuestions.map((q, i) => (
@@ -239,10 +280,13 @@ export default function AIChatbot() {
                                         </div>
                                     </div>
                                 )}
-                            </ScrollArea>
+
+                                {/* Invisible element for scroll-to-bottom */}
+                                <div ref={messagesEndRef} />
+                            </div>
 
                             {/* Input */}
-                            <div className="p-4 border-t bg-background">
+                            <div className="p-3 border-t bg-background shrink-0">
                                 <div className="flex gap-2">
                                     <Input
                                         ref={inputRef}
@@ -262,7 +306,7 @@ export default function AIChatbot() {
                                     </Button>
                                 </div>
                                 <p className="text-[10px] text-muted-foreground text-center mt-2">
-                                    Powered by AI • Response may vary
+                                    Powered by AI
                                 </p>
                             </div>
                         </Card>
