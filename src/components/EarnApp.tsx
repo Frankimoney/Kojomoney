@@ -704,7 +704,7 @@ function EarnTab({ user, userPoints, setUserPoints, setActiveView }: EarnTabProp
                             <Medal className="h-5 w-5 text-yellow-300" />
                             <span>Weekly Cup</span>
                         </CardTitle>
-                        <CardDescription className="text-blue-100">Compete for cash prizes</CardDescription>
+                        <CardDescription className="text-blue-100">Compete for huge prizes</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="flex items-center justify-between">

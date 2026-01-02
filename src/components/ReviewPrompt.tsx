@@ -44,7 +44,7 @@ export function ReviewPrompt({ isOpen, onClose, triggerSource }: ReviewPromptPro
                     </div>
                     <DialogTitle className="text-xl">Enjoying KojoMoney?</DialogTitle>
                     <DialogDescription className="text-center pt-2">
-                        {triggerSource === 'withdrawal' && "Congrats on your withdrawal! 💸"}
+                        {triggerSource === 'withdrawal' && "Congrats on your Reward! 🎁"}
                         {triggerSource === 'spin' && "Nice win! 🎰"}
                         {triggerSource === 'mission' && "Great job completing that mission! 🚀"}
                         <br />

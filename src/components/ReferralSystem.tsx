@@ -304,7 +304,7 @@ export default function ReferralSystem({ user, onClose }: ReferralSystemProps) {
                                     Weekly Contest
                                 </CardTitle>
                                 <CardDescription className="text-amber-100">
-                                    Top 10 inviters win cash prizes every Sunday!
+                                    Top 10 inviters win big rewards every Sunday!
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
