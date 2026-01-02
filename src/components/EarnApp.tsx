@@ -157,6 +157,10 @@ const Onboarding = dynamic(() => import('./Onboarding'), {
     ssr: false
 })
 
+const AIChatbot = dynamic(() => import('./AIChatbot'), {
+    ssr: false
+})
+
 
 // Dedicated Page Components for focused activity experience
 interface DedicatedPageProps {
@@ -2238,6 +2242,9 @@ export default function EarnApp() {
 
             {/* Social proof ticker - shows recent activity */}
             <SocialProofTicker />
+
+            {/* AI Support Chatbot */}
+            <AIChatbot />
 
             {/* Floating notifications overlay */}
             <FloatingNotificationContainer />
