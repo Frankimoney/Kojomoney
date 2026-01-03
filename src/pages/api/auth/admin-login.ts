@@ -11,7 +11,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { generateAdminToken } from '@/lib/admin-auth'
 import { allowCors } from '@/lib/cors'
-import nodemailer from 'nodemailer'
 
 // Admin credentials from environment
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'NshumB@EMMANDAK2'
@@ -21,27 +20,17 @@ const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'admin@kojomoney.com,manamongm
 // Map: email -> { code: string, expiresAt: number, attempts: number }
 const pendingCodes = new Map<string, { code: string; expiresAt: number; attempts: number }>()
 
-// Email transporter
-function getEmailTransporter() {
-    return nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-            user: process.env.GMAIL_USER,
-            pass: process.env.GMAIL_APP_PASSWORD
-        }
-    })
-}
 
 // Generate a 6-digit code
 function generateCode(): string {
     return Math.floor(100000 + Math.random() * 900000).toString()
 }
 
-// Send 2FA code via email
+// Send 2FA code via email using Resend
 async function send2FACode(email: string, code: string): Promise<boolean> {
-    // Check if email config is present
-    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-        console.warn('[Admin 2FA] Missing GMAIL_USER or GMAIL_APP_PASSWORD')
+    // Check if Resend is configured
+    if (!process.env.RESEND_API_KEY) {
+        console.warn('[Admin 2FA] Missing RESEND_API_KEY')
 
         // In development, mock success so admin can still login
         if (process.env.NODE_ENV !== 'production') {
@@ -54,11 +43,14 @@ async function send2FACode(email: string, code: string): Promise<boolean> {
     }
 
     try {
-        const transporter = getEmailTransporter()
+        const { Resend } = require('resend')
+        const resend = new Resend(process.env.RESEND_API_KEY)
 
-        await transporter.sendMail({
-            from: `"KojoMoney Security" <${process.env.GMAIL_USER}>`,
-            to: email,
+        const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'
+
+        const { data, error } = await resend.emails.send({
+            from: `KojoMoney Security <${fromEmail}>`,
+            to: [email],
             subject: '🔐 Your Admin Login Code - KojoMoney',
             html: `
                 <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
@@ -89,7 +81,12 @@ async function send2FACode(email: string, code: string): Promise<boolean> {
             `
         })
 
-        console.log(`[Admin 2FA] Code sent to ${email}`)
+        if (error) {
+            console.error('[Admin 2FA] Resend error:', error)
+            return false
+        }
+
+        console.log(`[Admin 2FA] Code sent to ${email} (ID: ${data?.id})`)
         return true
     } catch (error) {
         console.error('[Admin 2FA] Failed to send code:', error)
