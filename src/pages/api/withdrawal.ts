@@ -3,8 +3,9 @@ import { db } from '@/lib/firebase-admin'
 import { getWithdrawalLimits, POINTS_CONFIG } from '@/lib/points-config'
 import { getEconomyConfig } from '@/lib/server-config'
 import { enhanceFraudCheck } from '@/lib/anti-fraud'
+import { allowCors } from '@/lib/cors'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method === 'GET') {
         return handleGet(req, res)
     } else if (req.method === 'POST') {
@@ -229,3 +230,5 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
         return res.status(500).json({ error: 'Failed to create withdrawal' })
     }
 }
+
+export default allowCors(handler)

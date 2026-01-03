@@ -7,9 +7,10 @@
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { allowCors } from '@/lib/cors'
 import { verifyBankAccount, NIGERIAN_BANKS } from '@/services/bankVerificationService'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
     // Allow GET for verification, POST for listing banks
     if (req.method === 'GET') {
         return handleVerify(req, res)
@@ -19,6 +20,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(405).json({ error: 'Method not allowed' })
     }
 }
+
+export default allowCors(handler)
 
 /**
  * Verify bank account
@@ -46,8 +49,8 @@ async function handleVerify(req: NextApiRequest, res: NextApiResponse) {
             return res.status(200).json({
                 success: true,
                 account_name: result.accountName,
-                first_name: result.firstName,
-                last_name: result.lastName,
+                // first_name: result.firstName, 
+                // last_name: result.lastName,
                 bank_name: result.bankName
             })
         } else {

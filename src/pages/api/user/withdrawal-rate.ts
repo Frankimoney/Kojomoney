@@ -10,7 +10,9 @@ import { db } from '@/lib/firebase-admin'
 import { getEconomyConfig } from '@/lib/server-config'
 import { POINTS_CONFIG } from '@/lib/points-config'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+import { allowCors } from '@/lib/cors'
+
+async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method !== 'GET') {
         return res.status(405).json({ error: 'Method not allowed' })
     }
@@ -42,7 +44,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         // Calculate rate
-        const multiplier = countryMultipliers[userCountry] || countryMultipliers['GLOBAL'] || 0.2
+        const normalizedCountry = userCountry.toUpperCase()
+        const multiplier = countryMultipliers[normalizedCountry] || countryMultipliers['GLOBAL'] || 0.2
         const effectiveMargin = globalMargin || 1.0
         const basePointsPerDollar = POINTS_CONFIG.pointsPerDollar || 10000
 
@@ -68,3 +71,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({ error: 'Failed to fetch rate' })
     }
 }
+
+export default allowCors(handler)

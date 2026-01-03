@@ -1,22 +1,22 @@
 /**
  * Bank Account Verification Service
  * 
- * Uses NubAPI to verify Nigerian bank accounts
- * Docs: https://nubapi.com
+ * Uses Paystack to verify Nigerian bank accounts
+ * Docs: https://paystack.com/docs/identity-verification/verify-account-number/
  */
 
-const NUBAPI_KEY = process.env.NUBAPI_KEY || ''
-const NUBAPI_URL = 'https://nubapi.com'
+const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || ''
+const PAYSTACK_URL = 'https://api.paystack.co/bank'
 
 /**
- * Nigerian Bank codes
+ * Nigerian Bank codes (Paystack format)
+ * Use list banks endpoint to get dynamic list if needed
  */
 export const NIGERIAN_BANKS = [
     { code: '044', name: 'Access Bank' },
     { code: '023', name: 'Citibank Nigeria' },
     { code: '063', name: 'Diamond Bank' },
     { code: '050', name: 'Ecobank Nigeria' },
-    { code: '084', name: 'Enterprise Bank' },
     { code: '070', name: 'Fidelity Bank' },
     { code: '011', name: 'First Bank of Nigeria' },
     { code: '214', name: 'First City Monument Bank' },
@@ -38,12 +38,9 @@ export const NIGERIAN_BANKS = [
     { code: '057', name: 'Zenith Bank' },
     // Mobile Money / Neobanks
     { code: '999992', name: 'OPay' },
-    { code: '999991', name: 'PalmPay' },
-    { code: '999240', name: 'Kuda Bank' },
-    { code: '090267', name: 'Kuda Microfinance Bank' },
+    { code: '100033', name: 'PalmPay' },
     { code: '50211', name: 'Kuda Bank' },
-    { code: '999044', name: 'Moniepoint' },
-    { code: '999998', name: 'Carbon' },
+    { code: '50515', name: 'Moniepoint MFB' },
 ]
 
 /**
@@ -55,77 +52,48 @@ export async function verifyBankAccount(params: {
 }): Promise<{
     success: boolean
     accountName?: string
-    firstName?: string
-    lastName?: string
     bankName?: string
     error?: string
 }> {
     const { accountNumber, bankCode } = params
 
-    if (!NUBAPI_KEY) {
+    if (!PAYSTACK_SECRET_KEY) {
         return {
             success: false,
-            error: 'Bank verification service not configured'
-        }
-    }
-
-    // Validate inputs
-    if (!accountNumber || accountNumber.length !== 10) {
-        return {
-            success: false,
-            error: 'Account number must be 10 digits'
-        }
-    }
-
-    if (!bankCode) {
-        return {
-            success: false,
-            error: 'Bank code is required'
+            error: 'Bank verification service not configured (Missing Key)'
         }
     }
 
     try {
-        const url = `${NUBAPI_URL}/api/verify?account_number=${accountNumber}&bank_code=${bankCode}`
+        const url = `${PAYSTACK_URL}/resolve?account_number=${accountNumber}&bank_code=${bankCode}`
 
         const response = await fetch(url, {
             method: 'GET',
             headers: {
-                'Authorization': `Bearer ${NUBAPI_KEY}`,
-                'Content-Type': 'application/json'
+                'Authorization': `Bearer ${PAYSTACK_SECRET_KEY}`
             }
         })
 
-        if (!response.ok) {
-            const errorText = await response.text()
-            console.error('NubAPI error:', errorText)
-            return {
-                success: false,
-                error: 'Failed to verify account'
-            }
-        }
-
         const data = await response.json()
 
-        if (data.account_name || data.account_number) {
+        if (data.status && data.data) {
             return {
                 success: true,
-                accountName: data.account_name,
-                firstName: data.first_name,
-                lastName: data.last_name,
-                bankName: data.bank_name || getBankName(bankCode)
+                accountName: data.data.account_name,
+                bankName: getBankName(bankCode)
             }
         } else {
             return {
                 success: false,
-                error: data.message || 'Account not found'
+                error: data.message || 'Account verification failed'
             }
         }
 
     } catch (error: any) {
-        console.error('Bank verification error:', error)
+        console.error('Paystack verification error:', error)
         return {
             success: false,
-            error: error.message || 'Verification service error'
+            error: 'Service unavailable'
         }
     }
 }
@@ -136,11 +104,4 @@ export async function verifyBankAccount(params: {
 export function getBankName(bankCode: string): string {
     const bank = NIGERIAN_BANKS.find(b => b.code === bankCode)
     return bank?.name || 'Unknown Bank'
-}
-
-/**
- * Check if bank verification is configured
- */
-export function isBankVerificationConfigured(): boolean {
-    return !!NUBAPI_KEY
 }

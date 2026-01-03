@@ -5,6 +5,8 @@ export const allowCors = (handler: Function) => async (req: NextApiRequest, res:
     const allowedOrigins = [
         'https://kojomoney-6e131.web.app',
         'https://kojomoney.web.app',
+        'https://kojomoney.com',
+        'https://www.kojomoney.com',
         'http://localhost:3000',
         'http://localhost:3001',
         'capacitor://localhost', // Capacitor iOS
