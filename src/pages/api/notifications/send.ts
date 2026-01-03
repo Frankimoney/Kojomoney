@@ -18,27 +18,19 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { db } from '@/lib/firebase-admin'
 import admin from 'firebase-admin'
 
-// Initialize Firebase Admin if not already initialized
+// Get Firebase Messaging (uses already-initialized admin instance)
 function getMessaging() {
     try {
-        return admin.messaging()
-    } catch (e) {
-        // Firebase admin not initialized, try to initialize
-        if (!admin.apps.length) {
-            const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
-            if (serviceAccount) {
-                try {
-                    const parsed = JSON.parse(serviceAccount)
-                    admin.initializeApp({
-                        credential: admin.credential.cert(parsed)
-                    })
-                    return admin.messaging()
-                } catch (parseError) {
-                    console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT:', parseError)
-                    return null
-                }
-            }
+        // If admin is already initialized (from firebase-admin.ts), use it
+        if (admin.apps.length > 0) {
+            return admin.messaging()
         }
+
+        // Otherwise, not configured
+        console.error('Firebase Admin not initialized. Check firebase-admin.ts')
+        return null
+    } catch (e) {
+        console.error('Error getting Firebase Messaging:', e)
         return null
     }
 }
@@ -214,29 +206,104 @@ export async function sendPushToUser(
     }
 }
 
-// Helper to send push to all users
+// Helper to send push to all users (direct Firebase Admin SDK call)
 export async function sendPushToAll(
     title: string,
     body: string,
     data?: Record<string, any>
 ): Promise<boolean> {
     try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/notifications/send`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-internal-key': 'internal-notification-system'
-            },
-            body: JSON.stringify({
-                userIds: 'all',
-                title,
-                body,
-                data
-            })
+        if (!db) {
+            console.error('[sendPushToAll] Database not available')
+            return false
+        }
+
+        const messaging = getMessaging()
+        if (!messaging) {
+            console.error('[sendPushToAll] Firebase Messaging not configured')
+            return false
+        }
+
+        // Get ALL active tokens
+        const tokensSnapshot = await db.collection('push_tokens')
+            .where('active', '==', true)
+            .get()
+
+        let tokens: string[] = []
+        tokensSnapshot.forEach(doc => {
+            const token = doc.data().token
+            if (token) tokens.push(token)
         })
-        return response.ok
+
+        if (tokens.length === 0) {
+            console.log('[sendPushToAll] No active tokens found')
+            return true // Not an error, just no recipients
+        }
+
+        // Remove duplicates
+        tokens = [...new Set(tokens)]
+
+        console.log(`[sendPushToAll] Sending to ${tokens.length} devices`)
+
+        // Build message
+        const message: admin.messaging.MulticastMessage = {
+            tokens,
+            notification: {
+                title,
+                body
+            },
+            data: data ? Object.fromEntries(
+                Object.entries(data).map(([k, v]) => [k, String(v)])
+            ) : undefined,
+            android: {
+                priority: 'high',
+                notification: {
+                    channelId: 'default',
+                    sound: 'default'
+                }
+            },
+            apns: {
+                payload: {
+                    aps: {
+                        sound: 'default',
+                        badge: 1
+                    }
+                }
+            }
+        }
+
+        // Send notifications
+        const response = await messaging.sendEachForMulticast(message)
+
+        console.log(`[sendPushToAll] Success: ${response.successCount}, Failed: ${response.failureCount}`)
+
+        // Mark failed tokens as inactive
+        const failedTokens: string[] = []
+        response.responses.forEach((resp, idx) => {
+            if (!resp.success && resp.error?.code === 'messaging/registration-token-not-registered') {
+                failedTokens.push(tokens[idx])
+            }
+        })
+
+        // Deactivate failed tokens
+        if (failedTokens.length > 0) {
+            const batch = db.batch()
+            for (const token of failedTokens) {
+                const tokenDocs = await db.collection('push_tokens')
+                    .where('token', '==', token)
+                    .get()
+
+                tokenDocs.forEach(doc => {
+                    batch.update(doc.ref, { active: false })
+                })
+            }
+            await batch.commit()
+            console.log(`[sendPushToAll] Deactivated ${failedTokens.length} invalid tokens`)
+        }
+
+        return response.successCount > 0
     } catch (e) {
-        console.error('Failed to send push:', e)
+        console.error('[sendPushToAll] Failed:', e)
         return false
     }
 }
