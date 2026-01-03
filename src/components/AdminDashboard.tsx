@@ -625,32 +625,39 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
             {/* Main Content */}
             <main className="max-w-7xl mx-auto px-4 py-6">
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList className="mb-6">
-                        <TabsTrigger value="overview" className="flex items-center gap-2">
-                            <BarChart3 className="h-4 w-4" /> Overview
+                    <TabsList className="mb-6 w-full overflow-x-auto flex justify-start md:justify-center">
+                        <TabsTrigger value="overview" className="flex items-center gap-2 flex-shrink-0">
+                            <BarChart3 className="h-4 w-4" />
+                            <span className="hidden sm:inline">Overview</span>
                         </TabsTrigger>
-                        <TabsTrigger value="withdrawals" className="flex items-center gap-2">
-                            <Wallet className="h-4 w-4" /> Withdrawals
+                        <TabsTrigger value="withdrawals" className="flex items-center gap-2 flex-shrink-0">
+                            <Wallet className="h-4 w-4" />
+                            <span className="hidden sm:inline">Withdrawals</span>
                             {stats?.pendingWithdrawals ? (
                                 <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
                                     {stats.pendingWithdrawals}
                                 </Badge>
                             ) : null}
                         </TabsTrigger>
-                        <TabsTrigger value="users" className="flex items-center gap-2">
-                            <Users className="h-4 w-4" /> Users
+                        <TabsTrigger value="users" className="flex items-center gap-2 flex-shrink-0">
+                            <Users className="h-4 w-4" />
+                            <span className="hidden sm:inline">Users</span>
                         </TabsTrigger>
-                        <TabsTrigger value="transactions" className="flex items-center gap-2">
-                            <Activity className="h-4 w-4" /> Transactions
+                        <TabsTrigger value="transactions" className="flex items-center gap-2 flex-shrink-0">
+                            <Activity className="h-4 w-4" />
+                            <span className="hidden sm:inline">Transactions</span>
                         </TabsTrigger>
-                        <TabsTrigger value="missions" className="flex items-center gap-2">
-                            <Gift className="h-4 w-4" /> Missions
+                        <TabsTrigger value="missions" className="flex items-center gap-2 flex-shrink-0">
+                            <Gift className="h-4 w-4" />
+                            <span className="hidden sm:inline">Missions</span>
                         </TabsTrigger>
-                        <TabsTrigger value="broadcast" className="flex items-center gap-2">
-                            <Bell className="h-4 w-4" /> Broadcast
+                        <TabsTrigger value="broadcast" className="flex items-center gap-2 flex-shrink-0">
+                            <Bell className="h-4 w-4" />
+                            <span className="hidden sm:inline">Broadcast</span>
                         </TabsTrigger>
-                        <TabsTrigger value="economy" className="flex items-center gap-2">
-                            <DollarSign className="h-4 w-4" /> Economy
+                        <TabsTrigger value="economy" className="flex items-center gap-2 flex-shrink-0">
+                            <DollarSign className="h-4 w-4" />
+                            <span className="hidden sm:inline">Economy</span>
                         </TabsTrigger>
                     </TabsList>
 

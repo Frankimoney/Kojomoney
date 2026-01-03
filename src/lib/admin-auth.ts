@@ -1,6 +1,6 @@
-
 import { NextApiRequest, NextApiResponse } from 'next'
 import { sign, verify } from 'jsonwebtoken'
+import { allowCors } from './cors'
 
 const ADMIN_SECRET = process.env.ADMIN_SECRET || process.env.NEXTAUTH_SECRET || 'dev-admin-secret-key-change-in-prod'
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'admin@kojomoney.com,manamongmen99@gmail.com,francistogor@gmail.com').split(',').map(e => e.trim().toLowerCase())
@@ -18,7 +18,7 @@ export function verifyAdminToken(token: string) {
 }
 
 export function requireAdmin(handler: (req: NextApiRequest, res: NextApiResponse) => Promise<void> | void) {
-    return async (req: NextApiRequest, res: NextApiResponse) => {
+    const adminCheck = async (req: NextApiRequest, res: NextApiResponse) => {
         const authHeader = req.headers.authorization
 
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -39,4 +39,6 @@ export function requireAdmin(handler: (req: NextApiRequest, res: NextApiResponse
 
         return handler(req, res)
     }
+
+    return allowCors(adminCheck)
 }
