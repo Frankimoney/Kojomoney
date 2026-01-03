@@ -74,10 +74,27 @@ const KNOWLEDGE_BASE = `# KojoBot Knowledge Base
 - Day 7+: 1.2x multiplier (20% bonus)
 - Day 30+: 1.5x multiplier (50% bonus)
 
+## Points Value & Conversion
+- Base Rate: 10,000 points = $1.00 USD
+- 1,000 points = $0.10 USD (minimum withdrawal)
+- 5,000 points = $0.50 USD
+- 50,000 points = $5.00 USD
+
+### Regional Rates (Diesel Economy)
+Your actual withdrawal value depends on your country:
+- **Tier 1 (US, UK, CA, AU, DE):** Full rate (10,000 pts = $1.00)
+- **South Africa:** 10,000 pts = $0.30
+- **India:** 10,000 pts = $0.25
+- **Nigeria, Ghana, Kenya:** 10,000 pts = $0.20
+- **Other countries:** 10,000 pts = $0.20
+
+This ensures fair rewards based on regional purchasing power. Your actual rate is shown when you enter withdrawal amount.
+
 ## Withdrawals & Redemptions
 - Minimum: 1000 points
 - Must have verified email
 - Processing time: Usually 24-48 hours
+- Daily limit: $10 USD value per day
 
 ### Available Withdrawal Methods:
 1. **Bank Transfer** - Direct deposit to your bank account (Nigeria)
