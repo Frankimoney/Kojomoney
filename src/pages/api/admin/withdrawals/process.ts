@@ -104,6 +104,51 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
                 console.log(`[Manual Mode] Airtime withdrawal approved. Pay ${withdrawal.phoneNumber} manually: $${withdrawal.amountUSD}`)
             }
 
+            // Handle Gift Card withdrawals with optional auto-payment
+            let giftCardResult: {
+                success: boolean
+                transactionId?: number
+                redeemCode?: string
+                message?: string
+            } | null = null
+
+            if (withdrawal.method === 'gift_card' && autoPaymentsEnabled) {
+                try {
+                    // Dynamically import Gift Card service
+                    const { orderGiftCard, isGiftCardConfigured } = await import('@/services/giftCardService')
+
+                    if (isGiftCardConfigured()) {
+                        console.log(`[GiftCard] Auto-ordering gift card (${withdrawal.giftCardBrand}) - $${withdrawal.amountUSD} USD to ${withdrawal.recipientEmail}`)
+
+                        // Note: In production, you'd need to look up the productId based on brand and country
+                        // For now, we'll mark for manual processing if no productId
+                        if (withdrawal.giftCardProductId) {
+                            giftCardResult = await orderGiftCard({
+                                productId: withdrawal.giftCardProductId,
+                                unitPrice: withdrawal.amountUSD,
+                                recipientEmail: withdrawal.recipientEmail
+                            })
+
+                            if (!giftCardResult.success) {
+                                console.error('[GiftCard] Order failed:', giftCardResult.message)
+                                // Don't fail - continue with manual approval
+                            } else {
+                                console.log(`[GiftCard] Success! Transaction ID: ${giftCardResult.transactionId}`)
+                            }
+                        } else {
+                            console.log('[GiftCard] No productId - proceeding with manual approval')
+                        }
+                    } else {
+                        console.log('[GiftCard] Not configured - proceeding with manual approval')
+                    }
+                } catch (giftCardError: any) {
+                    console.error('[GiftCard] Service error:', giftCardError.message)
+                    // Continue with manual approval
+                }
+            } else if (withdrawal.method === 'gift_card') {
+                console.log(`[Manual Mode] Gift card withdrawal approved. Send ${withdrawal.giftCardBrand} worth $${withdrawal.amountUSD} to ${withdrawal.recipientEmail}`)
+            }
+
             // Build update data
             const updateData: Record<string, any> = {
                 status: 'completed',

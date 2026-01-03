@@ -1091,7 +1091,9 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
         paypalEmail: '',
         walletAddress: '',
         cryptoNetwork: 'USDT (TRC20)',
-        phoneNumber: '' // For Airtime
+        phoneNumber: '', // For Airtime
+        giftCardBrand: '', // For Gift Cards
+        recipientEmail: '' // For Gift Cards
     })
     const [isLoadingWithdrawal, setIsLoadingWithdrawal] = useState(false)
     const [isLoadingEarnings, setIsLoadingEarnings] = useState(false)
@@ -1182,6 +1184,9 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
                 payload.cryptoNetwork = withdrawalForm.cryptoNetwork
             } else if (withdrawalForm.method === 'airtime') {
                 payload.phoneNumber = withdrawalForm.phoneNumber
+            } else if (withdrawalForm.method === 'gift_card') {
+                payload.giftCardBrand = withdrawalForm.giftCardBrand
+                payload.recipientEmail = withdrawalForm.recipientEmail
             }
 
             const response = await apiCall('/api/withdrawal', {
@@ -1303,7 +1308,7 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
                 <CardContent className="space-y-4">
                     <form onSubmit={handleWithdrawal} className="space-y-4">
                         {/* Payment Method Selector */}
-                        <div className="grid grid-cols-4 gap-2">
+                        <div className="grid grid-cols-5 gap-2">
                             <button
                                 type="button"
                                 onClick={() => setWithdrawalForm(prev => ({ ...prev, method: 'bank_transfer' }))}
@@ -1335,6 +1340,14 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
                             >
                                 <Bitcoin className={`h-5 w-5 mb-1 ${withdrawalForm.method === 'crypto' ? 'text-orange-600' : 'text-muted-foreground'}`} />
                                 <span className={`text-xs font-medium ${withdrawalForm.method === 'crypto' ? 'text-orange-700' : 'text-muted-foreground'}`}>Crypto</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setWithdrawalForm(prev => ({ ...prev, method: 'gift_card' }))}
+                                className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${withdrawalForm.method === 'gift_card' ? 'border-pink-500 bg-pink-50 dark:bg-pink-900/20' : 'border-muted hover:bg-muted'}`}
+                            >
+                                <Gift className={`h-5 w-5 mb-1 ${withdrawalForm.method === 'gift_card' ? 'text-pink-600' : 'text-muted-foreground'}`} />
+                                <span className={`text-xs font-medium ${withdrawalForm.method === 'gift_card' ? 'text-pink-700' : 'text-muted-foreground'}`}>Gift Card</span>
                             </button>
                         </div>
 
@@ -1481,6 +1494,50 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
                                     <p className="text-xs text-purple-700 dark:text-purple-300">
                                         ⚡ <strong>Instant Delivery:</strong> Airtime is delivered within minutes after admin approval.
                                         Supported networks: MTN, Airtel, Glo, 9mobile (Nigeria) and more.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {withdrawalForm.method === 'gift_card' && (
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="text-sm font-medium">Gift Card Brand</label>
+                                    <select
+                                        className="w-full mt-1 px-3 py-2 border rounded-md"
+                                        value={withdrawalForm.giftCardBrand}
+                                        onChange={(e) => setWithdrawalForm(prev => ({ ...prev, giftCardBrand: e.target.value }))}
+                                        required={withdrawalForm.method === 'gift_card'}
+                                    >
+                                        <option value="">Select Gift Card</option>
+                                        <option value="amazon">🛒 Amazon</option>
+                                        <option value="google_play">▶️ Google Play</option>
+                                        <option value="steam">🎮 Steam</option>
+                                        <option value="itunes">🍎 iTunes / Apple</option>
+                                        <option value="netflix">📺 Netflix</option>
+                                        <option value="spotify">🎵 Spotify</option>
+                                        <option value="playstation">🎮 PlayStation</option>
+                                        <option value="xbox">🎮 Xbox</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium">Recipient Email</label>
+                                    <input
+                                        type="email"
+                                        className="w-full mt-1 px-3 py-2 border rounded-md"
+                                        placeholder="email@example.com"
+                                        value={withdrawalForm.recipientEmail}
+                                        onChange={(e) => setWithdrawalForm(prev => ({ ...prev, recipientEmail: e.target.value }))}
+                                        required={withdrawalForm.method === 'gift_card'}
+                                    />
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        Gift card code will be sent to this email address.
+                                    </p>
+                                </div>
+                                <div className="p-3 bg-pink-50 dark:bg-pink-900/20 rounded-lg border border-pink-200 dark:border-pink-800">
+                                    <p className="text-xs text-pink-700 dark:text-pink-300">
+                                        🎁 <strong>Digital Delivery:</strong> Gift card codes are sent to your email within 24-48 hours after approval.
+                                        Available brands may vary by region.
                                     </p>
                                 </div>
                             </div>

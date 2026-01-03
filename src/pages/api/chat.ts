@@ -78,7 +78,18 @@ const KNOWLEDGE_BASE = `# KojoBot Knowledge Base
 - Minimum: 1000 points
 - Must have verified email
 - Processing time: Usually 24-48 hours
-- Gift cards delivered via email
+
+### Available Withdrawal Methods:
+1. **Bank Transfer** - Direct deposit to your bank account (Nigeria)
+2. **Airtime** - Instant mobile airtime top-up (MTN, Airtel, Glo, 9mobile)
+3. **PayPal** - Receive USD via PayPal email
+4. **Crypto** - USDT (TRC20/BEP20), Bitcoin, Litecoin
+5. **Gift Cards** - Amazon, Google Play, Steam, iTunes, Netflix, Spotify, PlayStation, Xbox
+
+### Gift Cards Info:
+- Select your preferred brand and enter email
+- Code delivered to your email after approval
+- Popular for gaming and entertainment
 
 ## Troubleshooting
 - Points Not Credited: Wait 24-48 hours for offer points

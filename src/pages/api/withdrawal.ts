@@ -53,7 +53,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
 // POST /api/withdrawal - Request a new withdrawal
 async function handlePost(req: NextApiRequest, res: NextApiResponse) {
     try {
-        const { userId, amount, method, bankName, accountNumber, accountName, paypalEmail, walletAddress, cryptoNetwork, phoneNumber } = req.body
+        const { userId, amount, method, bankName, accountNumber, accountName, paypalEmail, walletAddress, cryptoNetwork, phoneNumber, giftCardBrand, recipientEmail } = req.body
 
         if (!userId || !amount || !method) {
             return res.status(400).json({ error: 'Missing required fields' })
@@ -68,6 +68,9 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
             if (!walletAddress || !cryptoNetwork) return res.status(400).json({ error: 'Missing crypto wallet details' })
         } else if (method === 'airtime') {
             if (!phoneNumber) return res.status(400).json({ error: 'Missing phone number' })
+        } else if (method === 'gift_card') {
+            if (!giftCardBrand) return res.status(400).json({ error: 'Please select a gift card brand' })
+            if (!recipientEmail) return res.status(400).json({ error: 'Please enter recipient email for gift card delivery' })
         } else {
             return res.status(400).json({ error: 'Invalid payment method' })
         }
@@ -190,6 +193,10 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
         } else if (method === 'airtime') {
             withdrawal.phoneNumber = phoneNumber
             withdrawal.accountDetails = `Airtime: ${phoneNumber}`
+        } else if (method === 'gift_card') {
+            withdrawal.giftCardBrand = giftCardBrand
+            withdrawal.recipientEmail = recipientEmail
+            withdrawal.accountDetails = `Gift Card (${giftCardBrand}): ${recipientEmail}`
         }
 
         await withdrawalRef.set(withdrawal)
