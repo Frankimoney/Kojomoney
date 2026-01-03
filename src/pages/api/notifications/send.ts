@@ -178,7 +178,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 }
 
-// Helper function to send push from other API routes
+// Helper function to send push from other API routes (direct Firebase Admin SDK call)
 export async function sendPushToUser(
     userId: string,
     title: string,
@@ -186,25 +186,102 @@ export async function sendPushToUser(
     data?: Record<string, any>
 ): Promise<boolean> {
     try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/notifications/send`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-internal-key': 'internal-notification-system'
-            },
-            body: JSON.stringify({
-                userIds: [userId],
-                title,
-                body,
-                data
-            })
+        if (!db) {
+            console.error('[sendPushToUser] Database not available')
+            return false
+        }
+
+        const messaging = getMessaging()
+        if (!messaging) {
+            console.error('[sendPushToUser] Firebase Messaging not configured')
+            return false
+        }
+
+        // Get push tokens for this specific user
+        const tokensSnapshot = await db.collection('push_tokens')
+            .where('userId', '==', userId)
+            .where('active', '==', true)
+            .get()
+
+        let tokens: string[] = []
+        tokensSnapshot.forEach(doc => {
+            const token = doc.data().token
+            if (token) tokens.push(token)
         })
-        return response.ok
+
+        if (tokens.length === 0) {
+            console.log(`[sendPushToUser] No active tokens for user ${userId}`)
+            return true // Not an error, just no recipients
+        }
+
+        // Remove duplicates
+        tokens = [...new Set(tokens)]
+
+        console.log(`[sendPushToUser] Sending to user ${userId} (${tokens.length} devices)`)
+
+        // Build message
+        const message: admin.messaging.MulticastMessage = {
+            tokens,
+            notification: {
+                title,
+                body
+            },
+            data: data ? Object.fromEntries(
+                Object.entries(data).map(([k, v]) => [k, String(v)])
+            ) : undefined,
+            android: {
+                priority: 'high',
+                notification: {
+                    channelId: 'default',
+                    sound: 'default'
+                }
+            },
+            apns: {
+                payload: {
+                    aps: {
+                        sound: 'default',
+                        badge: 1
+                    }
+                }
+            }
+        }
+
+        // Send notifications
+        const response = await messaging.sendEachForMulticast(message)
+
+        console.log(`[sendPushToUser] Success: ${response.successCount}, Failed: ${response.failureCount}`)
+
+        // Mark failed tokens as inactive
+        const failedTokens: string[] = []
+        response.responses.forEach((resp, idx) => {
+            if (!resp.success && resp.error?.code === 'messaging/registration-token-not-registered') {
+                failedTokens.push(tokens[idx])
+            }
+        })
+
+        // Deactivate failed tokens
+        if (failedTokens.length > 0) {
+            const batch = db.batch()
+            for (const token of failedTokens) {
+                const tokenDocs = await db.collection('push_tokens')
+                    .where('token', '==', token)
+                    .get()
+
+                tokenDocs.forEach(doc => {
+                    batch.update(doc.ref, { active: false })
+                })
+            }
+            await batch.commit()
+            console.log(`[sendPushToUser] Deactivated ${failedTokens.length} invalid tokens`)
+        }
+
+        return response.successCount > 0
     } catch (e) {
-        console.error('Failed to send push:', e)
+        console.error('[sendPushToUser] Failed:', e)
         return false
     }
 }
+
 
 // Helper to send push to all users (direct Firebase Admin SDK call)
 export async function sendPushToAll(
