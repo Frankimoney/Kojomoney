@@ -135,7 +135,9 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
         // SECURITY: Enhanced Fraud Check
         const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown'
         const userAgent = req.headers['user-agent'] || 'unknown'
-        const deviceId = Buffer.from(`${userAgent}-${ip}`).toString('base64').substring(0, 32) // Simple hydration
+        // Use client-provided device ID or fallback to server-side fingerprint
+        const clientDeviceId = req.headers['x-device-id'] as string
+        const deviceId = clientDeviceId || Buffer.from(`${userAgent}-${ip}`).toString('base64').substring(0, 32)
 
         const fraudResult = await enhanceFraudCheck(userId, 'withdrawal', ip, deviceId)
 

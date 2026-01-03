@@ -66,20 +66,24 @@ export async function blockVPN(request: NextRequest) {
 
 export async function checkDeviceLimit(request: NextRequest, userId: string) {
     const userAgent = request.headers.get('user-agent') || 'unknown'
-    const deviceId = generateDeviceId(userAgent, (request as any).ip || 'unknown')
+    // Prefer client-side persistent ID, fallback to fingerprint
+    const clientDeviceId = request.headers.get('x-device-id')
+    const deviceId = clientDeviceId || generateDeviceId(userAgent, (request as any).ip || 'unknown')
 
     // Check how many accounts are using this device
-    const sameDeviceSnap = await db.collection('users').where('deviceId', '==', deviceId).get()
-    const accountsWithSameDevice = sameDeviceSnap.size
+    const sameDeviceSnap = await db.collection('users').where('lastDeviceId', '==', deviceId).get()
+
+    // Filter out current user
+    const accountsWithSameDevice = sameDeviceSnap.docs.filter(d => d.id !== userId).length
 
     return {
         isAllowed: accountsWithSameDevice < 1, // Allow only 1 account per device
-        deviceCount: accountsWithSameDevice
+        deviceCount: accountsWithSameDevice + 1
     }
 }
 
 function generateDeviceId(userAgent: string, ip: string): string {
-    // Simple device fingerprinting
+    // Simple device fingerprinting (Fallback)
     const fingerprint = `${userAgent}-${ip}`
     return Buffer.from(fingerprint).toString('base64').substring(0, 32)
 }

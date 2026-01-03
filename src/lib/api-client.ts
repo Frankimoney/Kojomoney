@@ -68,10 +68,14 @@ export async function apiCall(
   // Using a simplified signature generation for client:
   const signature = await generateClientSignature(payload, timestamp)
 
+  // SECURITY: Device ID (Client-Side Persistent)
+  const deviceId = getDeviceId()
+
   const headers = {
     'Content-Type': 'application/json',
     'X-Request-Signature': signature,
     'X-Request-Timestamp': timestamp.toString(),
+    'X-Device-Id': deviceId, // Send valid device ID
     ...options.headers,
   }
 
@@ -79,6 +83,27 @@ export async function apiCall(
     ...options,
     headers,
   })
+}
+
+/**
+ * Get or create a persistent Device ID
+ */
+function getDeviceId(): string {
+  if (typeof window === 'undefined') return 'server-side'
+
+  const STORAGE_KEY = 'kojomoney_device_id'
+  let deviceId = localStorage.getItem(STORAGE_KEY)
+
+  if (!deviceId) {
+    // Generate new UUID-like ID
+    deviceId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      const r = Math.random() * 16 | 0
+      const v = c === 'x' ? r : (r & 0x3 | 0x8)
+      return v.toString(16)
+    })
+    localStorage.setItem(STORAGE_KEY, deviceId)
+  }
+  return deviceId
 }
 
 /**
