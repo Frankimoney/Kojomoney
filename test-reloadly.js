@@ -3,9 +3,11 @@
  * Run: node test-reloadly.js
  */
 
-const RELOADLY_CLIENT_ID = process.env.RELOADLY_CLIENT_ID || 'epkC3XO53UeLarCYq1RoAX48OdOWu6PO'
-const RELOADLY_CLIENT_SECRET = process.env.RELOADLY_CLIENT_SECRET || 'XlJEzvsDrR-6DF7Gg7ROj9TUs7yJDr-MycrAZJhNNTnz6A5rmknVKRcCp7UAHEE'
-const SANDBOX = true // Use sandbox for testing
+require('dotenv').config({ path: '.env.local' })
+
+const RELOADLY_CLIENT_ID = process.env.RELOADLY_CLIENT_ID
+const RELOADLY_CLIENT_SECRET = process.env.RELOADLY_CLIENT_SECRET
+const SANDBOX = process.env.RELOADLY_SANDBOX === 'true' // Set RELOADLY_SANDBOX=true in .env.local for sandbox
 
 const AUTH_URL = 'https://auth.reloadly.com/oauth/token'
 const BASE_URL = SANDBOX

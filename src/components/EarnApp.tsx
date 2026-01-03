@@ -1093,10 +1093,62 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
         cryptoNetwork: 'USDT (TRC20)',
         phoneNumber: '', // For Airtime
         giftCardBrand: '', // For Gift Cards
-        recipientEmail: '' // For Gift Cards
+        recipientEmail: '', // For Gift Cards
+        bankCode: '' // For bank verification
     })
     const [isLoadingWithdrawal, setIsLoadingWithdrawal] = useState(false)
     const [isLoadingEarnings, setIsLoadingEarnings] = useState(false)
+
+    // Bank verification state
+    const [isVerifyingBank, setIsVerifyingBank] = useState(false)
+    const [bankVerificationError, setBankVerificationError] = useState<string | null>(null)
+
+    // Bank code to name mapping
+    const BANK_OPTIONS = [
+        { code: '044', name: 'Access Bank' },
+        { code: '058', name: 'GTBank' },
+        { code: '011', name: 'First Bank of Nigeria' },
+        { code: '033', name: 'United Bank for Africa (UBA)' },
+        { code: '057', name: 'Zenith Bank' },
+        { code: '50211', name: 'Kuda Bank' },
+        { code: '999992', name: 'OPay' },
+        { code: '999991', name: 'PalmPay' },
+        { code: '999044', name: 'Moniepoint' },
+        { code: '070', name: 'Fidelity Bank' },
+        { code: '232', name: 'Sterling Bank' },
+        { code: '221', name: 'Stanbic IBTC Bank' },
+        { code: '032', name: 'Union Bank of Nigeria' },
+        { code: '035', name: 'Wema Bank' },
+        { code: '214', name: 'First City Monument Bank' },
+        { code: '076', name: 'Polaris Bank' },
+    ]
+
+    // Auto-verify bank account when account number and bank are filled
+    const verifyBankAccount = async (accountNumber: string, bankCode: string) => {
+        if (accountNumber.length !== 10 || !bankCode) return
+
+        setIsVerifyingBank(true)
+        setBankVerificationError(null)
+
+        try {
+            const response = await apiCall(`/api/bank/verify?account_number=${accountNumber}&bank_code=${bankCode}`)
+            const data = await response.json()
+
+            if (data.success && data.account_name) {
+                setWithdrawalForm(prev => ({
+                    ...prev,
+                    accountName: data.account_name
+                }))
+            } else {
+                setBankVerificationError(data.error || 'Could not verify account')
+            }
+        } catch (error) {
+            console.error('Bank verification error:', error)
+            setBankVerificationError('Verification service unavailable')
+        } finally {
+            setIsVerifyingBank(false)
+        }
+    }
 
     // Diesel Economy: User's withdrawal rate based on country
     const [rateInfo, setRateInfo] = useState<{
@@ -1388,19 +1440,27 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
                                     <div>
                                         <label className="text-sm font-medium">Bank Name</label>
                                         <select className="w-full mt-1 px-3 py-2 border rounded-md"
-                                            value={withdrawalForm.bankName}
-                                            onChange={(e) => setWithdrawalForm(prev => ({ ...prev, bankName: e.target.value }))}
+                                            value={withdrawalForm.bankCode}
+                                            onChange={(e) => {
+                                                const selectedBank = BANK_OPTIONS.find(b => b.code === e.target.value)
+                                                setWithdrawalForm(prev => ({
+                                                    ...prev,
+                                                    bankCode: e.target.value,
+                                                    bankName: selectedBank?.name || '',
+                                                    accountName: '' // Reset account name when bank changes
+                                                }))
+                                                setBankVerificationError(null)
+                                                // Auto-verify if account number already entered
+                                                if (withdrawalForm.accountNumber.length === 10) {
+                                                    verifyBankAccount(withdrawalForm.accountNumber, e.target.value)
+                                                }
+                                            }}
                                             required={withdrawalForm.method === 'bank_transfer'}
                                         >
                                             <option value="">Select Bank</option>
-                                            <option value="Access Bank">Access Bank</option>
-                                            <option value="GTBank">GTBank</option>
-                                            <option value="First Bank">First Bank</option>
-                                            <option value="UBA">UBA</option>
-                                            <option value="Zenith Bank">Zenith Bank</option>
-                                            <option value="Kuda Bank">Kuda Bank</option>
-                                            <option value="OPay">OPay</option>
-                                            <option value="PalmPay">PalmPay</option>
+                                            {BANK_OPTIONS.map(bank => (
+                                                <option key={bank.code} value={bank.code}>{bank.name}</option>
+                                            ))}
                                         </select>
                                     </div>
                                     <div>
@@ -1409,22 +1469,44 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
                                             type="text"
                                             className="w-full mt-1 px-3 py-2 border rounded-md"
                                             placeholder="0123456789"
+                                            maxLength={10}
                                             value={withdrawalForm.accountNumber}
-                                            onChange={(e) => setWithdrawalForm(prev => ({ ...prev, accountNumber: e.target.value }))}
+                                            onChange={(e) => {
+                                                const value = e.target.value.replace(/\D/g, '') // Only digits
+                                                setWithdrawalForm(prev => ({ ...prev, accountNumber: value, accountName: '' }))
+                                                setBankVerificationError(null)
+                                                // Auto-verify when 10 digits entered
+                                                if (value.length === 10 && withdrawalForm.bankCode) {
+                                                    verifyBankAccount(value, withdrawalForm.bankCode)
+                                                }
+                                            }}
                                             required={withdrawalForm.method === 'bank_transfer'}
                                         />
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="text-sm font-medium">Account Name</label>
+                                    <label className="text-sm font-medium flex items-center gap-2">
+                                        Account Name
+                                        {isVerifyingBank && (
+                                            <span className="text-xs text-blue-500 animate-pulse">Verifying...</span>
+                                        )}
+                                    </label>
                                     <input
                                         type="text"
-                                        className="w-full mt-1 px-3 py-2 border rounded-md"
-                                        placeholder="Enter account name"
+                                        className={`w-full mt-1 px-3 py-2 border rounded-md ${withdrawalForm.accountName ? 'bg-green-50 border-green-300 dark:bg-green-900/20 dark:border-green-700' : ''
+                                            } ${bankVerificationError ? 'border-red-300' : ''}`}
+                                        placeholder={isVerifyingBank ? 'Verifying account...' : 'Auto-filled after verification'}
                                         value={withdrawalForm.accountName}
                                         onChange={(e) => setWithdrawalForm(prev => ({ ...prev, accountName: e.target.value }))}
                                         required={withdrawalForm.method === 'bank_transfer'}
+                                        readOnly={isVerifyingBank}
                                     />
+                                    {bankVerificationError && (
+                                        <p className="text-xs text-red-500 mt-1">{bankVerificationError}</p>
+                                    )}
+                                    {withdrawalForm.accountName && !bankVerificationError && (
+                                        <p className="text-xs text-green-600 mt-1">✓ Account verified</p>
+                                    )}
                                 </div>
                             </>
                         )}
