@@ -31,6 +31,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
         // Get user's country
         let userCountry = 'GLOBAL'
+        let shouldUpdateProfile = false
+
         if (db) {
             try {
                 const userDoc = await db.collection('users').doc(userIdStr).get()
@@ -38,8 +40,30 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
                     const userData = userDoc.data()
                     userCountry = userData?.country || 'GLOBAL'
                 }
+
+                // If country is GLOBAL or missing, try to detect from IP headers
+                if (userCountry === 'GLOBAL' || !userCountry) {
+                    const headerCountry = (req.headers['cf-ipcountry'] as string) ||
+                        (req.headers['x-vercel-ip-country'] as string) ||
+                        (req.headers['x-country'] as string)
+
+                    if (headerCountry && headerCountry.length === 2) {
+                        userCountry = headerCountry.toUpperCase()
+                        shouldUpdateProfile = true
+                    }
+                }
+
+                // Update user profile if we detected a new country
+                if (shouldUpdateProfile && userCountry !== 'GLOBAL') {
+                    await db.collection('users').doc(userIdStr).update({
+                        country: userCountry,
+                        updatedAt: Date.now()
+                    })
+                    console.log(`Updated user ${userIdStr} country to ${userCountry}`)
+                }
+
             } catch (e) {
-                console.error('Error fetching user country:', e)
+                console.error('Error fetching/updating user country:', e)
             }
         }
 
