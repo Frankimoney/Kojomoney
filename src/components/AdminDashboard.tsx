@@ -16,8 +16,10 @@ import {
     RefreshCw, Search, Eye, Download, Ban, Gift, Wallet,
     ArrowUpRight, ArrowDownRight, Activity, AlertCircle, Mail,
     Calendar, Globe, Smartphone, BarChart3, Settings, Shield, AlertTriangle,
-    FileText, Link, ExternalLink, Check, X, Loader2, LogOut, Bell, Send
+    FileText, Link, ExternalLink, Check, X, Loader2, LogOut, Bell, Send, BookOpen
 } from 'lucide-react'
+import BlogManager from './admin/blog/BlogManager'
+import AdminLayout from './admin/AdminLayout'
 import { apiCall } from '@/lib/api-client'
 import { logoutAdmin, getAdminEmail, getAdminToken } from '@/components/AdminLogin'
 import { exportUsers, exportWithdrawals, exportTransactions, generateAdminReport, exportPendingPayments } from '@/services/exportService'
@@ -573,1003 +575,971 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-zinc-900">
-            {/* Header */}
-            <header className="bg-white dark:bg-zinc-950 border-b sticky top-0 z-10">
-                <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center">
-                            <Shield className="h-6 w-6 text-white" />
-                        </div>
-                        <div>
-                            <h1 className="text-xl font-bold">Admin Dashboard</h1>
-                            <p className="text-xs text-muted-foreground">KojoMoney Management</p>
-                        </div>
+        <AdminLayout
+            title="Admin Dashboard"
+            subtitle="KojoMoney Management"
+            showRefresh={true}
+            onRefresh={loadDashboardData}
+            isLoading={isLoading}
+            error={error}
+            success={success}
+            onClearError={() => setError(null)}
+            onClearSuccess={() => setSuccess(null)}
+        >
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <TabsList className="mb-6 w-full overflow-x-auto flex justify-start md:justify-center">
+                    <TabsTrigger value="overview" className="flex items-center gap-2 flex-shrink-0">
+                        <BarChart3 className="h-4 w-4" />
+                        <span className="hidden sm:inline">Overview</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="withdrawals" className="flex items-center gap-2 flex-shrink-0">
+                        <Wallet className="h-4 w-4" />
+                        <span className="hidden sm:inline">Withdrawals</span>
+                        {stats?.pendingWithdrawals ? (
+                            <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                                {stats.pendingWithdrawals}
+                            </Badge>
+                        ) : null}
+                    </TabsTrigger>
+                    <TabsTrigger value="users" className="flex items-center gap-2 flex-shrink-0">
+                        <Users className="h-4 w-4" />
+                        <span className="hidden sm:inline">Users</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="transactions" className="flex items-center gap-2 flex-shrink-0">
+                        <Activity className="h-4 w-4" />
+                        <span className="hidden sm:inline">Transactions</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="missions" className="flex items-center gap-2 flex-shrink-0">
+                        <Gift className="h-4 w-4" />
+                        <span className="hidden sm:inline">Missions</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="blog" className="flex items-center gap-2 flex-shrink-0">
+                        <BookOpen className="h-4 w-4" />
+                        <span className="hidden sm:inline">Blog</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="broadcast" className="flex items-center gap-2 flex-shrink-0">
+                        <Bell className="h-4 w-4" />
+                        <span className="hidden sm:inline">Broadcast</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="economy" className="flex items-center gap-2 flex-shrink-0">
+                        <DollarSign className="h-4 w-4" />
+                        <span className="hidden sm:inline">Economy</span>
+                    </TabsTrigger>
+                </TabsList>
+
+                {/* OVERVIEW TAB */}
+                <TabsContent value="overview" className="space-y-6">
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <StatsCard
+                            title="Points Liability"
+                            value={stats?.totalLiabilityPoints || 0}
+                            icon={Users}
+                            format="number"
+                            loading={isLoading}
+                        />
+                        <StatsCard
+                            title="Ad Revenue (24h)"
+                            value={stats?.adRevenue24h || 0}
+                            icon={TrendingUp}
+                            format="currency"
+                            trendUp={true}
+                            loading={isLoading}
+                        />
+                        <StatsCard
+                            title="Payouts (24h)"
+                            value={stats?.payouts24h || 0}
+                            icon={Wallet}
+                            format="currency"
+                            loading={isLoading}
+                        />
+                        <StatsCard
+                            title="Net Margin"
+                            value={stats?.netMargin || 0}
+                            icon={DollarSign}
+                            format="currency"
+                            highlight={true}
+                            className={(stats?.netMargin || 0) < 0 ? "border-red-500 bg-red-50 dark:bg-red-900/10" : "border-green-500 bg-green-50 dark:bg-green-900/10"}
+                            loading={isLoading}
+                        />
                     </div>
-                    <div className="flex items-center gap-3">
-                        {adminEmail && (
-                            <span className="text-xs text-muted-foreground hidden md:block">
-                                {adminEmail}
-                            </span>
-                        )}
-                        <Button variant="outline" size="sm" onClick={loadDashboardData}>
-                            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                            Refresh
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={handleLogout} className="text-red-600 hover:text-red-700 hover:bg-red-50">
-                            <LogOut className="h-4 w-4 mr-2" />
-                            Logout
-                        </Button>
-                    </div>
-                </div>
-            </header>
 
-            {/* Alerts */}
-            <div className="max-w-7xl mx-auto px-4">
-                {error && (
-                    <div className="mt-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-sm text-red-600 dark:text-red-400 flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4" />
-                        {error}
-                        <Button variant="ghost" size="sm" onClick={() => setError(null)} className="ml-auto">×</Button>
-                    </div>
-                )}
-                {success && (
-                    <div className="mt-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 text-sm text-green-600 dark:text-green-400 flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4" />
-                        {success}
-                        <Button variant="ghost" size="sm" onClick={() => setSuccess(null)} className="ml-auto">×</Button>
-                    </div>
-                )}
-            </div>
-
-            {/* Main Content */}
-            <main className="max-w-7xl mx-auto px-4 py-6">
-                <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList className="mb-6 w-full overflow-x-auto flex justify-start md:justify-center">
-                        <TabsTrigger value="overview" className="flex items-center gap-2 flex-shrink-0">
-                            <BarChart3 className="h-4 w-4" />
-                            <span className="hidden sm:inline">Overview</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="withdrawals" className="flex items-center gap-2 flex-shrink-0">
-                            <Wallet className="h-4 w-4" />
-                            <span className="hidden sm:inline">Withdrawals</span>
-                            {stats?.pendingWithdrawals ? (
-                                <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                                    {stats.pendingWithdrawals}
-                                </Badge>
-                            ) : null}
-                        </TabsTrigger>
-                        <TabsTrigger value="users" className="flex items-center gap-2 flex-shrink-0">
-                            <Users className="h-4 w-4" />
-                            <span className="hidden sm:inline">Users</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="transactions" className="flex items-center gap-2 flex-shrink-0">
-                            <Activity className="h-4 w-4" />
-                            <span className="hidden sm:inline">Transactions</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="missions" className="flex items-center gap-2 flex-shrink-0">
-                            <Gift className="h-4 w-4" />
-                            <span className="hidden sm:inline">Missions</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="broadcast" className="flex items-center gap-2 flex-shrink-0">
-                            <Bell className="h-4 w-4" />
-                            <span className="hidden sm:inline">Broadcast</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="economy" className="flex items-center gap-2 flex-shrink-0">
-                            <DollarSign className="h-4 w-4" />
-                            <span className="hidden sm:inline">Economy</span>
-                        </TabsTrigger>
-                    </TabsList>
-
-                    {/* OVERVIEW TAB */}
-                    <TabsContent value="overview" className="space-y-6">
-                        {/* Stats Grid */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <StatsCard
-                                title="Points Liability"
-                                value={stats?.totalLiabilityPoints || 0}
-                                icon={Users}
-                                format="number"
-                                loading={isLoading}
-                            />
-                            <StatsCard
-                                title="Ad Revenue (24h)"
-                                value={stats?.adRevenue24h || 0}
-                                icon={TrendingUp}
-                                format="currency"
-                                trendUp={true}
-                                loading={isLoading}
-                            />
-                            <StatsCard
-                                title="Payouts (24h)"
-                                value={stats?.payouts24h || 0}
-                                icon={Wallet}
-                                format="currency"
-                                loading={isLoading}
-                            />
-                            <StatsCard
-                                title="Net Margin"
-                                value={stats?.netMargin || 0}
-                                icon={DollarSign}
-                                format="currency"
-                                highlight={true}
-                                className={(stats?.netMargin || 0) < 0 ? "border-red-500 bg-red-50 dark:bg-red-900/10" : "border-green-500 bg-green-50 dark:bg-green-900/10"}
-                                loading={isLoading}
-                            />
-                        </div>
-
-                        <div className="grid md:grid-cols-2 gap-6">
-                            {/* Quick Actions */}
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Quick Actions</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-3">
-                                    <Button variant="outline" className="w-full justify-start" onClick={() => setActiveTab('withdrawals')}>
-                                        <Wallet className="h-4 w-4 mr-3" />
-                                        Process Withdrawals
-                                        {stats?.pendingWithdrawals ? (
-                                            <Badge variant="destructive" className="ml-auto">{stats.pendingWithdrawals} pending</Badge>
-                                        ) : null}
-                                    </Button>
-                                    <Button variant="outline" className="w-full justify-start" onClick={() => setActiveTab('missions')}>
-                                        <Gift className="h-4 w-4 mr-3" />
-                                        Manage Missions
-                                    </Button>
-                                    <Button variant="outline" className="w-full justify-start" onClick={() => setActiveTab('users')}>
-                                        <Users className="h-4 w-4 mr-3" />
-                                        View Users
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        className="w-full justify-start"
-                                        onClick={handleExportAll}
-                                        disabled={isExporting}
-                                    >
-                                        {isExporting ? (
-                                            <Loader2 className="h-4 w-4 mr-3 animate-spin" />
-                                        ) : (
-                                            <Download className="h-4 w-4 mr-3" />
-                                        )}
-                                        {isExporting ? 'Exporting...' : 'Export All Reports'}
-                                    </Button>
-                                </CardContent>
-                            </Card>
-
-                            {/* Platform Stats */}
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Platform Stats</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                                        <span className="text-sm">Active Missions</span>
-                                        <span className="font-bold">{stats?.activeMissions || 0}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                                        <span className="text-sm">Missions Completed (24h)</span>
-                                        <span className="font-bold">{stats?.completedMissions24h || 0}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                                        <span className="text-sm">Total Offers</span>
-                                        <span className="font-bold">{stats?.totalOffers || 0}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                                        <span className="text-sm">Total Withdrawals</span>
-                                        <span className="font-bold">{stats?.totalWithdrawals || 0}</span>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
-
-                        {/* Earnings Breakdown (24h) */}
-                        <Card className="mt-6">
+                    <div className="grid md:grid-cols-2 gap-6">
+                        {/* Quick Actions */}
+                        <Card>
                             <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <TrendingUp className="h-5 w-5" />
-                                    Earnings Breakdown (24h)
-                                </CardTitle>
-                                <p className="text-sm text-muted-foreground">
-                                    Points distributed to users by source
-                                </p>
+                                <CardTitle>Quick Actions</CardTitle>
                             </CardHeader>
-                            <CardContent>
-                                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                                        <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">📺 Ads</div>
-                                        <div className="text-lg font-bold">${stats?.earningsUSD24h?.ads || '0.00'}</div>
-                                    </div>
-                                    <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                                        <div className="text-xs text-green-600 dark:text-green-400 font-medium">📰 News</div>
-                                        <div className="text-lg font-bold">${stats?.earningsUSD24h?.news || '0.00'}</div>
-                                    </div>
-                                    <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
-                                        <div className="text-xs text-purple-600 dark:text-purple-400 font-medium">🧠 Trivia</div>
-                                        <div className="text-lg font-bold">${stats?.earningsUSD24h?.trivia || '0.00'}</div>
-                                    </div>
-                                    <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
-                                        <div className="text-xs text-orange-600 dark:text-orange-400 font-medium">🎮 Games</div>
-                                        <div className="text-lg font-bold">${stats?.earningsUSD24h?.games || '0.00'}</div>
-                                    </div>
-                                    <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
-                                        <div className="text-xs text-yellow-600 dark:text-yellow-400 font-medium">🎰 Spins</div>
-                                        <div className="text-lg font-bold">${stats?.earningsUSD24h?.spins || '0.00'}</div>
-                                    </div>
-                                    <div className="p-3 bg-pink-50 dark:bg-pink-900/20 rounded-lg border border-pink-200 dark:border-pink-800">
-                                        <div className="text-xs text-pink-600 dark:text-pink-400 font-medium">📋 Offerwalls</div>
-                                        <div className="text-lg font-bold">${stats?.earningsUSD24h?.offerwalls || '0.00'}</div>
-                                    </div>
-                                    <div className="p-3 bg-cyan-50 dark:bg-cyan-900/20 rounded-lg border border-cyan-200 dark:border-cyan-800">
-                                        <div className="text-xs text-cyan-600 dark:text-cyan-400 font-medium">📝 Surveys</div>
-                                        <div className="text-lg font-bold">${stats?.earningsUSD24h?.surveys || '0.00'}</div>
-                                    </div>
-                                    <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
-                                        <div className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">👥 Referrals</div>
-                                        <div className="text-lg font-bold">${stats?.earningsUSD24h?.referrals || '0.00'}</div>
-                                    </div>
-                                    <div className="p-3 bg-teal-50 dark:bg-teal-900/20 rounded-lg border border-teal-200 dark:border-teal-800">
-                                        <div className="text-xs text-teal-600 dark:text-teal-400 font-medium">🎯 Missions</div>
-                                        <div className="text-lg font-bold">${stats?.earningsUSD24h?.missions || '0.00'}</div>
-                                    </div>
-                                    <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-lg border-2 border-slate-400 dark:border-slate-600">
-                                        <div className="text-xs text-slate-600 dark:text-slate-400 font-medium">💰 TOTAL</div>
-                                        <div className="text-xl font-black">${stats?.earningsUSD24h?.total || '0.00'}</div>
-                                    </div>
+                            <CardContent className="space-y-3">
+                                <Button variant="outline" className="w-full justify-start" onClick={() => setActiveTab('withdrawals')}>
+                                    <Wallet className="h-4 w-4 mr-3" />
+                                    Process Withdrawals
+                                    {stats?.pendingWithdrawals ? (
+                                        <Badge variant="destructive" className="ml-auto">{stats.pendingWithdrawals} pending</Badge>
+                                    ) : null}
+                                </Button>
+                                <Button variant="outline" className="w-full justify-start" onClick={() => setActiveTab('missions')}>
+                                    <Gift className="h-4 w-4 mr-3" />
+                                    Manage Missions
+                                </Button>
+                                <Button variant="outline" className="w-full justify-start" onClick={() => setActiveTab('users')}>
+                                    <Users className="h-4 w-4 mr-3" />
+                                    View Users
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    className="w-full justify-start"
+                                    onClick={handleExportAll}
+                                    disabled={isExporting}
+                                >
+                                    {isExporting ? (
+                                        <Loader2 className="h-4 w-4 mr-3 animate-spin" />
+                                    ) : (
+                                        <Download className="h-4 w-4 mr-3" />
+                                    )}
+                                    {isExporting ? 'Exporting...' : 'Export All Reports'}
+                                </Button>
+                            </CardContent>
+                        </Card>
+
+                        {/* Platform Stats */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Platform Stats</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                                    <span className="text-sm">Active Missions</span>
+                                    <span className="font-bold">{stats?.activeMissions || 0}</span>
+                                </div>
+                                <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                                    <span className="text-sm">Missions Completed (24h)</span>
+                                    <span className="font-bold">{stats?.completedMissions24h || 0}</span>
+                                </div>
+                                <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                                    <span className="text-sm">Total Offers</span>
+                                    <span className="font-bold">{stats?.totalOffers || 0}</span>
+                                </div>
+                                <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                                    <span className="text-sm">Total Withdrawals</span>
+                                    <span className="font-bold">{stats?.totalWithdrawals || 0}</span>
                                 </div>
                             </CardContent>
                         </Card>
-                    </TabsContent>
+                    </div>
 
-                    {/* WITHDRAWALS TAB */}
-                    <TabsContent value="withdrawals" className="space-y-4">
-                        <div className="flex flex-col md:flex-row gap-4 justify-between">
-                            <h2 className="text-lg font-semibold">Withdrawal Requests</h2>
-                            <div className="flex gap-2">
-                                <Select value={withdrawalFilter} onValueChange={setWithdrawalFilter}>
-                                    <SelectTrigger className="w-[150px]">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All</SelectItem>
-                                        <SelectItem value="pending">Pending</SelectItem>
-                                        <SelectItem value="processing">Processing</SelectItem>
-                                        <SelectItem value="completed">Completed</SelectItem>
-                                        <SelectItem value="rejected">Rejected</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <Button variant="outline" onClick={loadWithdrawals}>
-                                    <RefreshCw className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    onClick={() => exportWithdrawals(withdrawals)}
-                                    disabled={withdrawals.length === 0}
-                                    title="Export all withdrawals"
-                                >
-                                    <Download className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    variant="default"
-                                    className="bg-green-600 hover:bg-green-700"
-                                    onClick={() => exportPendingPayments(withdrawals)}
-                                    disabled={withdrawals.filter(w => w.status === 'pending').length === 0}
-                                    title="Export pending for manual payment"
-                                >
-                                    <DollarSign className="h-4 w-4 mr-1" />
-                                    Export for Payment
-                                </Button>
-                            </div>
-                        </div>
-
-                        <Card>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>User</TableHead>
-                                        <TableHead>Amount</TableHead>
-                                        <TableHead>Method</TableHead>
-                                        <TableHead>Account</TableHead>
-                                        <TableHead>Risk</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead>Date</TableHead>
-                                        <TableHead>Actions</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {withdrawals.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                                                No withdrawal requests found
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        withdrawals.map((withdrawal) => (
-                                            <TableRow key={withdrawal.id}>
-                                                <TableCell>
-                                                    <div>
-                                                        <p className="font-medium">{withdrawal.userEmail}</p>
-                                                        <p className="text-xs text-muted-foreground">{withdrawal.usedId?.slice(0, 8)}...</p>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div>
-                                                        <p className="font-bold">{withdrawal.amount} pts</p>
-                                                        <p className="text-xs text-muted-foreground">{formatCurrency(withdrawal.amountUSD)}</p>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <span className="flex items-center gap-2">
-                                                        {getMethodIcon(withdrawal.method)}
-                                                        <span className="capitalize">{withdrawal.method?.replace('_', ' ')}</span>
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell className="max-w-[200px] truncate">
-                                                    {withdrawal.accountDetails}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {(withdrawal.riskScore || 0) > 0 ? (
-                                                        <Badge variant={(withdrawal.riskScore || 0) > 50 ? "destructive" : "outline"} className={(withdrawal.riskScore || 0) > 50 ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-100 hover:bg-red-200" : ""}>
-                                                            Risk: {withdrawal.riskScore}
-                                                        </Badge>
-                                                    ) : (
-                                                        <span className="text-muted-foreground text-xs">Low</span>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell>{getStatusBadge(withdrawal.status)}</TableCell>
-                                                <TableCell className="text-sm text-muted-foreground">
-                                                    {formatDate(withdrawal.createdAt)}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {withdrawal.status === 'pending' && (
-                                                        <div className="flex gap-1">
-                                                            <Button
-                                                                size="sm"
-                                                                variant="ghost"
-                                                                className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                                                                onClick={() => {
-                                                                    setSelectedWithdrawal(withdrawal)
-                                                                    setShowWithdrawalDialog(true)
-                                                                }}
-                                                            >
-                                                                <Check className="h-4 w-4" />
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="ghost"
-                                                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                                onClick={() => {
-                                                                    setSelectedWithdrawal(withdrawal)
-                                                                    setShowWithdrawalDialog(true)
-                                                                }}
-                                                            >
-                                                                <X className="h-4 w-4" />
-                                                            </Button>
-                                                        </div>
-                                                    )}
-                                                    {withdrawal.status !== 'pending' && (
-                                                        <Button size="sm" variant="ghost">
-                                                            <Eye className="h-4 w-4" />
-                                                        </Button>
-                                                    )}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </Card>
-                    </TabsContent>
-
-                    {/* USERS TAB */}
-                    <TabsContent value="users" className="space-y-4">
-                        <div className="flex flex-col md:flex-row gap-4 justify-between">
-                            <h2 className="text-lg font-semibold">Users ({users.length})</h2>
-                            <div className="flex gap-2">
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        placeholder="Search users..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && loadUsers()}
-                                        className="pl-9 w-[250px]"
-                                    />
+                    {/* Earnings Breakdown (24h) */}
+                    <Card className="mt-6">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <TrendingUp className="h-5 w-5" />
+                                Earnings Breakdown (24h)
+                            </CardTitle>
+                            <p className="text-sm text-muted-foreground">
+                                Points distributed to users by source
+                            </p>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                    <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">📺 Ads</div>
+                                    <div className="text-lg font-bold">${stats?.earningsUSD24h?.ads || '0.00'}</div>
                                 </div>
-                                <Button variant="outline" onClick={loadUsers}>
-                                    <Search className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    onClick={() => exportUsers(users)}
-                                    disabled={users.length === 0}
-                                >
-                                    <Download className="h-4 w-4" />
-                                </Button>
+                                <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                                    <div className="text-xs text-green-600 dark:text-green-400 font-medium">📰 News</div>
+                                    <div className="text-lg font-bold">${stats?.earningsUSD24h?.news || '0.00'}</div>
+                                </div>
+                                <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                                    <div className="text-xs text-purple-600 dark:text-purple-400 font-medium">🧠 Trivia</div>
+                                    <div className="text-lg font-bold">${stats?.earningsUSD24h?.trivia || '0.00'}</div>
+                                </div>
+                                <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+                                    <div className="text-xs text-orange-600 dark:text-orange-400 font-medium">🎮 Games</div>
+                                    <div className="text-lg font-bold">${stats?.earningsUSD24h?.games || '0.00'}</div>
+                                </div>
+                                <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                                    <div className="text-xs text-yellow-600 dark:text-yellow-400 font-medium">🎰 Spins</div>
+                                    <div className="text-lg font-bold">${stats?.earningsUSD24h?.spins || '0.00'}</div>
+                                </div>
+                                <div className="p-3 bg-pink-50 dark:bg-pink-900/20 rounded-lg border border-pink-200 dark:border-pink-800">
+                                    <div className="text-xs text-pink-600 dark:text-pink-400 font-medium">📋 Offerwalls</div>
+                                    <div className="text-lg font-bold">${stats?.earningsUSD24h?.offerwalls || '0.00'}</div>
+                                </div>
+                                <div className="p-3 bg-cyan-50 dark:bg-cyan-900/20 rounded-lg border border-cyan-200 dark:border-cyan-800">
+                                    <div className="text-xs text-cyan-600 dark:text-cyan-400 font-medium">📝 Surveys</div>
+                                    <div className="text-lg font-bold">${stats?.earningsUSD24h?.surveys || '0.00'}</div>
+                                </div>
+                                <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
+                                    <div className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">👥 Referrals</div>
+                                    <div className="text-lg font-bold">${stats?.earningsUSD24h?.referrals || '0.00'}</div>
+                                </div>
+                                <div className="p-3 bg-teal-50 dark:bg-teal-900/20 rounded-lg border border-teal-200 dark:border-teal-800">
+                                    <div className="text-xs text-teal-600 dark:text-teal-400 font-medium">🎯 Missions</div>
+                                    <div className="text-lg font-bold">${stats?.earningsUSD24h?.missions || '0.00'}</div>
+                                </div>
+                                <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-lg border-2 border-slate-400 dark:border-slate-600">
+                                    <div className="text-xs text-slate-600 dark:text-slate-400 font-medium">💰 TOTAL</div>
+                                    <div className="text-xl font-black">${stats?.earningsUSD24h?.total || '0.00'}</div>
+                                </div>
                             </div>
-                        </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
 
-                        <Card>
-                            <Table>
-                                <TableHeader>
+                {/* WITHDRAWALS TAB */}
+                <TabsContent value="withdrawals" className="space-y-4">
+                    <div className="flex flex-col md:flex-row gap-4 justify-between">
+                        <h2 className="text-lg font-semibold">Withdrawal Requests</h2>
+                        <div className="flex gap-2">
+                            <Select value={withdrawalFilter} onValueChange={setWithdrawalFilter}>
+                                <SelectTrigger className="w-[150px]">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All</SelectItem>
+                                    <SelectItem value="pending">Pending</SelectItem>
+                                    <SelectItem value="processing">Processing</SelectItem>
+                                    <SelectItem value="completed">Completed</SelectItem>
+                                    <SelectItem value="rejected">Rejected</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Button variant="outline" onClick={loadWithdrawals}>
+                                <RefreshCw className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={() => exportWithdrawals(withdrawals)}
+                                disabled={withdrawals.length === 0}
+                                title="Export all withdrawals"
+                            >
+                                <Download className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                variant="default"
+                                className="bg-green-600 hover:bg-green-700"
+                                onClick={() => exportPendingPayments(withdrawals)}
+                                disabled={withdrawals.filter(w => w.status === 'pending').length === 0}
+                                title="Export pending for manual payment"
+                            >
+                                <DollarSign className="h-4 w-4 mr-1" />
+                                Export for Payment
+                            </Button>
+                        </div>
+                    </div>
+
+                    <Card>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>User</TableHead>
+                                    <TableHead>Amount</TableHead>
+                                    <TableHead>Method</TableHead>
+                                    <TableHead>Account</TableHead>
+                                    <TableHead>Risk</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {withdrawals.length === 0 ? (
                                     <TableRow>
-                                        <TableHead>User</TableHead>
-                                        <TableHead>Points</TableHead>
-                                        <TableHead>Total Earned</TableHead>
-                                        <TableHead>Referral Code</TableHead>
-                                        <TableHead>Joined</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead>Actions</TableHead>
+                                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                            No withdrawal requests found
+                                        </TableCell>
                                     </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {users.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                                                No users found. Click search to load users.
+                                ) : (
+                                    withdrawals.map((withdrawal) => (
+                                        <TableRow key={withdrawal.id}>
+                                            <TableCell>
+                                                <div>
+                                                    <p className="font-medium">{withdrawal.userEmail}</p>
+                                                    <p className="text-xs text-muted-foreground">{withdrawal.usedId?.slice(0, 8)}...</p>
+                                                </div>
                                             </TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        users.map((user) => (
-                                            <TableRow key={user.id}>
-                                                <TableCell>
-                                                    <div>
-                                                        <p className="font-medium">{user.displayName || 'Anonymous'}</p>
-                                                        <p className="text-xs text-muted-foreground">{user.email}</p>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="font-bold">{user.points?.toLocaleString() || 0}</TableCell>
-                                                <TableCell>{user.totalEarnings?.toLocaleString() || 0}</TableCell>
-                                                <TableCell>
-                                                    <code className="text-xs bg-muted px-2 py-1 rounded">{user.referralCode}</code>
-                                                </TableCell>
-                                                <TableCell className="text-sm text-muted-foreground">
-                                                    {formatDate(user.createdAt)}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge variant={user.isBanned || user.status === 'banned' ? 'destructive' : 'default'}>
-                                                        {user.isBanned || user.status === 'banned' ? 'Banned' : 'Active'}
+                                            <TableCell>
+                                                <div>
+                                                    <p className="font-bold">{withdrawal.amount} pts</p>
+                                                    <p className="text-xs text-muted-foreground">{formatCurrency(withdrawal.amountUSD)}</p>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <span className="flex items-center gap-2">
+                                                    {getMethodIcon(withdrawal.method)}
+                                                    <span className="capitalize">{withdrawal.method?.replace('_', ' ')}</span>
+                                                </span>
+                                            </TableCell>
+                                            <TableCell className="max-w-[200px] truncate">
+                                                {withdrawal.accountDetails}
+                                            </TableCell>
+                                            <TableCell>
+                                                {(withdrawal.riskScore || 0) > 0 ? (
+                                                    <Badge variant={(withdrawal.riskScore || 0) > 50 ? "destructive" : "outline"} className={(withdrawal.riskScore || 0) > 50 ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-100 hover:bg-red-200" : ""}>
+                                                        Risk: {withdrawal.riskScore}
                                                     </Badge>
-                                                </TableCell>
-                                                <TableCell>
+                                                ) : (
+                                                    <span className="text-muted-foreground text-xs">Low</span>
+                                                )}
+                                            </TableCell>
+                                            <TableCell>{getStatusBadge(withdrawal.status)}</TableCell>
+                                            <TableCell className="text-sm text-muted-foreground">
+                                                {formatDate(withdrawal.createdAt)}
+                                            </TableCell>
+                                            <TableCell>
+                                                {withdrawal.status === 'pending' && (
                                                     <div className="flex gap-1">
-                                                        <Button size="sm" variant="ghost">
-                                                            <Eye className="h-4 w-4" />
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                                                            onClick={() => {
+                                                                setSelectedWithdrawal(withdrawal)
+                                                                setShowWithdrawalDialog(true)
+                                                            }}
+                                                        >
+                                                            <Check className="h-4 w-4" />
                                                         </Button>
                                                         <Button
                                                             size="sm"
                                                             variant="ghost"
-                                                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
                                                             onClick={() => {
-                                                                setSelectedUser(user)
-                                                                setEmailSubject('')
-                                                                setEmailMessage('')
-                                                                setShowEmailDialog(true)
+                                                                setSelectedWithdrawal(withdrawal)
+                                                                setShowWithdrawalDialog(true)
                                                             }}
                                                         >
-                                                            <Mail className="h-4 w-4" />
+                                                            <X className="h-4 w-4" />
                                                         </Button>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            className={user.isBanned || user.status === 'banned'
-                                                                ? 'text-green-600 hover:text-green-700 hover:bg-green-50'
-                                                                : 'text-red-600 hover:text-red-700 hover:bg-red-50'}
-                                                            onClick={() => {
-                                                                setSelectedUser(user)
-                                                                setShowBanDialog(true)
-                                                            }}
-                                                        >
-                                                            <Ban className="h-4 w-4" />
+                                                    </div>
+                                                )}
+                                                {withdrawal.status !== 'pending' && (
+                                                    <Button size="sm" variant="ghost">
+                                                        <Eye className="h-4 w-4" />
+                                                    </Button>
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+                    </Card>
+                </TabsContent>
+
+                {/* USERS TAB */}
+                <TabsContent value="users" className="space-y-4">
+                    <div className="flex flex-col md:flex-row gap-4 justify-between">
+                        <h2 className="text-lg font-semibold">Users ({users.length})</h2>
+                        <div className="flex gap-2">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Search users..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && loadUsers()}
+                                    className="pl-9 w-[250px]"
+                                />
+                            </div>
+                            <Button variant="outline" onClick={loadUsers}>
+                                <Search className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={() => exportUsers(users)}
+                                disabled={users.length === 0}
+                            >
+                                <Download className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+
+                    <Card>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>User</TableHead>
+                                    <TableHead>Points</TableHead>
+                                    <TableHead>Total Earned</TableHead>
+                                    <TableHead>Referral Code</TableHead>
+                                    <TableHead>Joined</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {users.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                            No users found. Click search to load users.
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    users.map((user) => (
+                                        <TableRow key={user.id}>
+                                            <TableCell>
+                                                <div>
+                                                    <p className="font-medium">{user.displayName || 'Anonymous'}</p>
+                                                    <p className="text-xs text-muted-foreground">{user.email}</p>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="font-bold">{user.points?.toLocaleString() || 0}</TableCell>
+                                            <TableCell>{user.totalEarnings?.toLocaleString() || 0}</TableCell>
+                                            <TableCell>
+                                                <code className="text-xs bg-muted px-2 py-1 rounded">{user.referralCode}</code>
+                                            </TableCell>
+                                            <TableCell className="text-sm text-muted-foreground">
+                                                {formatDate(user.createdAt)}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant={user.isBanned || user.status === 'banned' ? 'destructive' : 'default'}>
+                                                    {user.isBanned || user.status === 'banned' ? 'Banned' : 'Active'}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex gap-1">
+                                                    <Button size="sm" variant="ghost">
+                                                        <Eye className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                        onClick={() => {
+                                                            setSelectedUser(user)
+                                                            setEmailSubject('')
+                                                            setEmailMessage('')
+                                                            setShowEmailDialog(true)
+                                                        }}
+                                                    >
+                                                        <Mail className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className={user.isBanned || user.status === 'banned'
+                                                            ? 'text-green-600 hover:text-green-700 hover:bg-green-50'
+                                                            : 'text-red-600 hover:text-red-700 hover:bg-red-50'}
+                                                        onClick={() => {
+                                                            setSelectedUser(user)
+                                                            setShowBanDialog(true)
+                                                        }}
+                                                    >
+                                                        <Ban className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                                        onClick={() => {
+                                                            setSelectedUser(user)
+                                                            setPointsAmount('')
+                                                            setPointsReason('')
+                                                            setShowPointsDialog(true)
+                                                        }}
+                                                        title="Modify Points"
+                                                    >
+                                                        <DollarSign className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+                    </Card>
+                </TabsContent>
+
+                {/* TRANSACTIONS TAB */}
+                <TabsContent value="transactions" className="space-y-4">
+                    <div className="flex justify-between">
+                        <h2 className="text-lg font-semibold">Recent Transactions</h2>
+                        <div className="flex gap-2">
+                            <Button variant="outline" onClick={loadTransactions}>
+                                <RefreshCw className="h-4 w-4 mr-2" /> Refresh
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={() => exportTransactions(transactions)}
+                                disabled={transactions.length === 0}
+                            >
+                                <Download className="h-4 w-4 mr-2" /> Export
+                            </Button>
+                        </div>
+                    </div>
+
+                    <Card>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>User ID</TableHead>
+                                    <TableHead>Type</TableHead>
+                                    <TableHead>Amount</TableHead>
+                                    <TableHead>Source</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Date</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {transactions.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                                            No transactions found
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    transactions.map((tx) => (
+                                        <TableRow key={tx.id}>
+                                            <TableCell className="font-mono text-xs">{tx.userId?.slice(0, 8)}...</TableCell>
+                                            <TableCell>
+                                                <Badge variant={tx.type === 'credit' ? 'default' : 'secondary'}>
+                                                    {tx.type === 'credit' ? (
+                                                        <ArrowUpRight className="h-3 w-3 mr-1" />
+                                                    ) : (
+                                                        <ArrowDownRight className="h-3 w-3 mr-1" />
+                                                    )}
+                                                    {tx.type}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className={tx.type === 'credit' ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}>
+                                                {tx.type === 'credit' ? '+' : '-'}{tx.amount}
+                                            </TableCell>
+                                            <TableCell className="capitalize">{tx.source?.replace('_', ' ')}</TableCell>
+                                            <TableCell>{getStatusBadge(tx.status)}</TableCell>
+                                            <TableCell className="text-sm text-muted-foreground">
+                                                {formatDate(tx.createdAt)}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+                    </Card>
+                </TabsContent>
+
+                {/* MISSIONS TAB */}
+                <TabsContent value="missions">
+                    <div className="text-center py-8 space-y-4">
+                        <Gift className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                        <p className="text-muted-foreground mb-4">Manage your affiliate missions and offers</p>
+                        <div className="flex flex-wrap justify-center gap-3">
+                            <Button onClick={() => window.location.href = '/admin/missions'}>
+                                Open Mission Manager
+                            </Button>
+                            <Button variant="outline" onClick={() => window.location.href = '/admin/social-missions'}>
+                                Social Missions (TikTok/Telegram)
+                            </Button>
+                            <Button variant="outline" onClick={() => window.location.href = '/admin/social-proofs'}>
+                                Review Social Proofs
+                            </Button>
+                        </div>
+                    </div>
+                </TabsContent>
+
+                {/* BROADCAST TAB */}
+                <TabsContent value="broadcast" className="space-y-6">
+                    <div className="max-w-2xl mx-auto">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Bell className="h-5 w-5" />
+                                    Send Broadcast Notification
+                                </CardTitle>
+                                <CardDescription>
+                                    Send a push notification to all users with active devices. This will be delivered to all Android and iOS users.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="broadcast-title">Notification Title *</Label>
+                                    <Input
+                                        id="broadcast-title"
+                                        placeholder="e.g., 🎉 Happy New Year!"
+                                        value={broadcastTitle}
+                                        onChange={(e) => setBroadcastTitle(e.target.value)}
+                                        maxLength={100}
+                                    />
+                                    <p className="text-xs text-muted-foreground">{broadcastTitle.length}/100 characters</p>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="broadcast-body">Notification Message *</Label>
+                                    <textarea
+                                        id="broadcast-body"
+                                        className="w-full min-h-[100px] px-3 py-2 text-sm rounded-md border border-input bg-background ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                        placeholder="e.g., Earn double points today! Don't miss out on our special New Year bonus."
+                                        value={broadcastBody}
+                                        onChange={(e) => setBroadcastBody(e.target.value)}
+                                        maxLength={500}
+                                    />
+                                    <p className="text-xs text-muted-foreground">{broadcastBody.length}/500 characters</p>
+                                </div>
+
+                                {/* Preview */}
+                                {(broadcastTitle || broadcastBody) && (
+                                    <div className="p-4 bg-muted rounded-lg">
+                                        <p className="text-xs text-muted-foreground mb-2">Preview:</p>
+                                        <div className="bg-background rounded-lg p-3 shadow-sm border">
+                                            <p className="font-semibold text-sm">{broadcastTitle || 'Title...'}</p>
+                                            <p className="text-sm text-muted-foreground mt-1">{broadcastBody || 'Message...'}</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Result Message */}
+                                {broadcastResult && (
+                                    <div className={`p-4 rounded-lg ${broadcastResult.success ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'}`}>
+                                        <div className="flex items-center gap-2">
+                                            {broadcastResult.success ? (
+                                                <CheckCircle className="h-5 w-5 text-green-600" />
+                                            ) : (
+                                                <XCircle className="h-5 w-5 text-red-600" />
+                                            )}
+                                            <span className={broadcastResult.success ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}>
+                                                {broadcastResult.message}
+                                            </span>
+                                        </div>
+                                        {broadcastResult.totalUsers && (
+                                            <p className="text-sm text-muted-foreground mt-1 ml-7">
+                                                Delivered to {broadcastResult.totalUsers} user{broadcastResult.totalUsers !== 1 ? 's' : ''}.
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+
+                                <Button
+                                    className="w-full"
+                                    size="lg"
+                                    onClick={handleSendBroadcast}
+                                    disabled={sendingBroadcast || !broadcastTitle.trim() || !broadcastBody.trim()}
+                                >
+                                    {sendingBroadcast ? (
+                                        <>
+                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                            Sending to all users...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Send className="h-4 w-4 mr-2" />
+                                            Send Broadcast to All Users
+                                        </>
+                                    )}
+                                </Button>
+                            </CardContent>
+                        </Card>
+
+                        {/* Tips Card */}
+                        <Card className="mt-6">
+                            <CardHeader>
+                                <CardTitle className="text-sm">Tips for Effective Notifications</CardTitle>
+                            </CardHeader>
+                            <CardContent className="text-sm text-muted-foreground space-y-2">
+                                <p>• Use emojis 🎉 to make notifications stand out</p>
+                                <p>• Keep titles under 50 characters for best display</p>
+                                <p>• Create urgency: "Limited time", "Today only", "Last chance"</p>
+                                <p>• Be specific about the benefit: points, rewards, bonuses</p>
+                                <p>• Avoid sending too many notifications (max 2-3 per day)</p>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </TabsContent>
+
+                {/* ECONOMY TAB */}
+                <TabsContent value="economy" className="space-y-6">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h3 className="text-2xl font-bold tracking-tight">Economy Control</h3>
+                            <p className="text-muted-foreground">Manage earning rates and daily limits for users.</p>
+                        </div>
+                        <Button onClick={handleSaveConfig} disabled={isSavingConfig || !config}>
+                            {isSavingConfig ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                            Save Changes
+                        </Button>
+                    </div>
+
+                    {config ? (
+                        <div className="grid gap-6 md:grid-cols-2">
+                            {/* Diesel Control: Global Margin */}
+                            <Card className="border-l-4 border-l-red-500 bg-red-50/10 md:col-span-2">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2 text-red-600">
+                                        <AlertCircle className="h-5 w-5" />
+                                        Profit Margin "Kill Switch"
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Global Margin Adjustment. Lowering this increases the cost of rewards for everyone.
+                                        Current Factor: {config.globalMargin || 1.0}
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="space-y-4">
+                                        <div className="flex items-center gap-4">
+                                            <span className="text-sm font-bold">0.1</span>
+                                            <input
+                                                type="range"
+                                                min="0.1"
+                                                max="2.0"
+                                                step="0.05"
+                                                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-red-600"
+                                                value={config.globalMargin || 1.0}
+                                                onChange={(e) => updateGlobalMargin(e.target.value)}
+                                            />
+                                            <span className="text-sm font-bold">2.0</span>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">
+                                            1.0 = Standard. 0.8 = Users pay 20% more points for same $ value.
+                                        </p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {/* Diesel Control: Country Matrix */}
+                            <Card className="md:col-span-2">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Globe className="h-5 w-5 text-indigo-500" />
+                                        Global Currency Matrix
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Country-specific exchange rate multipliers.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Country Code</TableHead>
+                                                <TableHead>Multiplier</TableHead>
+                                                <TableHead>Value of 1000 pts</TableHead>
+                                                <TableHead>Action</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {Object.entries(config.countryMultipliers || {}).map(([code, mult]) => (
+                                                <TableRow key={code}>
+                                                    <TableCell className="font-mono">{code}</TableCell>
+                                                    <TableCell>
+                                                        <Input
+                                                            type="number"
+                                                            className="w-24 h-8"
+                                                            value={mult as number}
+                                                            step="0.01"
+                                                            onChange={(e) => updateCountryMultiplier(code, e.target.value)}
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="text-muted-foreground text-xs">
+                                                        ${((1000 / 10000) * (mult as number)).toFixed(2)} USD (approx)
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Button variant="ghost" size="sm" onClick={() => removeCountryMultiplier(code)}>
+                                                            <X className="h-4 w-4 text-red-500" />
                                                         </Button>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-                                                            onClick={() => {
-                                                                setSelectedUser(user)
-                                                                setPointsAmount('')
-                                                                setPointsReason('')
-                                                                setShowPointsDialog(true)
-                                                            }}
-                                                            title="Modify Points"
-                                                        >
-                                                            <DollarSign className="h-4 w-4" />
-                                                        </Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                            <TableRow>
+                                                <TableCell colSpan={4}>
+                                                    <div className="flex gap-2 items-center">
+                                                        <Input
+                                                            placeholder="Code (e.g. GH)"
+                                                            className="w-24 h-8"
+                                                            id="new-country-code"
+                                                        />
+                                                        <Button size="sm" variant="outline" onClick={() => {
+                                                            const el = document.getElementById('new-country-code') as HTMLInputElement
+                                                            if (el && el.value) {
+                                                                updateCountryMultiplier(el.value.toUpperCase(), '1.0')
+                                                                el.value = ''
+                                                            }
+                                                        }}>Add Country</Button>
                                                     </div>
                                                 </TableCell>
                                             </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </Card>
-                    </TabsContent>
+                                        </TableBody>
+                                    </Table>
+                                </CardContent>
+                            </Card>
 
-                    {/* TRANSACTIONS TAB */}
-                    <TabsContent value="transactions" className="space-y-4">
-                        <div className="flex justify-between">
-                            <h2 className="text-lg font-semibold">Recent Transactions</h2>
-                            <div className="flex gap-2">
-                                <Button variant="outline" onClick={loadTransactions}>
-                                    <RefreshCw className="h-4 w-4 mr-2" /> Refresh
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    onClick={() => exportTransactions(transactions)}
-                                    disabled={transactions.length === 0}
-                                >
-                                    <Download className="h-4 w-4 mr-2" /> Export
-                                </Button>
-                            </div>
-                        </div>
-
-                        <Card>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>User ID</TableHead>
-                                        <TableHead>Type</TableHead>
-                                        <TableHead>Amount</TableHead>
-                                        <TableHead>Source</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead>Date</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {transactions.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                                                No transactions found
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        transactions.map((tx) => (
-                                            <TableRow key={tx.id}>
-                                                <TableCell className="font-mono text-xs">{tx.userId?.slice(0, 8)}...</TableCell>
-                                                <TableCell>
-                                                    <Badge variant={tx.type === 'credit' ? 'default' : 'secondary'}>
-                                                        {tx.type === 'credit' ? (
-                                                            <ArrowUpRight className="h-3 w-3 mr-1" />
-                                                        ) : (
-                                                            <ArrowDownRight className="h-3 w-3 mr-1" />
-                                                        )}
-                                                        {tx.type}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell className={tx.type === 'credit' ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}>
-                                                    {tx.type === 'credit' ? '+' : '-'}{tx.amount}
-                                                </TableCell>
-                                                <TableCell className="capitalize">{tx.source?.replace('_', ' ')}</TableCell>
-                                                <TableCell>{getStatusBadge(tx.status)}</TableCell>
-                                                <TableCell className="text-sm text-muted-foreground">
-                                                    {formatDate(tx.createdAt)}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </Card>
-                    </TabsContent>
-
-                    {/* MISSIONS TAB */}
-                    <TabsContent value="missions">
-                        <div className="text-center py-8 space-y-4">
-                            <Gift className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                            <p className="text-muted-foreground mb-4">Manage your affiliate missions and offers</p>
-                            <div className="flex flex-wrap justify-center gap-3">
-                                <Button onClick={() => window.location.href = '/admin/missions'}>
-                                    Open Mission Manager
-                                </Button>
-                                <Button variant="outline" onClick={() => window.location.href = '/admin/social-missions'}>
-                                    Social Missions (TikTok/Telegram)
-                                </Button>
-                                <Button variant="outline" onClick={() => window.location.href = '/admin/social-proofs'}>
-                                    Review Social Proofs
-                                </Button>
-                            </div>
-                        </div>
-                    </TabsContent>
-
-                    {/* BROADCAST TAB */}
-                    <TabsContent value="broadcast" className="space-y-6">
-                        <div className="max-w-2xl mx-auto">
                             <Card>
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2">
-                                        <Bell className="h-5 w-5" />
-                                        Send Broadcast Notification
+                                        <Activity className="h-5 w-5 text-green-500" />
+                                        Earning Rates (Points)
                                     </CardTitle>
                                     <CardDescription>
-                                        Send a push notification to all users with active devices. This will be delivered to all Android and iOS users.
+                                        Set how many points users earn for each action. (1000 pts = $0.10)
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label>Watch Ad</Label>
+                                            <Input
+                                                type="number"
+                                                value={config.earningRates?.watchAd ?? 0}
+                                                onChange={(e) => updateConfigRate('watchAd', e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Read News</Label>
+                                            <Input
+                                                type="number"
+                                                value={config.earningRates?.readNews ?? 0}
+                                                onChange={(e) => updateConfigRate('readNews', e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Trivia Correct Answer</Label>
+                                            <Input
+                                                type="number"
+                                                value={config.earningRates?.triviaCorrect ?? 0}
+                                                onChange={(e) => updateConfigRate('triviaCorrect', e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Trivia 5/5 Bonus</Label>
+                                            <Input
+                                                type="number"
+                                                value={config.earningRates?.triviaBonus ?? 0}
+                                                onChange={(e) => updateConfigRate('triviaBonus', e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Game Playtime (per min)</Label>
+                                            <Input
+                                                type="number"
+                                                value={config.earningRates?.gamePlaytimePerMin ?? 0}
+                                                onChange={(e) => updateConfigRate('gamePlaytimePerMin', e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Referral Signup Bonus</Label>
+                                            <Input
+                                                type="number"
+                                                value={config.earningRates?.referralSignup ?? 0}
+                                                onChange={(e) => updateConfigRate('referralSignup', e.target.value)}
+                                            />
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Ban className="h-5 w-5 text-red-500" />
+                                        Daily Limits
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Cap the maximum actions a user can perform per day.
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="broadcast-title">Notification Title *</Label>
+                                        <Label>Max Ads per Day</Label>
                                         <Input
-                                            id="broadcast-title"
-                                            placeholder="e.g., 🎉 Happy New Year!"
-                                            value={broadcastTitle}
-                                            onChange={(e) => setBroadcastTitle(e.target.value)}
-                                            maxLength={100}
+                                            type="number"
+                                            value={config.dailyLimits?.maxAds ?? 0}
+                                            onChange={(e) => updateConfigLimit('maxAds', e.target.value)}
                                         />
-                                        <p className="text-xs text-muted-foreground">{broadcastTitle.length}/100 characters</p>
                                     </div>
-
                                     <div className="space-y-2">
-                                        <Label htmlFor="broadcast-body">Notification Message *</Label>
-                                        <textarea
-                                            id="broadcast-body"
-                                            className="w-full min-h-[100px] px-3 py-2 text-sm rounded-md border border-input bg-background ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                                            placeholder="e.g., Earn double points today! Don't miss out on our special New Year bonus."
-                                            value={broadcastBody}
-                                            onChange={(e) => setBroadcastBody(e.target.value)}
-                                            maxLength={500}
+                                        <Label>Max News Stories per Day</Label>
+                                        <Input
+                                            type="number"
+                                            value={config.dailyLimits?.maxNews ?? 0}
+                                            onChange={(e) => updateConfigLimit('maxNews', e.target.value)}
                                         />
-                                        <p className="text-xs text-muted-foreground">{broadcastBody.length}/500 characters</p>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Max Surveys per Day</Label>
+                                        <Input
+                                            type="number"
+                                            value={config.dailyLimits?.maxSurveys ?? 0}
+                                            onChange={(e) => updateConfigLimit('maxSurveys', e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Max Game Minutes per Day</Label>
+                                        <Input
+                                            type="number"
+                                            value={config.dailyLimits?.maxGamesMinutes ?? 0}
+                                            onChange={(e) => updateConfigLimit('maxGamesMinutes', e.target.value)}
+                                        />
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card className="md:col-span-2">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Settings className="h-5 w-5 text-blue-500" />
+                                        Advanced & Random Ranges
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Configure ranges for variable rewards.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="grid md:grid-cols-2 gap-6">
+                                    <div className="space-y-4">
+                                        <h4 className="font-semibold text-sm">Daily Spin Range</h4>
+                                        <div className="flex items-center gap-4">
+                                            <div className="space-y-2 flex-1">
+                                                <Label>Min Points</Label>
+                                                <Input
+                                                    type="number"
+                                                    value={config.earningRates?.dailySpinMin ?? 0}
+                                                    onChange={(e) => updateConfigRate('dailySpinMin', e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="space-y-2 flex-1">
+                                                <Label>Max Points</Label>
+                                                <Input
+                                                    type="number"
+                                                    value={config.earningRates?.dailySpinMax ?? 0}
+                                                    onChange={(e) => updateConfigRate('dailySpinMax', e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
                                     </div>
 
-                                    {/* Preview */}
-                                    {(broadcastTitle || broadcastBody) && (
-                                        <div className="p-4 bg-muted rounded-lg">
-                                            <p className="text-xs text-muted-foreground mb-2">Preview:</p>
-                                            <div className="bg-background rounded-lg p-3 shadow-sm border">
-                                                <p className="font-semibold text-sm">{broadcastTitle || 'Title...'}</p>
-                                                <p className="text-sm text-muted-foreground mt-1">{broadcastBody || 'Message...'}</p>
+                                    <div className="space-y-4">
+                                        <h4 className="font-semibold text-sm">Offerwall Range</h4>
+                                        <div className="flex items-center gap-4">
+                                            <div className="space-y-2 flex-1">
+                                                <Label>Min Points</Label>
+                                                <Input
+                                                    type="number"
+                                                    value={config.earningRates?.offerwallMin ?? 0}
+                                                    onChange={(e) => updateConfigRate('offerwallMin', e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="space-y-2 flex-1">
+                                                <Label>Max Points</Label>
+                                                <Input
+                                                    type="number"
+                                                    value={config.earningRates?.offerwallMax ?? 0}
+                                                    onChange={(e) => updateConfigRate('offerwallMax', e.target.value)}
+                                                />
                                             </div>
                                         </div>
-                                    )}
-
-                                    {/* Result Message */}
-                                    {broadcastResult && (
-                                        <div className={`p-4 rounded-lg ${broadcastResult.success ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'}`}>
-                                            <div className="flex items-center gap-2">
-                                                {broadcastResult.success ? (
-                                                    <CheckCircle className="h-5 w-5 text-green-600" />
-                                                ) : (
-                                                    <XCircle className="h-5 w-5 text-red-600" />
-                                                )}
-                                                <span className={broadcastResult.success ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}>
-                                                    {broadcastResult.message}
-                                                </span>
-                                            </div>
-                                            {broadcastResult.totalUsers && (
-                                                <p className="text-sm text-muted-foreground mt-1 ml-7">
-                                                    Delivered to {broadcastResult.totalUsers} user{broadcastResult.totalUsers !== 1 ? 's' : ''}.
-                                                </p>
-                                            )}
-                                        </div>
-                                    )}
-
-                                    <Button
-                                        className="w-full"
-                                        size="lg"
-                                        onClick={handleSendBroadcast}
-                                        disabled={sendingBroadcast || !broadcastTitle.trim() || !broadcastBody.trim()}
-                                    >
-                                        {sendingBroadcast ? (
-                                            <>
-                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                Sending to all users...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Send className="h-4 w-4 mr-2" />
-                                                Send Broadcast to All Users
-                                            </>
-                                        )}
-                                    </Button>
-                                </CardContent>
-                            </Card>
-
-                            {/* Tips Card */}
-                            <Card className="mt-6">
-                                <CardHeader>
-                                    <CardTitle className="text-sm">Tips for Effective Notifications</CardTitle>
-                                </CardHeader>
-                                <CardContent className="text-sm text-muted-foreground space-y-2">
-                                    <p>• Use emojis 🎉 to make notifications stand out</p>
-                                    <p>• Keep titles under 50 characters for best display</p>
-                                    <p>• Create urgency: "Limited time", "Today only", "Last chance"</p>
-                                    <p>• Be specific about the benefit: points, rewards, bonuses</p>
-                                    <p>• Avoid sending too many notifications (max 2-3 per day)</p>
+                                    </div>
                                 </CardContent>
                             </Card>
                         </div>
-                    </TabsContent>
-
-                    {/* ECONOMY TAB */}
-                    <TabsContent value="economy" className="space-y-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h3 className="text-2xl font-bold tracking-tight">Economy Control</h3>
-                                <p className="text-muted-foreground">Manage earning rates and daily limits for users.</p>
-                            </div>
-                            <Button onClick={handleSaveConfig} disabled={isSavingConfig || !config}>
-                                {isSavingConfig ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-                                Save Changes
-                            </Button>
+                    ) : (
+                        <div className="flex items-center justify-center p-12">
+                            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                         </div>
+                    )}
+                </TabsContent>
 
-                        {config ? (
-                            <div className="grid gap-6 md:grid-cols-2">
-                                {/* Diesel Control: Global Margin */}
-                                <Card className="border-l-4 border-l-red-500 bg-red-50/10 md:col-span-2">
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2 text-red-600">
-                                            <AlertCircle className="h-5 w-5" />
-                                            Profit Margin "Kill Switch"
-                                        </CardTitle>
-                                        <CardDescription>
-                                            Global Margin Adjustment. Lowering this increases the cost of rewards for everyone.
-                                            Current Factor: {config.globalMargin || 1.0}
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="space-y-4">
-                                            <div className="flex items-center gap-4">
-                                                <span className="text-sm font-bold">0.1</span>
-                                                <input
-                                                    type="range"
-                                                    min="0.1"
-                                                    max="2.0"
-                                                    step="0.05"
-                                                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-red-600"
-                                                    value={config.globalMargin || 1.0}
-                                                    onChange={(e) => updateGlobalMargin(e.target.value)}
-                                                />
-                                                <span className="text-sm font-bold">2.0</span>
-                                            </div>
-                                            <p className="text-xs text-muted-foreground">
-                                                1.0 = Standard. 0.8 = Users pay 20% more points for same $ value.
-                                            </p>
-                                        </div>
-                                    </CardContent>
-                                </Card>
+                <TabsContent value="blog" className="space-y-4">
+                    <BlogManager adminToken={getAdminToken() || ''} />
+                </TabsContent>
+            </Tabs>
 
-                                {/* Diesel Control: Country Matrix */}
-                                <Card className="md:col-span-2">
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <Globe className="h-5 w-5 text-indigo-500" />
-                                            Global Currency Matrix
-                                        </CardTitle>
-                                        <CardDescription>
-                                            Country-specific exchange rate multipliers.
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>Country Code</TableHead>
-                                                    <TableHead>Multiplier</TableHead>
-                                                    <TableHead>Value of 1000 pts</TableHead>
-                                                    <TableHead>Action</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {Object.entries(config.countryMultipliers || {}).map(([code, mult]) => (
-                                                    <TableRow key={code}>
-                                                        <TableCell className="font-mono">{code}</TableCell>
-                                                        <TableCell>
-                                                            <Input
-                                                                type="number"
-                                                                className="w-24 h-8"
-                                                                value={mult as number}
-                                                                step="0.01"
-                                                                onChange={(e) => updateCountryMultiplier(code, e.target.value)}
-                                                            />
-                                                        </TableCell>
-                                                        <TableCell className="text-muted-foreground text-xs">
-                                                            ${((1000 / 10000) * (mult as number)).toFixed(2)} USD (approx)
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <Button variant="ghost" size="sm" onClick={() => removeCountryMultiplier(code)}>
-                                                                <X className="h-4 w-4 text-red-500" />
-                                                            </Button>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ))}
-                                                <TableRow>
-                                                    <TableCell colSpan={4}>
-                                                        <div className="flex gap-2 items-center">
-                                                            <Input
-                                                                placeholder="Code (e.g. GH)"
-                                                                className="w-24 h-8"
-                                                                id="new-country-code"
-                                                            />
-                                                            <Button size="sm" variant="outline" onClick={() => {
-                                                                const el = document.getElementById('new-country-code') as HTMLInputElement
-                                                                if (el && el.value) {
-                                                                    updateCountryMultiplier(el.value.toUpperCase(), '1.0')
-                                                                    el.value = ''
-                                                                }
-                                                            }}>Add Country</Button>
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                            </TableBody>
-                                        </Table>
-                                    </CardContent>
-                                </Card>
-
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <Activity className="h-5 w-5 text-green-500" />
-                                            Earning Rates (Points)
-                                        </CardTitle>
-                                        <CardDescription>
-                                            Set how many points users earn for each action. (1000 pts = $0.10)
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent className="space-y-4">
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <Label>Watch Ad</Label>
-                                                <Input
-                                                    type="number"
-                                                    value={config.earningRates?.watchAd ?? 0}
-                                                    onChange={(e) => updateConfigRate('watchAd', e.target.value)}
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label>Read News</Label>
-                                                <Input
-                                                    type="number"
-                                                    value={config.earningRates?.readNews ?? 0}
-                                                    onChange={(e) => updateConfigRate('readNews', e.target.value)}
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label>Trivia Correct Answer</Label>
-                                                <Input
-                                                    type="number"
-                                                    value={config.earningRates?.triviaCorrect ?? 0}
-                                                    onChange={(e) => updateConfigRate('triviaCorrect', e.target.value)}
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label>Trivia 5/5 Bonus</Label>
-                                                <Input
-                                                    type="number"
-                                                    value={config.earningRates?.triviaBonus ?? 0}
-                                                    onChange={(e) => updateConfigRate('triviaBonus', e.target.value)}
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label>Game Playtime (per min)</Label>
-                                                <Input
-                                                    type="number"
-                                                    value={config.earningRates?.gamePlaytimePerMin ?? 0}
-                                                    onChange={(e) => updateConfigRate('gamePlaytimePerMin', e.target.value)}
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label>Referral Signup Bonus</Label>
-                                                <Input
-                                                    type="number"
-                                                    value={config.earningRates?.referralSignup ?? 0}
-                                                    onChange={(e) => updateConfigRate('referralSignup', e.target.value)}
-                                                />
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <Ban className="h-5 w-5 text-red-500" />
-                                            Daily Limits
-                                        </CardTitle>
-                                        <CardDescription>
-                                            Cap the maximum actions a user can perform per day.
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent className="space-y-4">
-                                        <div className="space-y-2">
-                                            <Label>Max Ads per Day</Label>
-                                            <Input
-                                                type="number"
-                                                value={config.dailyLimits?.maxAds ?? 0}
-                                                onChange={(e) => updateConfigLimit('maxAds', e.target.value)}
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label>Max News Stories per Day</Label>
-                                            <Input
-                                                type="number"
-                                                value={config.dailyLimits?.maxNews ?? 0}
-                                                onChange={(e) => updateConfigLimit('maxNews', e.target.value)}
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label>Max Surveys per Day</Label>
-                                            <Input
-                                                type="number"
-                                                value={config.dailyLimits?.maxSurveys ?? 0}
-                                                onChange={(e) => updateConfigLimit('maxSurveys', e.target.value)}
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label>Max Game Minutes per Day</Label>
-                                            <Input
-                                                type="number"
-                                                value={config.dailyLimits?.maxGamesMinutes ?? 0}
-                                                onChange={(e) => updateConfigLimit('maxGamesMinutes', e.target.value)}
-                                            />
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                <Card className="md:col-span-2">
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <Settings className="h-5 w-5 text-blue-500" />
-                                            Advanced & Random Ranges
-                                        </CardTitle>
-                                        <CardDescription>
-                                            Configure ranges for variable rewards.
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent className="grid md:grid-cols-2 gap-6">
-                                        <div className="space-y-4">
-                                            <h4 className="font-semibold text-sm">Daily Spin Range</h4>
-                                            <div className="flex items-center gap-4">
-                                                <div className="space-y-2 flex-1">
-                                                    <Label>Min Points</Label>
-                                                    <Input
-                                                        type="number"
-                                                        value={config.earningRates?.dailySpinMin ?? 0}
-                                                        onChange={(e) => updateConfigRate('dailySpinMin', e.target.value)}
-                                                    />
-                                                </div>
-                                                <div className="space-y-2 flex-1">
-                                                    <Label>Max Points</Label>
-                                                    <Input
-                                                        type="number"
-                                                        value={config.earningRates?.dailySpinMax ?? 0}
-                                                        onChange={(e) => updateConfigRate('dailySpinMax', e.target.value)}
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-4">
-                                            <h4 className="font-semibold text-sm">Offerwall Range</h4>
-                                            <div className="flex items-center gap-4">
-                                                <div className="space-y-2 flex-1">
-                                                    <Label>Min Points</Label>
-                                                    <Input
-                                                        type="number"
-                                                        value={config.earningRates?.offerwallMin ?? 0}
-                                                        onChange={(e) => updateConfigRate('offerwallMin', e.target.value)}
-                                                    />
-                                                </div>
-                                                <div className="space-y-2 flex-1">
-                                                    <Label>Max Points</Label>
-                                                    <Input
-                                                        type="number"
-                                                        value={config.earningRates?.offerwallMax ?? 0}
-                                                        onChange={(e) => updateConfigRate('offerwallMax', e.target.value)}
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </div>
-                        ) : (
-                            <div className="flex items-center justify-center p-12">
-                                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                            </div>
-                        )}
-                    </TabsContent>
-                </Tabs>
-            </main>
 
             {/* Withdrawal Processing Dialog */}
             <Dialog open={showWithdrawalDialog} onOpenChange={setShowWithdrawalDialog}>
@@ -1853,7 +1823,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </div >
+        </AdminLayout>
     )
 }
 

@@ -12,3 +12,6 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+Sitemap: https://kojomoney.com/sitemap.xml
+Sitemap: https://kojomoney.com/llms.txt

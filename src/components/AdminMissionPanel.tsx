@@ -16,6 +16,7 @@ import { Plus, Trash2, Edit, ExternalLink, Copy, CheckCircle, AlertCircle, Link,
 import { motion } from 'framer-motion'
 import { apiJson, apiCall } from '@/lib/api-client'
 import { getAdminToken } from '@/components/AdminLogin'
+import AdminLayout from '@/components/admin/AdminLayout'
 
 interface MissionStep {
     id: string
@@ -366,37 +367,22 @@ export default function AdminMissionPanel() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-zinc-900 p-4 md:p-8">
+        <AdminLayout
+            title="Missions & Offers"
+            subtitle="Manage missions, offers, and affiliate links"
+            isLoading={isLoading}
+            error={error}
+            success={success}
+            onClearError={() => setError(null)}
+            onClearSuccess={() => setSuccess(null)}
+            actions={
+                <Button variant="outline" onClick={copyCallbackUrl} size="sm">
+                    {copied ? <CheckCircle className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
+                    {copied ? 'Copied!' : 'Copy Callback URL'}
+                </Button>
+            }
+        >
             <div className="max-w-6xl mx-auto space-y-6">
-                {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-2xl font-bold">Admin Panel</h1>
-                        <p className="text-muted-foreground">Manage missions, offers, and affiliate links</p>
-                    </div>
-                    <div className="flex gap-2">
-                        <Button variant="outline" onClick={copyCallbackUrl}>
-                            {copied ? <CheckCircle className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
-                            {copied ? 'Copied!' : 'Copy Callback URL'}
-                        </Button>
-                    </div>
-                </div>
-
-                {/* Alerts */}
-                {error && (
-                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-sm text-red-600 dark:text-red-400 flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4" />
-                        {error}
-                        <Button variant="ghost" size="sm" onClick={() => setError(null)} className="ml-auto">×</Button>
-                    </div>
-                )}
-                {success && (
-                    <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 text-sm text-green-600 dark:text-green-400 flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4" />
-                        {success}
-                        <Button variant="ghost" size="sm" onClick={() => setSuccess(null)} className="ml-auto">×</Button>
-                    </div>
-                )}
 
                 {/* Tabs */}
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -1001,6 +987,6 @@ export default function AdminMissionPanel() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </div>
+        </AdminLayout>
     )
 }

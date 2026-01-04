@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Plus, Trash2, Edit, ExternalLink, Loader2, MessageCircle, Video, Receipt } from 'lucide-react'
 import { apiCall } from '@/lib/api-client'
 import { getAdminToken } from '@/components/AdminLogin'
+import AdminLayout from '@/components/admin/AdminLayout'
 import Head from 'next/head'
 
 interface SocialMission {
@@ -151,18 +152,22 @@ export default function AdminSocialMissionsPage() {
                 <meta name="robots" content="noindex, nofollow" />
             </Head>
 
-            <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
+            <AdminLayout
+                title="Social Missions"
+                subtitle="Manage TikTok, Telegram follows & Payment Proofs"
+                isLoading={isLoading}
+                error={error}
+                onClearError={() => setError(null)}
+                showRefresh={true}
+                onRefresh={fetchMissions}
+                actions={
+                    <Button onClick={handleCreate}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Mission
+                    </Button>
+                }
+            >
                 <div className="max-w-4xl mx-auto">
-                    <div className="flex justify-between items-center mb-6">
-                        <div>
-                            <h1 className="text-2xl font-bold">Social Missions</h1>
-                            <p className="text-muted-foreground">Manage TikTok, Telegram follows & Payment Proofs</p>
-                        </div>
-                        <Button onClick={handleCreate}>
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add Mission
-                        </Button>
-                    </div>
 
                     {isLoading ? (
                         <div className="flex justify-center py-12">
@@ -182,8 +187,8 @@ export default function AdminSocialMissionsPage() {
                                         <div className="flex items-start justify-between">
                                             <div className="flex items-start gap-3">
                                                 <div className={`p-2 rounded-lg ${mission.socialType === 'telegram' ? 'bg-blue-100 text-blue-600' :
-                                                        mission.socialType === 'tiktok' ? 'bg-pink-100 text-pink-600' :
-                                                            'bg-green-100 text-green-600'
+                                                    mission.socialType === 'tiktok' ? 'bg-pink-100 text-pink-600' :
+                                                        'bg-green-100 text-green-600'
                                                     }`}>
                                                     {SOCIAL_ICONS[mission.socialType]}
                                                 </div>
@@ -216,10 +221,11 @@ export default function AdminSocialMissionsPage() {
                         </div>
                     )}
                 </div>
-            </div>
+            </AdminLayout>
+
 
             {/* Add/Edit Dialog */}
-            <Dialog open={showDialog} onOpenChange={setShowDialog}>
+            < Dialog open={showDialog} onOpenChange={setShowDialog} >
                 <DialogContent className="max-w-md">
                     <DialogHeader>
                         <DialogTitle>{editingMission ? 'Edit Mission' : 'Create Social Mission'}</DialogTitle>
@@ -310,7 +316,7 @@ export default function AdminSocialMissionsPage() {
                         </Button>
                     </DialogFooter>
                 </DialogContent>
-            </Dialog>
+            </Dialog >
         </>
     )
 }

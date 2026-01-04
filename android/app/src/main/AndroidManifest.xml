@@ -21,12 +21,24 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Deep link: kojomoney://signup?ref=CODE -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="kojomoney" android:host="signup" />
+            </intent-filter>
+
+            <!-- Support for new Blog Deep Links -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="kojomoney" android:host="offerwall" />
+                <data android:scheme="kojomoney" android:host="withdraw" />
+                <data android:scheme="kojomoney" android:host="profile" />
+                <data android:scheme="kojomoney" android:host="tab" />
+                <data android:scheme="kojomoney" android:host="missions" />
+                <data android:scheme="kojomoney" android:host="referral" />
             </intent-filter>
         </activity>
 

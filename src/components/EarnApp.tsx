@@ -987,7 +987,7 @@ function HomeTab({ user, userPoints, setActiveTab, setActiveView, onOpenSpin }: 
                 </Card>
             </motion.div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setActiveView('ads')}>
                     <CardHeader className="pb-3">
                         <div className="flex items-center space-x-2">
@@ -999,6 +999,21 @@ function HomeTab({ user, userPoints, setActiveTab, setActiveView, onOpenSpin }: 
                     <CardContent>
                         <Button className="w-full" variant="outline">
                             Start Watching
+                        </Button>
+                    </CardContent>
+                </Card>
+
+                <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => window.location.href = '/blog'}>
+                    <CardHeader className="pb-3">
+                        <div className="flex items-center space-x-2">
+                            <FileText className="h-6 w-6 text-orange-500" />
+                            <CardTitle className="text-lg">Blog & Guides</CardTitle>
+                        </div>
+                        <CardDescription>Tips, tricks & payment proofs</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Button className="w-full" variant="outline">
+                            Visit Blog
                         </Button>
                     </CardContent>
                 </Card>
@@ -1993,13 +2008,17 @@ function ProfileTab({ user, setUser, resolvedTheme, setTheme, onLogout, onShowLe
                     </div>
                     <div>
                         {[
+                            { label: 'Blog & Guides', action: 'blog', icon: BookOpen },
                             { label: 'Privacy Policy', action: 'privacy', icon: Shield },
                             { label: 'Terms of Service', action: 'terms', icon: FileText },
                             { label: 'Cookie Policy', action: 'cookies', icon: FileText }
                         ].map((item, i) => (
                             <button
                                 key={i}
-                                onClick={() => onShowLegal(item.action as any)}
+                                onClick={() => {
+                                    if (item.action === 'blog') window.location.href = '/blog'
+                                    else onShowLegal(item.action as any)
+                                }}
                                 className="flex w-full items-center justify-between p-4 hover:bg-muted/50 transition-colors border-b last:border-0"
                             >
                                 <div className="flex items-center gap-3">

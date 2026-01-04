@@ -46,8 +46,8 @@ export function NotificationCenter() {
                     )}
                 </Button>
             </SheetTrigger>
-            <SheetContent className="w-full sm:w-[400px] p-0 flex flex-col bg-background/95 backdrop-blur-xl border-l">
-                <SheetHeader className="p-4 border-b">
+            <SheetContent className="w-full sm:w-[400px] p-0 flex flex-col bg-background/95 backdrop-blur-xl border-l overflow-hidden h-full">
+                <SheetHeader className="p-4 border-b flex-shrink-0">
                     <div className="flex items-center justify-between">
                         <SheetTitle className="flex items-center gap-2">
                             Notifications
@@ -79,8 +79,8 @@ export function NotificationCenter() {
                     </div>
                 </SheetHeader>
 
-                <Tabs defaultValue="all" className="flex-1 flex flex-col">
-                    <div className="px-4 pt-2">
+                <Tabs defaultValue="all" className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                    <div className="px-4 pt-2 flex-shrink-0">
                         <TabsList className="w-full grid grid-cols-3">
                             <TabsTrigger value="all">All</TabsTrigger>
                             <TabsTrigger value="unread">Unread</TabsTrigger>
@@ -88,7 +88,7 @@ export function NotificationCenter() {
                         </TabsList>
                     </div>
 
-                    <ScrollArea className="flex-1 px-4 py-4">
+                    <ScrollArea className="flex-1 min-h-0 px-4 py-4">
                         <TabsContent value="all" className="m-0 space-y-4">
                             {notifications.length === 0 ? (
                                 <EmptyState />

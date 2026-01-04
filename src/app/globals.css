@@ -127,6 +127,59 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
 }
+
 .scrollbar-hide::-webkit-scrollbar {
     display: none;
+}
+
+@layer components {
+
+    /* Callout Box Styles */
+    div[data-type="callout"] {
+        @apply my-8 p-5 rounded-xl border-l-4 shadow-sm text-base leading-relaxed;
+    }
+
+    div[data-type="callout"][type="bonus"] {
+        @apply bg-amber-50 dark:bg-amber-900/20 border-amber-400 dark:border-amber-600 text-amber-900 dark:text-amber-100;
+    }
+
+    div[data-type="callout"][type="alert"] {
+        @apply bg-red-50 dark:bg-red-900/20 border-red-400 dark:border-red-600 text-red-900 dark:text-red-100;
+    }
+
+    div[data-type="callout"][type="tip"] {
+        @apply bg-emerald-50 dark:bg-emerald-900/20 border-emerald-400 dark:border-emerald-600 text-emerald-900 dark:text-emerald-100;
+    }
+
+    div[data-type="callout"][type="info"],
+    div[data-type="callout"]:not([type]) {
+        @apply bg-blue-50 dark:bg-blue-900/20 border-blue-400 dark:border-blue-600 text-blue-900 dark:text-blue-100;
+    }
+
+    /* Callout Headers */
+    div[data-type="callout"]::before {
+        @apply block font-bold text-xs uppercase tracking-wider mb-2 opacity-80;
+        content: attr(type);
+    }
+
+    div[data-type="callout"][type="bonus"]::before {
+        content: "⚡ Double Points / Bonus";
+    }
+
+    div[data-type="callout"][type="alert"]::before {
+        content: "⚠️ Important Alert";
+    }
+
+    div[data-type="callout"][type="tip"]::before {
+        content: "💡 Pro Tip";
+    }
+
+    div[data-type="callout"][type="info"]::before {
+        content: "ℹ️ Did You Know?";
+    }
+
+    /* Deep Link Chips */
+    a.deep-link-chip {
+        @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium text-sm transition-colors no-underline;
+    }
 }

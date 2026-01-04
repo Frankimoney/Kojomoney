@@ -2,6 +2,7 @@ import '@/app/globals.css'
 import type { AppProps } from 'next/app'
 import Head from 'next/head'
 import { useEffect } from 'react'
+import { ThemeProvider } from 'next-themes'
 
 // Helper function to show toast notification
 function showExitToast(message: string) {
@@ -97,7 +98,9 @@ export default function App({ Component, pageProps }: AppProps) {
             <Head>
                 <meta name="viewport" content="width=device-width, initial-scale=1" />
             </Head>
-            <Component {...pageProps} />
+            <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+                <Component {...pageProps} />
+            </ThemeProvider>
         </>
     )
 }

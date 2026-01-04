@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import Head from 'next/head'
+import Link from 'next/link'
+import AdminLayout from '@/components/admin/AdminLayout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -154,26 +156,21 @@ export default function AdminSocialProofsPage() {
                 <meta name="robots" content="noindex, nofollow" />
             </Head>
 
-            <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 p-4 md:p-6">
-                <div className="max-w-6xl mx-auto space-y-6">
-                    {/* Header */}
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <a href="/admin" className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg">
-                                <ArrowLeft className="h-5 w-5" />
-                            </a>
-                            <div>
-                                <h1 className="text-2xl font-bold">Social Follow Missions</h1>
-                                <p className="text-sm text-muted-foreground">
-                                    Manage Telegram/TikTok missions & review proofs
-                                </p>
-                            </div>
-                        </div>
-                        <Button onClick={() => loadData()} variant="outline" size="sm">
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                            Refresh
+            <AdminLayout
+                title="Social Follow Missions"
+                subtitle="Manage Telegram/TikTok missions & review proofs"
+                showRefresh={true}
+                onRefresh={() => loadData()}
+                isLoading={isLoading}
+                actions={
+                    <Link href="/admin">
+                        <Button variant="ghost" size="icon">
+                            <ArrowLeft className="h-5 w-5" />
                         </Button>
-                    </div>
+                    </Link>
+                }
+            >
+                <div className="max-w-6xl mx-auto space-y-6">
 
                     {/* Tabs */}
                     <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
@@ -320,8 +317,8 @@ export default function AdminSocialProofsPage() {
                                     <Card key={mission.id}>
                                         <CardContent className="p-4 flex items-center gap-4">
                                             <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${mission.socialType === 'telegram' ? 'bg-sky-100 text-sky-600' :
-                                                    mission.socialType === 'tiktok' ? 'bg-gray-100 text-gray-800' :
-                                                        'bg-purple-100 text-purple-600'
+                                                mission.socialType === 'tiktok' ? 'bg-gray-100 text-gray-800' :
+                                                    'bg-purple-100 text-purple-600'
                                                 }`}>
                                                 {getSocialIcon(mission.socialType)}
                                             </div>
@@ -353,7 +350,7 @@ export default function AdminSocialProofsPage() {
                         </>
                     )}
                 </div>
-            </div>
+            </AdminLayout>
 
             {/* Proof Detail Dialog */}
             <Dialog open={!!selectedProof} onOpenChange={() => setSelectedProof(null)}>
