@@ -35,6 +35,16 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             .get()
 
         if (snapshot.empty) {
+            // Check for redirects
+            const redirectDoc = await db.collection('redirects').doc(slug).get()
+            if (redirectDoc.exists) {
+                const redirectData = redirectDoc.data()
+                return res.status(301).json({
+                    redirect: true,
+                    to: `/blog/${redirectData?.to}`,
+                    permanent: redirectData?.type === '301'
+                })
+            }
             return res.status(404).json({ error: 'Post not found' })
         }
 

@@ -119,4 +119,4 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 }
 
 // requireAdmin automatically wraps with allowCors now
-export default requireAdmin(handler)
+export default requireAdmin(handler, 'editor')

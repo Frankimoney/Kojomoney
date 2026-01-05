@@ -10,7 +10,7 @@ import BlogBreadcrumbs, { buildPostBreadcrumbs } from '@/components/blog/BlogBre
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Calendar, Clock, User, Share2, Facebook, Twitter, Linkedin, ArrowRight, Star, Check, Zap, Loader2 } from 'lucide-react'
+import { Calendar, Clock, User, Share2, Facebook, Twitter, Linkedin, ArrowRight, Star, Check, Zap, Loader2, HelpCircle } from 'lucide-react'
 import { format } from 'date-fns'
 import { useEffect, useState } from 'react'
 import BlogAnalytics from '@/components/blog/BlogAnalytics'
@@ -39,6 +39,12 @@ export default function BlogPostPage() {
             try {
                 const response = await apiCall(`/api/blog/${slug}`)
                 const data = await response.json()
+
+                // Handle redirects (deleted posts redirecting to similar)
+                if (data.redirect && data.to) {
+                    router.replace(data.to)
+                    return
+                }
 
                 if (data.error) {
                     setError(data.error)
@@ -135,7 +141,8 @@ export default function BlogPostPage() {
         "mainEntityOfPage": {
             "@type": "WebPage",
             "@id": `https://kojomoney.com/blog/${post.slug}`
-        }
+        },
+        "keywords": post.geoKeywords?.join(', ') || post.tags?.join(', ')
     }
 
     // FAQ Schema
@@ -338,6 +345,9 @@ export default function BlogPostPage() {
 
                         {/* Article Body */}
 
+                        {/* E-E-A-T: Editorial Disclosure */}
+                        <EditorialDisclosure post={post} />
+
                         {/* AEO: Direct Answer */}
                         {post.directAnswer && (
                             <div className="mb-8 p-6 bg-violet-50 dark:bg-violet-900/20 border-l-4 border-violet-500 rounded-r-xl">
@@ -403,6 +413,23 @@ export default function BlogPostPage() {
                                             <h3 className="font-semibold text-lg mb-2">{item.question}</h3>
                                             <div className="text-muted-foreground" dangerouslySetInnerHTML={{ __html: item.answer }} />
                                         </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* GEO: Conversational Keywords / People Also Ask */}
+                        {post.geoKeywords && post.geoKeywords.length > 0 && (
+                            <div className="mt-8 mb-8 p-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                                    <HelpCircle className="h-5 w-5 text-violet-500" />
+                                    Common Questions & Topics
+                                </h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {post.geoKeywords.map((keyword, i) => (
+                                        <Badge key={i} variant="outline" className="px-3 py-1 text-sm bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 font-normal text-slate-600 dark:text-slate-400">
+                                            {keyword}
+                                        </Badge>
                                     ))}
                                 </div>
                             </div>

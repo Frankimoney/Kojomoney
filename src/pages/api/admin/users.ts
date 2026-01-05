@@ -188,5 +188,5 @@ async function handleUpdatePoints(req: NextApiRequest, res: NextApiResponse) {
     }
 }
 
-export default requireAdmin(handler)
+export default requireAdmin(handler, 'support')
 

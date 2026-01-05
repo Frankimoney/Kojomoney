@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { apiJson } from '@/lib/api-client'
+import { getAdminEmail } from '@/components/AdminLogin'
 import { BlogPost, ContentBlock, BlogAuthor, FeaturedImage } from '@/types/blog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -98,181 +99,179 @@ const FloatingToolbar = ({
     )
 
     return (
-        <div className="fixed top-16 left-0 right-0 z-40 px-2 sm:px-4 py-2 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
-            <div className="flex items-center gap-0.5 sm:gap-1 p-1.5 sm:p-2 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-xl sm:rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-slate-900/50 border border-slate-200/50 dark:border-slate-700/50 overflow-x-auto scrollbar-hide mx-auto max-w-fit">
-                {/* Text Formatting */}
-                <div className="flex items-center gap-0.5 px-1">
-                    <ToolButton active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()} title="Bold">
-                        <Bold className="h-4 w-4" />
-                    </ToolButton>
-                    <ToolButton active={editor.isActive('italic')} onClick={() => editor.chain().focus().toggleItalic().run()} title="Italic">
-                        <Italic className="h-4 w-4" />
-                    </ToolButton>
-                    <ToolButton active={editor.isActive('underline')} onClick={() => editor.chain().focus().toggleUnderline().run()} title="Underline">
-                        <Underline className="h-4 w-4" />
-                    </ToolButton>
-                    <ToolButton active={editor.isActive('strike')} onClick={() => editor.chain().focus().toggleStrike().run()} title="Strikethrough">
-                        <Strikethrough className="h-4 w-4" />
-                    </ToolButton>
-                    <ToolButton active={editor.isActive('code')} onClick={() => editor.chain().focus().toggleCode().run()} title="Inline Code">
-                        <Code className="h-4 w-4" />
-                    </ToolButton>
-                </div>
+        <>
+            {/* Text Formatting */}
+            <div className="flex items-center gap-0.5 px-1">
+                <ToolButton active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()} title="Bold">
+                    <Bold className="h-4 w-4" />
+                </ToolButton>
+                <ToolButton active={editor.isActive('italic')} onClick={() => editor.chain().focus().toggleItalic().run()} title="Italic">
+                    <Italic className="h-4 w-4" />
+                </ToolButton>
+                <ToolButton active={editor.isActive('underline')} onClick={() => editor.chain().focus().toggleUnderline().run()} title="Underline">
+                    <Underline className="h-4 w-4" />
+                </ToolButton>
+                <ToolButton active={editor.isActive('strike')} onClick={() => editor.chain().focus().toggleStrike().run()} title="Strikethrough">
+                    <Strikethrough className="h-4 w-4" />
+                </ToolButton>
+                <ToolButton active={editor.isActive('code')} onClick={() => editor.chain().focus().toggleCode().run()} title="Inline Code">
+                    <Code className="h-4 w-4" />
+                </ToolButton>
+            </div>
 
-                <div className="w-px h-6 bg-gradient-to-b from-transparent via-slate-300 dark:via-slate-600 to-transparent" />
+            <div className="w-px h-6 bg-gradient-to-b from-transparent via-slate-300 dark:via-slate-600 to-transparent flex-shrink-0" />
 
-                {/* Headings */}
-                <div className="flex items-center gap-0.5 px-1">
-                    <ToolButton
-                        active={editor.isActive('heading', { level: 1 })}
-                        onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-                        title="Heading 1"
-                    >
-                        <Heading1 className="h-4 w-4" />
-                    </ToolButton>
-                    <ToolButton
-                        active={editor.isActive('heading', { level: 2 })}
-                        onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-                        title="Heading 2"
-                    >
-                        <Heading2 className="h-4 w-4" />
-                    </ToolButton>
-                    <ToolButton
-                        active={editor.isActive('heading', { level: 3 })}
-                        onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-                        title="Heading 3"
-                    >
-                        <Heading3 className="h-4 w-4" />
-                    </ToolButton>
-                </div>
+            {/* Headings */}
+            <div className="flex items-center gap-0.5 px-1">
+                <ToolButton
+                    active={editor.isActive('heading', { level: 1 })}
+                    onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+                    title="Heading 1"
+                >
+                    <Heading1 className="h-4 w-4" />
+                </ToolButton>
+                <ToolButton
+                    active={editor.isActive('heading', { level: 2 })}
+                    onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                    title="Heading 2"
+                >
+                    <Heading2 className="h-4 w-4" />
+                </ToolButton>
+                <ToolButton
+                    active={editor.isActive('heading', { level: 3 })}
+                    onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+                    title="Heading 3"
+                >
+                    <Heading3 className="h-4 w-4" />
+                </ToolButton>
+            </div>
 
-                <div className="w-px h-6 bg-gradient-to-b from-transparent via-slate-300 dark:via-slate-600 to-transparent" />
+            <div className="w-px h-6 bg-gradient-to-b from-transparent via-slate-300 dark:via-slate-600 to-transparent" />
 
-                {/* Text Alignment */}
-                <div className="flex items-center gap-0.5 px-1">
-                    <ToolButton active={editor.isActive({ textAlign: 'left' })} onClick={() => editor.chain().focus().setTextAlign('left').run()} title="Align Left">
-                        <AlignLeft className="h-4 w-4" />
-                    </ToolButton>
-                    <ToolButton active={editor.isActive({ textAlign: 'center' })} onClick={() => editor.chain().focus().setTextAlign('center').run()} title="Align Center">
-                        <AlignCenter className="h-4 w-4" />
-                    </ToolButton>
-                    <ToolButton active={editor.isActive({ textAlign: 'right' })} onClick={() => editor.chain().focus().setTextAlign('right').run()} title="Align Right">
-                        <AlignRight className="h-4 w-4" />
-                    </ToolButton>
-                </div>
+            {/* Text Alignment */}
+            <div className="flex items-center gap-0.5 px-1">
+                <ToolButton active={editor.isActive({ textAlign: 'left' })} onClick={() => editor.chain().focus().setTextAlign('left').run()} title="Align Left">
+                    <AlignLeft className="h-4 w-4" />
+                </ToolButton>
+                <ToolButton active={editor.isActive({ textAlign: 'center' })} onClick={() => editor.chain().focus().setTextAlign('center').run()} title="Align Center">
+                    <AlignCenter className="h-4 w-4" />
+                </ToolButton>
+                <ToolButton active={editor.isActive({ textAlign: 'right' })} onClick={() => editor.chain().focus().setTextAlign('right').run()} title="Align Right">
+                    <AlignRight className="h-4 w-4" />
+                </ToolButton>
+            </div>
 
-                <div className="w-px h-6 bg-gradient-to-b from-transparent via-slate-300 dark:via-slate-600 to-transparent" />
+            <div className="w-px h-6 bg-gradient-to-b from-transparent via-slate-300 dark:via-slate-600 to-transparent" />
 
-                {/* Lists & Quotes */}
-                <div className="flex items-center gap-0.5 px-1">
-                    <ToolButton
-                        active={editor.isActive('bulletList')}
-                        onClick={() => editor.chain().focus().toggleBulletList().run()}
-                        title="Bullet List"
-                    >
-                        <List className="h-4 w-4" />
-                    </ToolButton>
-                    <ToolButton
-                        active={editor.isActive('orderedList')}
-                        onClick={() => editor.chain().focus().toggleOrderedList().run()}
-                        title="Numbered List"
-                    >
-                        <ListOrdered className="h-4 w-4" />
-                    </ToolButton>
-                    <ToolButton
-                        active={editor.isActive('blockquote')}
-                        onClick={() => editor.chain().focus().toggleBlockquote().run()}
-                        title="Quote"
-                    >
-                        <Quote className="h-4 w-4" />
-                    </ToolButton>
-                    <ToolButton
-                        onClick={() => editor.chain().focus().setHorizontalRule().run()}
-                        title="Horizontal Line"
-                    >
-                        <Minus className="h-4 w-4" />
-                    </ToolButton>
-                </div>
+            {/* Lists & Quotes */}
+            <div className="flex items-center gap-0.5 px-1">
+                <ToolButton
+                    active={editor.isActive('bulletList')}
+                    onClick={() => editor.chain().focus().toggleBulletList().run()}
+                    title="Bullet List"
+                >
+                    <List className="h-4 w-4" />
+                </ToolButton>
+                <ToolButton
+                    active={editor.isActive('orderedList')}
+                    onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                    title="Numbered List"
+                >
+                    <ListOrdered className="h-4 w-4" />
+                </ToolButton>
+                <ToolButton
+                    active={editor.isActive('blockquote')}
+                    onClick={() => editor.chain().focus().toggleBlockquote().run()}
+                    title="Quote"
+                >
+                    <Quote className="h-4 w-4" />
+                </ToolButton>
+                <ToolButton
+                    onClick={() => editor.chain().focus().setHorizontalRule().run()}
+                    title="Horizontal Line"
+                >
+                    <Minus className="h-4 w-4" />
+                </ToolButton>
+            </div>
 
-                <div className="w-px h-6 bg-gradient-to-b from-transparent via-slate-300 dark:via-slate-600 to-transparent" />
+            <div className="w-px h-6 bg-gradient-to-b from-transparent via-slate-300 dark:via-slate-600 to-transparent" />
 
-                {/* Media & Links */}
-                <div className="flex items-center gap-0.5 px-1">
-                    <ToolButton onClick={onOpenLinkPicker} title="Insert Link">
-                        <LinkIcon className="h-4 w-4" />
-                    </ToolButton>
-                    <ToolButton onClick={onOpenMediaPicker} title="Insert Image">
-                        <ImageIcon className="h-4 w-4" />
-                    </ToolButton>
-                </div>
+            {/* Media & Links */}
+            <div className="flex items-center gap-0.5 px-1">
+                <ToolButton onClick={onOpenLinkPicker} title="Insert Link">
+                    <LinkIcon className="h-4 w-4" />
+                </ToolButton>
+                <ToolButton onClick={onOpenMediaPicker} title="Insert Image">
+                    <ImageIcon className="h-4 w-4" />
+                </ToolButton>
+            </div>
 
-                <div className="w-px h-6 bg-gradient-to-b from-transparent via-slate-300 dark:via-slate-600 to-transparent" />
+            <div className="w-px h-6 bg-gradient-to-b from-transparent via-slate-300 dark:via-slate-600 to-transparent" />
 
-                {/* Mobile Features */}
-                <div className="flex items-center gap-0.5 px-1">
-                    <ToolButton
-                        active={editor.isActive('callout')}
-                        onClick={onSmartCallout}
-                        title="Insert Smart Callout (Select text for AI auto-detect)"
-                    >
-                        {isAiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Megaphone className="h-4 w-4" />}
-                    </ToolButton>
+            {/* Mobile Features */}
+            <div className="flex items-center gap-0.5 px-1">
+                <ToolButton
+                    active={editor.isActive('callout')}
+                    onClick={onSmartCallout}
+                    title="Insert Smart Callout (Select text for AI auto-detect)"
+                >
+                    {isAiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Megaphone className="h-4 w-4" />}
+                </ToolButton>
 
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <button
-                                type="button"
-                                className="relative p-2 sm:p-2.5 rounded-lg sm:rounded-xl transition-all duration-200 ease-out min-w-[36px] min-h-[36px] flex items-center justify-center text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 outline-none focus:ring-0"
-                                title="Insert App Deep Link"
-                                onMouseDown={(e) => e.preventDefault()} // Prevent focus loss
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <button
+                            type="button"
+                            className="relative p-2 sm:p-2.5 rounded-lg sm:rounded-xl transition-all duration-200 ease-out min-w-[36px] min-h-[36px] flex items-center justify-center text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 outline-none focus:ring-0"
+                            title="Insert App Deep Link"
+                            onMouseDown={(e) => e.preventDefault()} // Prevent focus loss
+                        >
+                            <Smartphone className="h-4 w-4" />
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="center" className="w-56" sideOffset={10}>
+                        <div className="text-[10px] font-bold text-slate-500 uppercase px-2 py-1.5 opacity-50">App Deep Links</div>
+                        {DEEP_LINKS.map(link => (
+                            <DropdownMenuItem
+                                key={link.id}
+                                onClick={() => {
+                                    editor.chain().focus()
+                                        .insertContent(`<a href="${link.url}" class="deep-link-chip" data-type="app-link">📱 ${link.name}</a> `)
+                                        .run()
+                                }}
+                                className="gap-2 cursor-pointer"
                             >
-                                <Smartphone className="h-4 w-4" />
-                            </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="center" className="w-56" sideOffset={10}>
-                            <div className="text-[10px] font-bold text-slate-500 uppercase px-2 py-1.5 opacity-50">App Deep Links</div>
-                            {DEEP_LINKS.map(link => (
-                                <DropdownMenuItem
-                                    key={link.id}
-                                    onClick={() => {
-                                        editor.chain().focus()
-                                            .insertContent(`<a href="${link.url}" class="deep-link-chip" data-type="app-link">📱 ${link.name}</a> `)
-                                            .run()
-                                    }}
-                                    className="gap-2 cursor-pointer"
-                                >
-                                    <span>{link.icon}</span>
-                                    <span>{link.name}</span>
-                                </DropdownMenuItem>
-                            ))}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
+                                <span>{link.icon}</span>
+                                <span>{link.name}</span>
+                            </DropdownMenuItem>
+                        ))}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
 
 
-                {/* Block Picker */}
-                {
-                    blocks.length > 0 && (
-                        <>
-                            <div className="w-px h-6 bg-gradient-to-b from-transparent via-slate-300 dark:via-slate-600 to-transparent" />
-                            <Select onValueChange={(val) => onInsertBlock(val)}>
-                                <SelectTrigger className="w-[130px] h-9 text-xs border-0 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors">
-                                    <Box className="h-3.5 w-3.5 mr-2 text-violet-500" />
-                                    <SelectValue placeholder="Blocks" />
-                                </SelectTrigger>
-                                <SelectContent className="rounded-xl">
-                                    {blocks.map(block => (
-                                        <SelectItem key={block.id} value={block.content || ''} className="rounded-lg">
-                                            {block.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </>
-                    )
-                }
-            </div >
-        </div >
+            {/* Block Picker */}
+            {
+                blocks.length > 0 && (
+                    <>
+                        <div className="w-px h-6 bg-gradient-to-b from-transparent via-slate-300 dark:via-slate-600 to-transparent" />
+                        <Select onValueChange={(val) => onInsertBlock(val)}>
+                            <SelectTrigger className="w-[130px] h-9 text-xs border-0 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors">
+                                <Box className="h-3.5 w-3.5 mr-2 text-violet-500" />
+                                <SelectValue placeholder="Blocks" />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl">
+                                {blocks.map(block => (
+                                    <SelectItem key={block.id} value={block.content || ''} className="rounded-lg">
+                                        {block.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </>
+                )
+            }
+        </>
     )
 }
 
@@ -290,6 +289,7 @@ export default function PostEditor({ postId, adminToken, onBack, onPostCreated }
     const [slug, setSlug] = useState('')
     const [status, setStatus] = useState<'draft' | 'published' | 'scheduled' | 'pending_review'>('draft')
     const [author, setAuthor] = useState<BlogAuthor>({ id: 'admin', name: 'KojoMoney Team' })
+    const [authors, setAuthors] = useState<BlogAuthor[]>([])
     const [selectedCategory, setSelectedCategory] = useState<string>('')
     const [sendPushNotification, setSendPushNotification] = useState(false)
 
@@ -316,6 +316,9 @@ export default function PostEditor({ postId, adminToken, onBack, onPostCreated }
     const [directAnswer, setDirectAnswer] = useState('')
     const [geoKeywords, setGeoKeywords] = useState<string[]>([])
     const [generatingAEO, setGeneratingAEO] = useState(false)
+
+    // IndexNow - instant search engine notification
+    const [indexNow, setIndexNow] = useState(true) // Default enabled
 
 
 
@@ -424,10 +427,24 @@ export default function PostEditor({ postId, adminToken, onBack, onPostCreated }
 
     useEffect(() => {
         loadBlocks()
+        loadAuthors()
         if (postId) {
             loadPost()
         }
     }, [postId])
+
+    // Sync author data (e.g. if avatar was updated in DB but post has old data)
+    useEffect(() => {
+        if (author.id && authors.length > 0) {
+            const fresh = authors.find(a => a.id === author.id)
+            if (fresh) {
+                // If fresh data has avatar/name and current doesn't match, update
+                if (fresh.avatar !== author.avatar || fresh.name !== author.name) {
+                    setAuthor(curr => ({ ...curr, ...fresh }))
+                }
+            }
+        }
+    }, [authors, author.id])
 
     useEffect(() => {
         if (editor && initialContent !== null) {
@@ -444,6 +461,32 @@ export default function PostEditor({ postId, adminToken, onBack, onPostCreated }
             })
             if (res.success) setBlocks(res.data)
         } catch (e) { console.error(e) }
+    }
+
+    const loadAuthors = async () => {
+        try {
+            const res = await apiJson<{ success: boolean, authors: BlogAuthor[] }>('/api/admin/blog/authors', {
+                method: 'GET',
+                headers: { Authorization: `Bearer ${adminToken}` }
+            })
+            if (res.success && res.authors.length > 0) {
+                setAuthors(res.authors)
+                // Set default author to current user or first author
+                if (!author.id || author.id === 'admin') {
+                    const currentEmail = getAdminEmail()
+                    // API sets ID to email for authors
+                    const myself = res.authors.find(a => a.id === currentEmail)
+                    if (myself) {
+                        setAuthor(myself)
+                    } else {
+                        setAuthor(res.authors[0])
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('Failed to load authors:', e)
+            setAuthors([])
+        }
     }
 
     const loadPost = async () => {
@@ -555,6 +598,20 @@ export default function PostEditor({ postId, adminToken, onBack, onPostCreated }
                 })
                 if (res.success && res.data?.id && onPostCreated) {
                     onPostCreated(res.data.id)
+                }
+            }
+
+            // If published and IndexNow is enabled, notify search engines
+            if (status === 'published' && indexNow && slug) {
+                try {
+                    await apiJson('/api/indexnow', {
+                        method: 'POST',
+                        headers: { Authorization: `Bearer ${adminToken}` },
+                        body: JSON.stringify({ urls: [`/blog/${slug}`] })
+                    })
+                    console.log('IndexNow: Search engines notified')
+                } catch (e) {
+                    console.warn('IndexNow failed (non-critical):', e)
                 }
             }
         } catch (error) {
@@ -670,7 +727,14 @@ export default function PostEditor({ postId, adminToken, onBack, onPostCreated }
         }
     }
 
-    const handleMediaSelect = (media: { url: string; alt: string; title: string; caption?: string }) => {
+    const handleMediaSelect = (media: {
+        url: string;
+        alt: string;
+        title: string;
+        caption?: string;
+        type?: 'image' | 'video';
+        embedType?: 'iframe' | 'video' | 'image'
+    }) => {
         if (mediaPickerMode === 'featured') {
             setFeaturedImage({
                 url: media.url,
@@ -682,14 +746,52 @@ export default function PostEditor({ postId, adminToken, onBack, onPostCreated }
         }
 
         if (editor) {
-            editor.chain().focus().setImage({
-                src: media.url,
-                alt: media.alt,
-                title: media.title
-            }).run()
+            if (media.embedType === 'iframe') {
+                // Insert iframe for Google Drive, YouTube, etc.
+                const iframeHtml = `
+                    <div class="video-container my-6">
+                        <div class="relative w-full" style="padding-bottom: 56.25%;">
+                            <iframe 
+                                src="${media.url}" 
+                                class="absolute top-0 left-0 w-full h-full rounded-2xl shadow-lg"
+                                title="${media.title}"
+                                frameborder="0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowfullscreen
+                            ></iframe>
+                        </div>
+                        ${media.caption ? `<p class="text-center text-sm text-muted-foreground mt-2">${media.caption}</p>` : ''}
+                    </div>
+                `
+                editor.chain().focus().insertContent(iframeHtml).run()
+            } else if (media.type === 'video' || media.embedType === 'video') {
+                // Insert HTML5 video player for direct video files
+                const videoHtml = `
+                    <div class="video-container my-6">
+                        <video 
+                            src="${media.url}" 
+                            controls 
+                            preload="metadata"
+                            class="w-full rounded-2xl shadow-lg"
+                            title="${media.title}"
+                        >
+                            <p>${media.alt}</p>
+                        </video>
+                        ${media.caption ? `<p class="text-center text-sm text-muted-foreground mt-2">${media.caption}</p>` : ''}
+                    </div>
+                `
+                editor.chain().focus().insertContent(videoHtml).run()
+            } else {
+                // Insert image as before
+                editor.chain().focus().setImage({
+                    src: media.url,
+                    alt: media.alt,
+                    title: media.title
+                }).run()
 
-            if (media.caption) {
-                editor.chain().focus().insertContent(`<p class="text-center text-sm text-muted-foreground mt-1">${media.caption}</p>`).run()
+                if (media.caption) {
+                    editor.chain().focus().insertContent(`<p class="text-center text-sm text-muted-foreground mt-1">${media.caption}</p>`).run()
+                }
             }
         }
     }
@@ -822,21 +924,7 @@ export default function PostEditor({ postId, adminToken, onBack, onPostCreated }
                 </div>
             </header>
 
-            {/* Floating Toolbar - Rendered outside of any overflow-hidden container for proper mobile display */}
-            <FloatingToolbar
-                editor={editor}
-                onOpenLinkPicker={() => setShowLinkPicker(true)}
-                onOpenMediaPicker={() => {
-                    setMediaPickerMode('editor')
-                    setShowMediaPicker(true)
-                }}
-                blocks={blocks}
-                onInsertBlock={insertBlock}
-                onSmartCallout={handleSmartCallout}
-                isAiLoading={isAiLoading}
-            />
-
-            <div className="max-w-[1800px] mx-auto p-3 sm:p-6 pt-28 sm:pt-32">
+            <div className="max-w-[1800px] mx-auto p-3 sm:p-6 pt-4 sm:pt-6">
                 <div className="grid grid-cols-1 xl:grid-cols-[1fr,400px] gap-4 sm:gap-8">
                     {/* Main Editor Column */}
                     <div className="space-y-6">
@@ -865,8 +953,32 @@ export default function PostEditor({ postId, adminToken, onBack, onPostCreated }
                                     </div>
                                 </div>
                             </div>
+                        </div>
 
-                            {/* Editor Area */}
+                        {/* Toolbar - Sticky, positioned as its own element between cards */}
+                        <div className="sticky top-[52px] sm:top-[60px] z-30 -mt-3 -mb-3">
+                            <div className="mx-0 sm:mx-2 rounded-xl sm:rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border border-slate-200 dark:border-slate-700 shadow-lg">
+                                <div className="px-2 sm:px-4 py-2 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+                                    <div className="flex items-center gap-0.5 sm:gap-1 p-1.5 sm:p-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl sm:rounded-2xl border border-slate-200/50 dark:border-slate-700/50 mx-auto w-fit">
+                                        <FloatingToolbar
+                                            editor={editor}
+                                            onOpenLinkPicker={() => setShowLinkPicker(true)}
+                                            onOpenMediaPicker={() => {
+                                                setMediaPickerMode('editor')
+                                                setShowMediaPicker(true)
+                                            }}
+                                            blocks={blocks}
+                                            onInsertBlock={insertBlock}
+                                            onSmartCallout={handleSmartCallout}
+                                            isAiLoading={isAiLoading}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Editor Card */}
+                        <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl shadow-xl shadow-slate-200/50 dark:shadow-slate-900/50 border border-slate-200/50 dark:border-slate-700/50 overflow-hidden">
                             <div className="min-h-[400px] sm:min-h-[650px] bg-gradient-to-b from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-900/50">
                                 <EditorContent editor={editor} className="px-3 sm:px-8 py-4 sm:py-6" />
                             </div>
@@ -1119,66 +1231,25 @@ export default function PostEditor({ postId, adminToken, onBack, onPostCreated }
                                             <Select
                                                 value={author.id}
                                                 onValueChange={(v) => {
-                                                    const authors: Record<string, BlogAuthor> = {
-                                                        'admin': {
-                                                            id: 'admin',
-                                                            name: 'KojoMoney Team',
-                                                            bio: 'The official KojoMoney editorial team, dedicated to helping you earn more online.',
-                                                            verified: true,
-                                                            credentials: 'Official Platform',
-                                                            expertise: ['Rewards Apps', 'Online Earning', 'Money Tips']
-                                                        },
-                                                        'sarah': {
-                                                            id: 'sarah',
-                                                            name: 'Sarah Johnson',
-                                                            bio: 'Personal finance expert with over 8 years of experience helping people maximize their online earnings.',
-                                                            verified: true,
-                                                            credentials: 'Certified Financial Educator',
-                                                            expertise: ['Personal Finance', 'Rewards Programs', 'Budgeting'],
-                                                            yearsExperience: 8,
-                                                            socialLinks: { twitter: 'https://twitter.com/sarahjfinance', linkedin: 'https://linkedin.com/in/sarahjfinance' }
-                                                        },
-                                                        'mike': {
-                                                            id: 'mike',
-                                                            name: 'Mike Chen',
-                                                            bio: 'Tech writer and app reviewer who tests every earning app before recommending it.',
-                                                            verified: true,
-                                                            credentials: 'Tech Journalist',
-                                                            expertise: ['App Reviews', 'Mobile Technology', 'User Experience'],
-                                                            yearsExperience: 5,
-                                                            socialLinks: { twitter: 'https://twitter.com/mikechentech' }
-                                                        },
-                                                        'emma': {
-                                                            id: 'emma',
-                                                            name: 'Emma Williams',
-                                                            bio: 'Frugal living expert sharing practical tips to save and earn more every day.',
-                                                            verified: true,
-                                                            credentials: 'Money-Saving Specialist',
-                                                            expertise: ['Money-Saving Tips', 'Cashback', 'Deals & Offers'],
-                                                            yearsExperience: 6
-                                                        },
-                                                        'david': {
-                                                            id: 'david',
-                                                            name: 'David Brown',
-                                                            bio: 'Full-time app tester who earns with reward apps daily and shares honest reviews.',
-                                                            verified: true,
-                                                            credentials: 'Professional App Tester',
-                                                            expertise: ['App Testing', 'Offerwalls', 'Survey Sites'],
-                                                            yearsExperience: 4
-                                                        }
+                                                    const selectedAuthor = authors.find(a => a.id === v)
+                                                    if (selectedAuthor) {
+                                                        setAuthor(selectedAuthor)
                                                     }
-                                                    setAuthor(authors[v] || authors['admin'])
                                                 }}
                                             >
                                                 <SelectTrigger className="w-full h-11 rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700">
                                                     <SelectValue placeholder="Select author" />
                                                 </SelectTrigger>
                                                 <SelectContent className="rounded-xl">
-                                                    <SelectItem value="admin" className="rounded-lg">KojoMoney Team</SelectItem>
-                                                    <SelectItem value="sarah" className="rounded-lg">Sarah Johnson</SelectItem>
-                                                    <SelectItem value="mike" className="rounded-lg">Mike Chen</SelectItem>
-                                                    <SelectItem value="emma" className="rounded-lg">Emma Williams</SelectItem>
-                                                    <SelectItem value="david" className="rounded-lg">David Brown</SelectItem>
+                                                    {authors.length > 0 ? (
+                                                        authors.map((a) => (
+                                                            <SelectItem key={a.id} value={a.id} className="rounded-lg">
+                                                                {a.name}
+                                                            </SelectItem>
+                                                        ))
+                                                    ) : (
+                                                        <SelectItem value="admin" className="rounded-lg">KojoMoney Team</SelectItem>
+                                                    )}
                                                 </SelectContent>
                                             </Select>
                                             {author.bio && (
@@ -1296,8 +1367,27 @@ export default function PostEditor({ postId, adminToken, onBack, onPostCreated }
                                                 className="min-h-[80px] rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-sm resize-none"
                                             />
                                         </div>
+
+                                        {/* IndexNow Toggle */}
+                                        <div className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl border border-green-200 dark:border-green-800">
+                                            <div className="flex items-center gap-2">
+                                                <Zap className="h-4 w-4 text-green-600" />
+                                                <div>
+                                                    <p className="text-sm font-medium text-green-700 dark:text-green-300">IndexNow</p>
+                                                    <p className="text-xs text-green-600/70 dark:text-green-400/70">Instantly notify Bing, Yandex & more</p>
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setIndexNow(!indexNow)}
+                                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${indexNow ? 'bg-green-500' : 'bg-slate-300 dark:bg-slate-600'}`}
+                                            >
+                                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-md transition-transform ${indexNow ? 'translate-x-6' : 'translate-x-1'}`} />
+                                            </button>
+                                        </div>
                                     </CardContent>
                                 </Card>
+
 
                                 {/* AEO & GEO Optimization */}
                                 <Card className="border-0 shadow-xl shadow-slate-200/50 dark:shadow-slate-900/50 rounded-2xl overflow-hidden mt-6">
@@ -1604,6 +1694,7 @@ export default function PostEditor({ postId, adminToken, onBack, onPostCreated }
                 isOpen={showMediaPicker}
                 onOpenChange={setShowMediaPicker}
                 onSelect={handleMediaSelect}
+                adminToken={adminToken}
             />
 
             <RelatedPostPicker

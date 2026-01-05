@@ -225,18 +225,31 @@ export default function AIWritingTools({
                         </TabsContent>
 
                         <TabsContent value="humanize" className="space-y-4 py-4">
-                            <div className="space-y-2">
-                                <Label>Current Content to Rewrite (Paste here if empty)</Label>
-                                <Textarea
-                                    value={currentContent}
-                                    onChange={(e) => { /* Read only usually, but maybe editable? Logic needed */ }}
-                                    className="h-48"
-                                    placeholder="Select text in editor to populate this..."
-                                />
+                            {/* Info about current content */}
+                            <div className="p-4 bg-violet-50 dark:bg-violet-900/20 rounded-xl border border-violet-200 dark:border-violet-800">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-violet-100 dark:bg-violet-900/50 rounded-lg">
+                                        <Wand2 className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold text-sm text-violet-900 dark:text-violet-100">
+                                            Content from Editor
+                                        </p>
+                                        <p className="text-xs text-violet-600 dark:text-violet-300">
+                                            {currentContent ? (
+                                                <>~{Math.ceil(currentContent.replace(/<[^>]*>/g, '').length / 5)} words will be humanized</>
+                                            ) : (
+                                                'Write some content in the editor first'
+                                            )}
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
+
                             <p className="text-xs text-muted-foreground">
-                                Rewrites your content to sound more human and pass AI detection.
+                                Rewrites your editor content to sound more human and pass AI detection.
                             </p>
+
                             <div className="space-y-2">
                                 <Label className="text-xs">Writing Persona</Label>
                                 <Select value={persona} onValueChange={setPersona}>
@@ -266,14 +279,19 @@ export default function AIWritingTools({
                             <Button
                                 className="w-full bg-purple-600 hover:bg-purple-700"
                                 onClick={handleHumanize}
-                                disabled={loading || !currentContent}
+                                disabled={loading || !currentContent || currentContent.length < 100}
                             >
                                 {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Wand2 className="h-4 w-4 mr-2" />}
-                                Improve Flow
+                                Humanize Content
                             </Button>
                             {!currentContent && (
-                                <p className="text-xs text-muted-foreground text-center">
-                                    Write some content first to humanize
+                                <p className="text-xs text-amber-600 dark:text-amber-400 text-center">
+                                    ⚠️ Write some content in the editor first
+                                </p>
+                            )}
+                            {currentContent && currentContent.length < 100 && (
+                                <p className="text-xs text-amber-600 dark:text-amber-400 text-center">
+                                    ⚠️ Need at least 100 characters to humanize
                                 </p>
                             )}
                         </TabsContent>

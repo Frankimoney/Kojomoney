@@ -1,4 +1,5 @@
 import { ReactNode, useState, useEffect } from 'react'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { Shield, RefreshCw, LogOut, Loader2, AlertCircle, CheckCircle } from 'lucide-react'
@@ -48,8 +49,13 @@ export default function AdminLayout({
             <header className="bg-white dark:bg-zinc-950 border-b dark:border-zinc-800 sticky top-0 z-50">
                 <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center shrink-0">
-                            <Shield className="h-6 w-6 text-white" />
+                        <div className="relative h-10 w-10 shrink-0 bg-slate-900 dark:bg-transparent rounded-lg overflow-hidden shadow-sm border border-transparent dark:border-slate-700">
+                            <Image
+                                src="/app-icon.png"
+                                alt="KojoMoney"
+                                fill
+                                className="object-cover"
+                            />
                         </div>
                         <div>
                             <h1 className="text-xl font-bold dark:text-white">{title}</h1>

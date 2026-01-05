@@ -9,6 +9,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { db } from '@/lib/firebase-admin'
 import { notifyNewWithdrawal } from '@/services/emailService'
+import { getEconomyConfig, pointsToUSD } from '@/lib/server-config'
 
 export const dynamic = 'force-dynamic'
 
@@ -68,7 +69,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         const now = Date.now()
-        const amountUSD = amount / 1000 // 1000 pts = $1
+
+        // Get configurable conversion rate from economy config
+        const economyConfig = await getEconomyConfig()
+        const userCountry = userData.country || 'GLOBAL'
+        const amountUSD = pointsToUSD(amount, economyConfig, userCountry)
 
         // Deduct points
         await userRef.update({

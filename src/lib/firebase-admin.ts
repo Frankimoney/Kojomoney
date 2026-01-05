@@ -27,8 +27,10 @@ if (!admin.apps.length) {
 
 
 // Export Firestore (not Realtime Database)
+// Export Firestore (not Realtime Database)
 export const db = admin.apps.length > 0 ? admin.firestore() : null
 export const adminAuth = admin.apps.length > 0 ? admin.auth() : null
+export const storage = admin.apps.length > 0 ? admin.storage() : null
 
 // Helper to get a Firestore server timestamp
 export const getTimestamp = () => {

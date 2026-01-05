@@ -19,11 +19,20 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         return res.status(500).json({ error: 'Database not available' })
     }
 
-    // TODO: Add admin authentication check
-
     try {
         const now = Date.now()
         const oneDayAgo = now - 24 * 60 * 60 * 1000
+
+        // 1. Fetch Configuration for dynamic points rate
+        let pointsPerDollar = 10000
+        try {
+            const configDoc = await db.collection('config').doc('general').get()
+            if (configDoc.exists) {
+                pointsPerDollar = configDoc.data()?.pointsPerDollar || 10000
+            }
+        } catch (e) {
+            console.error('Error fetching config:', e)
+        }
 
         // Initialize default stats
         let totalUsers = 0
@@ -42,6 +51,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
         // Get user stats (safely)
         try {
+            // Note: For large userbases, this should be a count() query, but Firestore SDK might not support it in this env.
+            // Using listDocuments() or just getting size if possible, but .get() is reliable for small-medium apps.
             const usersSnapshot = await db.collection('users').get()
             totalUsers = usersSnapshot.size
 
@@ -54,7 +65,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
                 if (data.lastActive && data.lastActive > oneDayAgo) {
                     activeUsers++
                 }
-                // Also count lastActiveDate
+                // Also count lastActiveDate (legacy/alternative check)
                 if (data.lastActiveDate) {
                     const lastActiveStr = data.lastActiveDate
                     const today = new Date().toISOString().split('T')[0]
@@ -87,22 +98,21 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
         // Get mission stats (safely - without compound query)
         try {
-            const missionsSnapshot = await db.collection('missions').get()
-            missionsSnapshot.forEach(doc => {
-                if (doc.data().active === true) {
-                    activeMissions++
-                }
-            })
+            const missionsSnapshot = await db.collection('missions').where('active', '==', true).get()
+            activeMissions = missionsSnapshot.size
         } catch (e) {
             console.error('Error fetching missions:', e)
         }
 
         // Get mission progress (safely - without compound query)
         try {
-            const missionProgressSnapshot = await db.collection('mission_progress').get()
+            const missionProgressSnapshot = await db.collection('mission_progress')
+                .where('completedAt', '>', oneDayAgo)
+                .get()
+
             missionProgressSnapshot.forEach(doc => {
                 const data = doc.data()
-                if (data.status === 'completed' && data.completedAt && data.completedAt > oneDayAgo) {
+                if (data.status === 'completed') {
                     completedMissions24h++
                 }
             })
@@ -112,17 +122,13 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
         // Get offer stats (safely)
         try {
-            const offersSnapshot = await db.collection('offers').get()
-            offersSnapshot.forEach(doc => {
-                if (doc.data().active === true) {
-                    totalOffers++
-                }
-            })
+            const offersSnapshot = await db.collection('offers').where('active', '==', true).get()
+            totalOffers = offersSnapshot.size
         } catch (e) {
             console.error('Error fetching offers:', e)
         }
 
-        // Calculate total points distributed by source (safely)
+        // Calculate total points distributed by source
         const earningsBySource: Record<string, number> = {
             ad_watch: 0,
             news_read: 0,
@@ -137,46 +143,49 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         }
 
         try {
-            const transactionsSnapshot = await db.collection('transactions').get()
+            // Optimized Query: Only fetch transactions from the last 24h
+            const transactionsSnapshot = await db.collection('transactions')
+                .where('createdAt', '>', oneDayAgo)
+                .get()
+
             transactionsSnapshot.forEach(doc => {
                 const data = doc.data()
                 if (data.type === 'credit') {
                     totalPointsDistributed += data.amount || 0
 
-                    // Track by source (last 24h)
-                    if (data.createdAt > oneDayAgo) {
-                        const source = data.source || 'other'
+                    const source = data.source || 'other'
 
-                        // Normalize source names
-                        if (source.includes('ad') || source === 'ad_reward') {
-                            earningsBySource.ad_watch += data.amount || 0
-                        } else if (source.includes('news') || source === 'news_reward') {
-                            earningsBySource.news_read += data.amount || 0
-                        } else if (source.includes('trivia')) {
-                            earningsBySource.trivia_complete += data.amount || 0
-                        } else if (source.includes('game') || source === 'mini_game') {
-                            earningsBySource.game_reward += data.amount || 0
-                        } else if (source.includes('offer') || source === 'offer_complete') {
-                            earningsBySource.offerwall += data.amount || 0
-                        } else if (source.includes('survey')) {
-                            earningsBySource.survey += data.amount || 0
-                        } else if (source.includes('referral')) {
-                            earningsBySource.referral += data.amount || 0
-                        } else if (source.includes('spin') || source === 'daily_spin') {
-                            earningsBySource.daily_spin += data.amount || 0
-                        } else if (source.includes('mission')) {
-                            earningsBySource.mission += data.amount || 0
-                        } else {
-                            earningsBySource.other += data.amount || 0
-                        }
+                    // Normalize source names
+                    if (source.includes('ad') || source === 'ad_reward') {
+                        earningsBySource.ad_watch += data.amount || 0
+                    } else if (source.includes('news') || source === 'news_reward') {
+                        earningsBySource.news_read += data.amount || 0
+                    } else if (source.includes('trivia')) {
+                        earningsBySource.trivia_complete += data.amount || 0
+                    } else if (source.includes('game') || source === 'mini_game') {
+                        earningsBySource.game_reward += data.amount || 0
+                    } else if (source.includes('offer') || source === 'offer_complete') {
+                        earningsBySource.offerwall += data.amount || 0
+                    } else if (source.includes('survey')) {
+                        earningsBySource.survey += data.amount || 0
+                    } else if (source.includes('referral')) {
+                        earningsBySource.referral += data.amount || 0
+                    } else if (source.includes('spin') || source === 'daily_spin') {
+                        earningsBySource.daily_spin += data.amount || 0
+                    } else if (source.includes('mission')) {
+                        earningsBySource.mission += data.amount || 0
+                    } else {
+                        earningsBySource.other += data.amount || 0
                     }
                 }
             })
 
             // Calculate estimated revenue
-            // Ads: We earn ~$0.002-0.005 per view, users get ~$0.005
-            // So roughly 1:1 margin on ads
-            adRevenue24h = (earningsBySource.ad_watch / 10000) * 1.5
+            // Ads: We earn ~$0.002-0.005 per view, users get ~$0.005 (using pointsPerDollar)
+            // Assuming 1.5x margin revenue estimation
+            // (Points / Rate) * Margin
+            const adPointsUSD = earningsBySource.ad_watch / pointsPerDollar
+            adRevenue24h = adPointsUSD * 1.5
 
         } catch (e) {
             console.error('Error fetching transactions:', e)
@@ -184,6 +193,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
         // Calculate total points given out in 24h
         const totalPoints24h = Object.values(earningsBySource).reduce((a, b) => a + b, 0)
+
+        // Helper to formatting currency
+        const toUSD = (points: number) => (points / pointsPerDollar).toFixed(2)
 
         return res.status(200).json({
             totalUsers,
@@ -204,19 +216,19 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             // Earnings Breakdown (24h)
             totalPoints24h,
             earningsBySource,
-            // Convert to USD for display
+            // Convert to USD for display using DYNAMIC rate
             earningsUSD24h: {
-                ads: (earningsBySource.ad_watch / 10000).toFixed(2),
-                news: (earningsBySource.news_read / 10000).toFixed(2),
-                trivia: (earningsBySource.trivia_complete / 10000).toFixed(2),
-                games: (earningsBySource.game_reward / 10000).toFixed(2),
-                offerwalls: (earningsBySource.offerwall / 10000).toFixed(2),
-                surveys: (earningsBySource.survey / 10000).toFixed(2),
-                referrals: (earningsBySource.referral / 10000).toFixed(2),
-                spins: (earningsBySource.daily_spin / 10000).toFixed(2),
-                missions: (earningsBySource.mission / 10000).toFixed(2),
-                other: (earningsBySource.other / 10000).toFixed(2),
-                total: (totalPoints24h / 10000).toFixed(2)
+                ads: toUSD(earningsBySource.ad_watch),
+                news: toUSD(earningsBySource.news_read),
+                trivia: toUSD(earningsBySource.trivia_complete),
+                games: toUSD(earningsBySource.game_reward),
+                offerwalls: toUSD(earningsBySource.offerwall),
+                surveys: toUSD(earningsBySource.survey),
+                referrals: toUSD(earningsBySource.referral),
+                spins: toUSD(earningsBySource.daily_spin),
+                missions: toUSD(earningsBySource.mission),
+                other: toUSD(earningsBySource.other),
+                total: toUSD(totalPoints24h)
             }
         })
     } catch (error) {
@@ -225,4 +237,4 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 }
 
-export default requireAdmin(handler)
+export default requireAdmin(handler, 'support')

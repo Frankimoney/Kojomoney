@@ -6,15 +6,20 @@
  * 
  * Step 2: POST /api/auth/admin-login with { email, code }
  *         Verifies the code and returns the admin token
+ * 
+ * Password validation:
+ * - Bootstrapped admins (from ENV): use shared ADMIN_PASSWORD
+ * - Invited admins: use their individual passwordHash
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { generateAdminToken } from '@/lib/admin-auth'
 import { allowCors } from '@/lib/cors'
+import { adminDb } from '@/lib/admin-db'
+import bcrypt from 'bcryptjs'
 
-// Admin credentials from environment
+// Admin credentials from environment (for bootstrapped super_admins)
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'NshumB@EMMANDAK2'
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'admin@kojomoney.com,manamongmen99@gmail.com,francistogor@gmail.com').split(',').map(e => e.trim().toLowerCase())
 
 // Store for pending 2FA codes (in production, use Redis or database)
 // Map: email -> { code: string, expiresAt: number, attempts: number }
@@ -94,6 +99,28 @@ async function send2FACode(email: string, code: string): Promise<boolean> {
     }
 }
 
+/**
+ * Validate password for an admin user
+ * - Bootstrapped admins (status undefined or addedBy='system'): use ADMIN_PASSWORD
+ * - Invited admins with passwordHash: use bcrypt comparison
+ */
+async function validatePassword(admin: any, password: string): Promise<boolean> {
+    // Check if this is a bootstrapped admin (from ENV)
+    const isBootstrapped = admin.addedBy === 'system' || !admin.passwordHash
+
+    if (isBootstrapped) {
+        // Use shared master password for bootstrapped admins
+        return password === ADMIN_PASSWORD
+    }
+
+    // For invited admins, check against their password hash
+    if (admin.passwordHash) {
+        return await bcrypt.compare(password, admin.passwordHash)
+    }
+
+    return false
+}
+
 async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' })
@@ -139,17 +166,32 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             })
         }
 
-        // Code is valid! Generate token and cleanup
-        pendingCodes.delete(email.toLowerCase())
-        const token = generateAdminToken(email)
+        // Code is valid! 
 
-        console.log(`[Admin 2FA] Login successful for ${email}`)
+        // Fetch role from DB again to be safe
+        const adminUser = await adminDb.getAdmin(email)
+
+        // Should not happen if Step 1 passed, but safety first
+        if (!adminUser) {
+            return res.status(403).json({ error: 'Unauthorized' })
+        }
+
+        // Generate token with role
+        const token = generateAdminToken(email, adminUser.role)
+
+        // Record login
+        await adminDb.recordLogin(email)
+
+        console.log(`[Admin 2FA] Login successful for ${email} (${adminUser.role})`)
+
+        // Clean up code
+        pendingCodes.delete(email.toLowerCase())
 
         return res.status(200).json({
             success: true,
             step: 'complete',
             token,
-            user: { email, role: 'admin' }
+            user: { email, role: adminUser.role, name: adminUser.name }
         })
     }
 
@@ -158,40 +200,57 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         return res.status(400).json({ error: 'Email and password are required' })
     }
 
-    // Verify password
-    if (password !== ADMIN_PASSWORD) {
-        return res.status(401).json({ error: 'Invalid password' })
-    }
+    // Verify email against DB (RBAC)
+    try {
+        const adminUser = await adminDb.getAdmin(email)
 
-    // Verify email (must match authorized list)
-    if (!ADMIN_EMAILS.includes(email.toLowerCase())) {
-        return res.status(403).json({ error: 'Unauthorized email address' })
-    }
+        if (!adminUser) {
+            return res.status(403).json({ error: 'Unauthorized: Admin access required' })
+        }
 
-    // Generate and store 2FA code
-    const verificationCode = generateCode()
-    pendingCodes.set(email.toLowerCase(), {
-        code: verificationCode,
-        expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
-        attempts: 0
-    })
+        // Check if account is pending (hasn't accepted invite yet)
+        if (adminUser.status === 'pending') {
+            return res.status(403).json({
+                error: 'Please accept your invitation first. Check your email for the invite link.'
+            })
+        }
 
-    // Send code via email
-    const sent = await send2FACode(email, verificationCode)
+        // Verify password (individual or shared)
+        const passwordValid = await validatePassword(adminUser, password)
 
-    if (!sent) {
-        pendingCodes.delete(email.toLowerCase())
-        return res.status(500).json({
-            error: 'Failed to send verification code. Please try again.'
+        if (!passwordValid) {
+            return res.status(401).json({ error: 'Invalid password' })
+        }
+
+        // Generate and store 2FA code
+        const verificationCode = generateCode()
+        pendingCodes.set(email.toLowerCase(), {
+            code: verificationCode,
+            expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
+            attempts: 0
         })
-    }
 
-    return res.status(200).json({
-        success: true,
-        step: 'verify_code',
-        message: `A 6-digit verification code has been sent to ${email}`,
-        expiresIn: 300 // 5 minutes in seconds
-    })
+        // Send code via email
+        const sent = await send2FACode(email, verificationCode)
+
+        if (!sent) {
+            pendingCodes.delete(email.toLowerCase())
+            return res.status(500).json({
+                error: 'Failed to send verification code. Please try again.'
+            })
+        }
+
+        return res.status(200).json({
+            success: true,
+            step: 'verify_code',
+            message: `A 6-digit verification code has been sent to ${email}`,
+            expiresIn: 300 // 5 minutes in seconds
+        })
+
+    } catch (error) {
+        console.error('[Admin Login] DB Check Failed:', error)
+        return res.status(500).json({ error: 'Internal server error' })
+    }
 }
 
 export default allowCors(handler)

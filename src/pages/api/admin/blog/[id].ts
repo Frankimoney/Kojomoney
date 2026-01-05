@@ -89,13 +89,74 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     }
     else if (req.method === 'DELETE') {
         try {
+            // Get the post data before deleting (for redirect)
+            const doc = await docRef.get()
+            if (!doc.exists) {
+                return res.status(404).json({ error: 'Post not found' })
+            }
+
+            const postData = doc.data() as BlogPost
+            const deletedSlug = postData.slug
+            const deletedCategories = postData.categories || []
+
+            // Find a similar post to redirect to
+            let redirectToSlug: string | null = null
+
+            // First, try to find a post in the same category
+            if (deletedCategories.length > 0) {
+                const similarQuery = await db.collection('posts')
+                    .where('status', '==', 'published')
+                    .where('categories', 'array-contains-any', deletedCategories)
+                    .limit(5)
+                    .get()
+
+                // Find one that isn't the current post
+                for (const similar of similarQuery.docs) {
+                    if (similar.id !== id) {
+                        redirectToSlug = (similar.data() as BlogPost).slug
+                        break
+                    }
+                }
+            }
+
+            // If no similar post found, get the most recent published post
+            if (!redirectToSlug) {
+                const recentQuery = await db.collection('posts')
+                    .where('status', '==', 'published')
+                    .orderBy('publishedAt', 'desc')
+                    .limit(2)
+                    .get()
+
+                for (const recent of recentQuery.docs) {
+                    if (recent.id !== id) {
+                        redirectToSlug = (recent.data() as BlogPost).slug
+                        break
+                    }
+                }
+            }
+
+            // Save the redirect mapping
+            if (deletedSlug && redirectToSlug) {
+                await db.collection('redirects').doc(deletedSlug).set({
+                    from: deletedSlug,
+                    to: redirectToSlug,
+                    type: '301', // Permanent redirect
+                    createdAt: Date.now(),
+                    reason: 'post_deleted',
+                    originalTitle: postData.title
+                })
+                console.log(`[Redirect] Created: /blog/${deletedSlug} -> /blog/${redirectToSlug}`)
+            }
+
             // Delete post
             // Note: Versions in subcollection generally stay unless recursive delete is used.
-            // Firestore doesn't verify deletion of subcollections automatically. 
-            // For now, we leave versions as "archive".
-
             await docRef.delete()
-            return res.status(200).json({ success: true, message: 'Post deleted' })
+
+            return res.status(200).json({
+                success: true,
+                message: 'Post deleted',
+                redirect: redirectToSlug ? `/blog/${redirectToSlug}` : null
+            })
         } catch (error) {
             console.error('Error deleting post:', error)
             return res.status(500).json({ error: 'Failed to delete post' })
@@ -106,4 +167,4 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 }
 
-export default requireAdmin(handler)
+export default requireAdmin(handler, 'editor')

@@ -162,4 +162,4 @@ async function handleReviewProof(req: NextApiRequest, res: NextApiResponse) {
     }
 }
 
-export default requireAdmin(handler)
+export default requireAdmin(handler, 'super_admin')

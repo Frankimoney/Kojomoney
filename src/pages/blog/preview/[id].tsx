@@ -5,7 +5,8 @@ import { BlogPost } from '@/types/blog'
 import { getAdminToken } from '@/components/AdminLogin'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Loader2 } from 'lucide-react'
+import { ArrowLeft, Loader2, Zap, Star, Check, HelpCircle } from 'lucide-react'
+import EEATSignals, { TrustSignalsBar, EnhancedAuthorBox, SourcesCitations, ArticleMetaFooter, EditorialDisclosure } from '@/components/blog/EEATSignals'
 import Head from 'next/head'
 import PostActionBar from '@/components/blog/PostActionBar'
 import BlogBreadcrumbs, { buildPostBreadcrumbs } from '@/components/blog/BlogBreadcrumbs'
@@ -89,6 +90,9 @@ export default function BlogPreview() {
 
                     {/* Modern Header */}
                     <header className="mb-10 text-center">
+                        <div className="flex justify-center">
+                            <TrustSignalsBar post={post} />
+                        </div>
                         <div className="flex items-center justify-center gap-2 mb-6">
                             {post.categories?.map(catId => (
                                 <Badge key={catId} variant="secondary" className="px-3 py-1 text-sm font-medium bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 hover:bg-violet-200 uppercase tracking-wide">
@@ -112,6 +116,39 @@ export default function BlogPreview() {
                     </header>
 
                     {/* Content */}
+                    <EditorialDisclosure post={post} />
+
+                    {/* AEO: Direct Answer */}
+                    {post.directAnswer && (
+                        <div className="mb-8 p-6 bg-violet-50 dark:bg-violet-900/20 border-l-4 border-violet-500 rounded-r-xl">
+                            <h3 className="text-sm font-bold uppercase tracking-wider text-violet-700 dark:text-violet-300 mb-2 flex items-center gap-2">
+                                <Zap className="h-4 w-4" />
+                                Quick Answer
+                            </h3>
+                            <p className="font-medium text-lg leading-relaxed text-slate-800 dark:text-slate-200">
+                                {post.directAnswer}
+                            </p>
+                        </div>
+                    )}
+
+                    {/* AEO: Key Takeaways */}
+                    {post.keyTakeaways && post.keyTakeaways.length > 0 && (
+                        <div className="mb-10 bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-6 sm:p-8">
+                            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                                <Star className="h-5 w-5 text-amber-500 fill-current" />
+                                Key Takeaways
+                            </h3>
+                            <ul className="grid gap-3">
+                                {post.keyTakeaways.map((point, i) => (
+                                    <li key={i} className="flex gap-3 text-base">
+                                        <Check className="h-5 w-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+                                        <span className="text-slate-700 dark:text-slate-300">{point}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
                     <div
                         className="prose prose-lg prose-slate dark:prose-invert max-w-none prose-headings:font-bold prose-headings:tracking-tight prose-a:text-violet-600 dark:prose-a:text-violet-400 prose-img:rounded-3xl prose-img:shadow-lg leading-loose
                             [&_h1]:text-4xl [&_h1]:font-black [&_h1]:mb-6 [&_h1]:mt-8
@@ -138,6 +175,42 @@ export default function BlogPreview() {
                         className="my-10"
                     />
                 </article>
+
+                {/* FAQ */}
+                {post.faq && post.faq.length > 0 && (
+                    <div className="mt-12 border-t pt-8">
+                        <h2 className="text-2xl font-bold mb-6">Frequently Asked Questions</h2>
+                        <div className="space-y-6">
+                            {post.faq.map((item, i) => (
+                                <div key={i} className="border-b pb-4 last:border-0">
+                                    <h3 className="font-semibold text-lg mb-2">{item.question}</h3>
+                                    <div className="text-muted-foreground" dangerouslySetInnerHTML={{ __html: item.answer }} />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* GEO: Conversational Keywords */}
+                {post.geoKeywords && post.geoKeywords.length > 0 && (
+                    <div className="mt-8 mb-8 p-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                        <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                            <HelpCircle className="h-5 w-5 text-violet-500" />
+                            Common Questions & Topics
+                        </h3>
+                        <div className="flex flex-wrap gap-2">
+                            {post.geoKeywords.map((keyword, i) => (
+                                <Badge key={i} variant="outline" className="px-3 py-1 text-sm bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 font-normal text-slate-600 dark:text-slate-400">
+                                    {keyword}
+                                </Badge>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                <SourcesCitations sources={post.sources} />
+                <EnhancedAuthorBox author={post.author} post={post} />
+                <ArticleMetaFooter post={post} />
             </main>
         </div>
     )

@@ -33,7 +33,7 @@ const DailyTrivia = dynamic(() => import('./DailyTrivia'), {
 
 import AuthSystem from './AuthSystem'
 import { NotificationCenter } from '@/components/notifications/NotificationCenter'
-import { FloatingNotificationContainer } from '@/components/notifications/FloatingNotification'
+import { FloatingNotificationContainer, FloatingNotifications } from '@/components/notifications/FloatingNotification'
 import { useEngagementNotifications } from '@/hooks/useEngagementNotifications'
 // Capacitor plugins - only available on mobile, lazy loaded
 // import { PushNotifications } from '@capacitor/push-notifications'
@@ -381,7 +381,6 @@ function AdsPage({ user, onBack }: AdsPageProps) {
 
                 // Show multiplier feedback notification
                 if (creditData.success && creditData.pointsAwarded) {
-                    const { FloatingNotifications } = await import('@/components/notifications/FloatingNotification')
                     FloatingNotifications.pointsEarned({
                         source: 'Ad Watch',
                         basePoints: creditData.basePoints || 5,

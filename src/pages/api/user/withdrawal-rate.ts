@@ -71,7 +71,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         const normalizedCountry = userCountry.toUpperCase()
         const multiplier = countryMultipliers[normalizedCountry] || countryMultipliers['GLOBAL'] || 0.2
         const effectiveMargin = globalMargin || 1.0
-        const basePointsPerDollar = POINTS_CONFIG.pointsPerDollar || 10000
+        const basePointsPerDollar = config.pointsPerDollar || POINTS_CONFIG.pointsPerDollar || 10000
 
         // How many USD per 1000 points
         const usdPer1000Points = (1000 / basePointsPerDollar) * multiplier * effectiveMargin

@@ -304,10 +304,76 @@ export async function sendWelcomeEmail(email: string, displayName: string): Prom
     })
 }
 
+/**
+ * Send admin invite email
+ */
+export async function sendAdminInvite(
+    email: string,
+    name: string,
+    role: string,
+    inviteToken: string,
+    invitedBy: string
+): Promise<boolean> {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://kojomoney.com'
+    const inviteUrl = `${appUrl}/admin/accept-invite?token=${inviteToken}`
+
+    const subject = '🎉 You\'ve Been Invited to KojoMoney Admin'
+
+    const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 30px; color: white; border-radius: 10px 10px 0 0; text-align: center;">
+                <h1 style="margin: 0; font-size: 28px;">🎉 Admin Invitation</h1>
+                <p style="margin: 10px 0 0 0; opacity: 0.9;">You've been invited to join the team</p>
+            </div>
+            <div style="padding: 30px; background: #f8fafc; border-radius: 0 0 10px 10px;">
+                <p style="color: #374151; font-size: 18px;">
+                    Hi ${name}! 👋
+                </p>
+                <p style="color: #64748b; line-height: 1.6;">
+                    <strong>${invitedBy}</strong> has invited you to join the KojoMoney admin team as a <strong style="color: #6366f1;">${role}</strong>.
+                </p>
+                
+                <div style="background: #e0e7ff; border: 1px solid #c7d2fe; padding: 20px; border-radius: 10px; margin: 25px 0;">
+                    <p style="color: #4338ca; margin: 0; font-size: 14px;">
+                        <strong>📋 Your Role:</strong> ${role}<br>
+                        <strong>📧 Your Email:</strong> ${email}
+                    </p>
+                </div>
+                
+                <p style="color: #64748b; line-height: 1.6;">
+                    Click the button below to set your password and activate your account:
+                </p>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="${inviteUrl}" 
+                       style="display: inline-block; padding: 14px 40px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                        Accept Invitation
+                    </a>
+                </div>
+                
+                <p style="color: #94a3b8; font-size: 12px; margin-top: 30px;">
+                    This invitation expires in 7 days. If you didn't expect this invitation, please ignore this email.
+                </p>
+            </div>
+            <div style="padding: 20px; text-align: center; color: #94a3b8; font-size: 12px;">
+                <p>KojoMoney Admin Panel</p>
+            </div>
+        </div>
+    `
+
+    return await sendEmail({
+        to: email,
+        subject,
+        html,
+        text: `Hi ${name}! You've been invited to join KojoMoney as ${role}. Accept your invitation here: ${inviteUrl}`,
+    })
+}
+
 export default {
     sendEmail,
     notifyNewWithdrawal,
     notifyWithdrawalProcessed,
     sendVerificationCode,
     sendWelcomeEmail,
+    sendAdminInvite,
 }

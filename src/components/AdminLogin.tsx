@@ -147,6 +147,8 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
                 if (typeof window !== 'undefined') {
                     const session = {
                         email: data.user.email,
+                        role: data.user.role,
+                        name: data.user.name,
                         token: data.token,
                         loginTime: Date.now(),
                         expiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
@@ -395,7 +397,17 @@ export function checkAdminSession(): boolean {
         if (!sessionStr) return false
 
         const session = JSON.parse(sessionStr)
+
+        // Check if session has expired
         if (session.expiresAt < Date.now()) {
+            localStorage.removeItem('adminSession')
+            return false
+        }
+
+        // RBAC Migration: Legacy sessions without 'role' are invalid
+        // Force re-login to get proper role from backend
+        if (!session.role) {
+            console.warn('[Admin Session] Legacy session detected (missing role). Forcing re-login.')
             localStorage.removeItem('adminSession')
             return false
         }
@@ -431,6 +443,30 @@ export function getAdminToken(): string | null {
         const sessionStr = localStorage.getItem('adminSession')
         if (!sessionStr) return null
         return JSON.parse(sessionStr).token || null
+    } catch {
+        return null
+    }
+}
+
+export function getAdminRole(): string {
+    if (typeof window === 'undefined') return 'viewer'
+
+    try {
+        const sessionStr = localStorage.getItem('adminSession')
+        if (!sessionStr) return 'viewer'
+        return JSON.parse(sessionStr).role || 'viewer'
+    } catch {
+        return 'viewer'
+    }
+}
+
+export function getAdminName(): string | null {
+    if (typeof window === 'undefined') return null
+
+    try {
+        const sessionStr = localStorage.getItem('adminSession')
+        if (!sessionStr) return null
+        return JSON.parse(sessionStr).name || null
     } catch {
         return null
     }

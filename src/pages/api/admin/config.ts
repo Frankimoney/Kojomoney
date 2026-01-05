@@ -1,27 +1,13 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { db } from '@/lib/firebase-admin'
 import { allowCors } from '@/lib/cors'
+import { requireAdmin } from '@/lib/admin-auth'
 import { EARNING_RATES, DAILY_LIMITS, POINTS_CONFIG } from '@/lib/points-config'
 
 export const dynamic = 'force-dynamic'
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
-    // 1. Verify Admin Authentication
-    const authHeader = req.headers.authorization
-    const adminToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null
-
-    // In a real app, verify the token against a secret or DB
-    // For now, we reuse the simple check from other admin endpoints if available,
-    // or just check if it exists since we rely on the AdminLogin component's security.
-    // Ideally, verify against process.env.ADMIN_SECRET or similar if you had one.
-    // Checking against a hardcoded "admin-token" or similar is weak but matches current session context if any.
-    // Let's assume the frontend sends the token we generated in login.
-    // For stronger security, we should validate it properly.
-
-    // Check if authenticated
-    if (!adminToken) {
-        return res.status(401).json({ error: 'Unauthorized' })
-    }
+    // Authenticated via requireAdmin middleware
 
     if (!db) {
         return res.status(500).json({ error: 'Database not available' })
@@ -55,7 +41,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         }
     } else if (req.method === 'POST') {
         try {
-            const { earningRates, dailyLimits, pointsConfig, countryMultipliers, globalMargin } = req.body
+            const { earningRates, dailyLimits, pointsConfig, countryMultipliers, globalMargin, pointsPerDollar } = req.body
 
             // Validation could go here
 
@@ -65,6 +51,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
                 pointsConfig: pointsConfig || POINTS_CONFIG,
                 countryMultipliers: countryMultipliers || {},
                 globalMargin: globalMargin !== undefined ? globalMargin : 1.0,
+                pointsPerDollar: pointsPerDollar !== undefined ? pointsPerDollar : POINTS_CONFIG.pointsPerDollar,
                 lastUpdated: Date.now(),
                 updatedBy: 'admin' // Could track specific admin email if available
             }
@@ -81,4 +68,4 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 }
 
-export default allowCors(handler)
+export default requireAdmin(handler, 'super_admin')
