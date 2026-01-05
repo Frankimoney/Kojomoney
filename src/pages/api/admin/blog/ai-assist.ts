@@ -1,45 +1,13 @@
 import { NextApiRequest, NextApiResponse } from 'next'
-import { adminAuth } from '@/lib/firebase-admin'
+import { requireAdmin } from '@/lib/admin-auth'
 
-// Verify admin token
-async function verifyAdmin(req: NextApiRequest) {
-    const token = req.headers.authorization?.split('Bearer ')[1]
-    if (!token) return null
-    try {
-        const decodedToken = await adminAuth.verifyIdToken(token)
-        return decodedToken
-    } catch (e) {
-        return null
-    }
-}
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-    // CORS
-    res.setHeader('Access-Control-Allow-Credentials', 'true')
-    res.setHeader('Access-Control-Allow-Origin', '*')
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST')
-    res.setHeader(
-        'Access-Control-Allow-Headers',
-        'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
-    )
-
-    if (req.method === 'OPTIONS') {
-        res.status(200).end()
-        return
-    }
-
+async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method !== 'POST') {
         return res.status(405).json({ success: false, error: 'Method not allowed' })
     }
 
-    // Verify Admin
-    const admin = await verifyAdmin(req)
-    if (!admin) {
-        return res.status(401).json({ success: false, error: 'Unauthorized' })
-    }
-
     try {
-        const { mode, title, content } = JSON.parse(req.body)
+        const { mode, title, content } = req.body
 
         // Get OpenAI API Key from environment
         const apiKey = process.env.OPENAI_API_KEY
@@ -98,3 +66,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({ success: false, error: 'Failed to generate content' })
     }
 }
+
+export default requireAdmin(handler)

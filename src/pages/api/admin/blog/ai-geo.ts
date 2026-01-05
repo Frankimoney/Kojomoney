@@ -1,15 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next'
-import { verifyAdminToken } from '@/lib/admin-auth'
+import { requireAdmin } from '@/lib/admin-auth'
 import { checkRateLimit, logAIUsage } from '@/lib/ai-rate-limiter'
 import { getAISystemPrompt } from '@/lib/ai-knowledge'
-
-function verifyAdmin(req: NextApiRequest) {
-    const token = req.headers.authorization?.split('Bearer ')[1]
-    if (!token) return null
-    const decoded = verifyAdminToken(token)
-    if (!decoded) return null
-    return { uid: decoded.email, ...decoded }
-}
 
 const AEO_PROMPT = `You are an AEO (Answer Engine Optimization) expert.
 Analyze the following blog post content and generate optimization data for AI snapshots and Answer Engines (like Google SGE, Perplexity, ChatGPT).
@@ -30,19 +22,11 @@ Return STRICT JSON format:
   "geoKeywords": ["string", ...]
 }`
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-    res.setHeader('Access-Control-Allow-Credentials', 'true')
-    res.setHeader('Access-Control-Allow-Origin', '*')
-    res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS')
-    res.setHeader('Access-Control-Allow-Headers', 'Authorization,Content-Type')
-
-    if (req.method === 'OPTIONS') return res.status(200).end()
+async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-    const user = verifyAdmin(req)
-    if (!user) return res.status(401).json({ error: 'Unauthorized' })
-
-    const rateCheck = await checkRateLimit(user.uid, 'ai-geo', true)
+    const authEmail = (req as any).adminEmail || 'admin'
+    const rateCheck = await checkRateLimit(authEmail, 'ai-geo', true)
     if (!rateCheck.allowed) {
         return res.status(429).json({ error: 'Rate limit exceeded' })
     }
@@ -75,7 +59,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
-                model: 'gpt-4-turbo-preview', // Use a smart model for analysis
+                model: 'gpt-4-turbo-preview',
                 response_format: { type: "json_object" },
                 messages: [
                     { role: 'system', content: getAISystemPrompt('seo') },
@@ -96,7 +80,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const resultString = data.choices?.[0]?.message?.content || '{}'
         const result = JSON.parse(resultString)
 
-        await logAIUsage(user.uid, 'ai-geo', data.usage?.total_tokens || 0, 'gpt-4-turbo-preview')
+        await logAIUsage(authEmail, 'ai-geo', data.usage?.total_tokens || 0, 'gpt-4-turbo-preview')
 
         return res.status(200).json({
             success: true,
@@ -112,3 +96,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({ error: error.message || 'Internal server error' })
     }
 }
+
+export default requireAdmin(handler)

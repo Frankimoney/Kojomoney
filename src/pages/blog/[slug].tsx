@@ -37,7 +37,8 @@ export default function BlogPostPage() {
             setError(null)
 
             try {
-                const data = await apiCall(`/api/blog/${slug}`)
+                const response = await apiCall(`/api/blog/${slug}`)
+                const data = await response.json()
 
                 if (data.error) {
                     setError(data.error)

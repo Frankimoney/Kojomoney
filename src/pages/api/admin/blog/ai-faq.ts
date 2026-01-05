@@ -1,15 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next'
-import { verifyAdminToken } from '@/lib/admin-auth'
+import { requireAdmin } from '@/lib/admin-auth'
 import { checkRateLimit, logAIUsage } from '@/lib/ai-rate-limiter'
 import { getAISystemPrompt } from '@/lib/ai-knowledge'
-
-function verifyAdmin(req: NextApiRequest) {
-    const token = req.headers.authorization?.split('Bearer ')[1]
-    if (!token) return null
-    const decoded = verifyAdminToken(token)
-    if (!decoded) return null
-    return { uid: decoded.email, ...decoded }
-}
 
 const FAQ_PROMPT = `Generate FAQ questions and answers based on this blog content.
 
@@ -35,19 +27,11 @@ RULES:
 
 Return ONLY valid JSON array, no other text.`
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-    res.setHeader('Access-Control-Allow-Credentials', 'true')
-    res.setHeader('Access-Control-Allow-Origin', '*')
-    res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS')
-    res.setHeader('Access-Control-Allow-Headers', 'Authorization,Content-Type')
-
-    if (req.method === 'OPTIONS') return res.status(200).end()
+async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-    const user = await verifyAdmin(req)
-    if (!user) return res.status(401).json({ error: 'Unauthorized' })
-
-    const rateCheck = await checkRateLimit(user.uid, 'ai-generate', true)
+    const authEmail = (req as any).adminEmail || 'admin'
+    const rateCheck = await checkRateLimit(authEmail, 'ai-generate', true)
     if (!rateCheck.allowed) {
         const resetIn = Math.ceil((rateCheck.resetAt - Date.now()) / 60000)
         return res.status(429).json({
@@ -116,7 +100,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             return res.status(500).json({ error: 'Failed to parse AI response' })
         }
 
-        await logAIUsage(user.uid, 'ai-faq', tokensUsed, 'gpt-4.1')
+        await logAIUsage(authEmail, 'ai-faq', tokensUsed, 'gpt-4.1')
 
         return res.status(200).json({
             success: true,
@@ -129,3 +113,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({ error: 'Failed to generate FAQs' })
     }
 }
+
+export default requireAdmin(handler)

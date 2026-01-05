@@ -1,16 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next'
-import { verifyAdminToken } from '@/lib/admin-auth'
+import { requireAdmin } from '@/lib/admin-auth'
 import { checkRateLimit, logAIUsage } from '@/lib/ai-rate-limiter'
 import { cleanAIisms, addImperfections } from '@/lib/ai-blacklist'
-import { getAISystemPrompt } from '@/lib/ai-knowledge'
-
-function verifyAdmin(req: NextApiRequest) {
-    const token = req.headers.authorization?.split('Bearer ')[1]
-    if (!token) return null
-    const decoded = verifyAdminToken(token)
-    if (!decoded) return null
-    return { uid: decoded.email, ...decoded }
-}
 
 const GENERATOR_PROMPT = `You are a real person writing a blog post. Not an AI. A human who types like they talk.
 
@@ -120,10 +111,6 @@ async function validateAndCleanLinks(html: string): Promise<string> {
             })
             clearTimeout(id)
 
-            // We consider it valid if status is 200-299. 
-            // Some sites return 403/405 to HEAD, so we might retry with GET if critical, 
-            // but for safety, if it's not OK, we assume risk of dead link.
-            // Exception: 405 Method Not Allowed (common for HEAD) -> Try GET range
             if (!res.ok && res.status !== 405 && res.status !== 403) {
                 return { ...link, valid: false }
             }
@@ -136,14 +123,8 @@ async function validateAndCleanLinks(html: string): Promise<string> {
 
     // Replace invalid links with just text
     let newHtml = html
-    // Process from end to start to avoid index shifting issues ?? 
-    // Actually replace string by string is safer if unique, but let's use replace
-
     for (const check of checks) {
         if (!check.valid) {
-            // Replace <a href="...">text</a> with just text
-            // We use split/join to replace all occurrences if identical, or use stricter logic
-            // To be safe against duplicates, we can rebuild the string, but simple replace usually works for AI output
             newHtml = newHtml.replace(check.fullMatch, check.text)
         }
     }
@@ -151,21 +132,13 @@ async function validateAndCleanLinks(html: string): Promise<string> {
     return newHtml
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-    res.setHeader('Access-Control-Allow-Credentials', 'true')
-    res.setHeader('Access-Control-Allow-Origin', '*')
-    res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS')
-    res.setHeader('Access-Control-Allow-Headers', 'Authorization,Content-Type')
-
-    if (req.method === 'OPTIONS') return res.status(200).end()
+async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-    // Verify admin token (synchronous)
-    const user = verifyAdmin(req)
-    if (!user) return res.status(401).json({ error: 'Unauthorized' })
+    const authEmail = (req as any).adminEmail || 'admin'
 
     // Rate limit check
-    const rateCheck = await checkRateLimit(user.uid, 'ai-generate', true)
+    const rateCheck = await checkRateLimit(authEmail, 'ai-generate', true)
     if (!rateCheck.allowed) {
         const resetIn = Math.ceil((rateCheck.resetAt - Date.now()) / 60000)
         return res.status(429).json({
@@ -248,9 +221,6 @@ Return ONLY valid JSON in this format: { "type": "bonus" | "alert" | "tip" | "in
         let content = data.choices?.[0]?.message?.content || ''
         const tokensUsed = data.usage?.total_tokens || 0
 
-        // If Callout mode, content is JSON string already. We can validate it or just return it.
-        // The consumer expects 'content' field.
-
         if (mode !== 'callout') {
             // Post-process: clean AI-isms and add imperfections
             content = content.replace(/^```html\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '')
@@ -261,7 +231,7 @@ Return ONLY valid JSON in this format: { "type": "bonus" | "alert" | "tip" | "in
         }
 
         // Log usage
-        await logAIUsage(user.uid, 'ai-generate', tokensUsed, data.model)
+        await logAIUsage(authEmail, 'ai-generate', tokensUsed, data.model)
 
         return res.status(200).json({
             success: true,
@@ -275,3 +245,5 @@ Return ONLY valid JSON in this format: { "type": "bonus" | "alert" | "tip" | "in
         return res.status(500).json({ error: 'Internal server error: ' + error.message })
     }
 }
+
+export default requireAdmin(handler)

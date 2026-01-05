@@ -41,7 +41,8 @@ export default function BlogIndex() {
                 if (router.query.category) params.set('category', router.query.category as string)
                 if (router.query.search) params.set('search', router.query.search as string)
 
-                const data = await apiCall(`/api/blog/posts?${params.toString()}`)
+                const response = await apiCall(`/api/blog/posts?${params.toString()}`)
+                const data = await response.json()
 
                 setPosts(data.posts || [])
                 setPage(data.page || 1)

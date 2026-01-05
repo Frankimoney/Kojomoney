@@ -1,15 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next'
-import { verifyAdminToken } from '@/lib/admin-auth'
+import { requireAdmin } from '@/lib/admin-auth'
 import { checkRateLimit, logAIUsage } from '@/lib/ai-rate-limiter'
 import { cleanAIisms, addImperfections, addBurstiness } from '@/lib/ai-blacklist'
-
-function verifyAdmin(req: NextApiRequest) {
-    const token = req.headers.authorization?.split('Bearer ')[1]
-    if (!token) return null
-    const decoded = verifyAdminToken(token)
-    if (!decoded) return null
-    return { uid: decoded.email, ...decoded }
-}
 
 const PERSONAS: Record<string, string> = {
     skeptical: 'a skeptical Nigerian blogger who questions claims, uses "sha", "sef", and writes like they\'re chatting with a friend',
@@ -48,20 +40,13 @@ REWRITE THIS:
 
 OUTPUT: Clean HTML only. No intro like "Here is". Just the rewritten content.`
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-    res.setHeader('Access-Control-Allow-Credentials', 'true')
-    res.setHeader('Access-Control-Allow-Origin', '*')
-    res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS')
-    res.setHeader('Access-Control-Allow-Headers', 'Authorization,Content-Type')
-
-    if (req.method === 'OPTIONS') return res.status(200).end()
+async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-    const user = await verifyAdmin(req)
-    if (!user) return res.status(401).json({ error: 'Unauthorized' })
+    const authEmail = (req as any).adminEmail || 'admin'
 
     // Rate limit
-    const rateCheck = await checkRateLimit(user.uid, 'ai-humanize', true)
+    const rateCheck = await checkRateLimit(authEmail, 'ai-humanize', true)
     if (!rateCheck.allowed) {
         const resetIn = Math.ceil((rateCheck.resetAt - Date.now()) / 60000)
         return res.status(429).json({
@@ -163,7 +148,7 @@ Output clean HTML only. No markdown. No intro text.`
         }
 
         // Log usage
-        await logAIUsage(user.uid, 'ai-humanize', tokensUsed, 'gpt-4o')
+        await logAIUsage(authEmail, 'ai-humanize', tokensUsed, 'gpt-4o')
 
         return res.status(200).json({
             success: true,
@@ -234,3 +219,5 @@ function verifyHumanization(content: string): { passed: boolean; issues: string[
         issues
     }
 }
+
+export default requireAdmin(handler)
