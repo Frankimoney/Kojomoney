@@ -822,7 +822,21 @@ export default function PostEditor({ postId, adminToken, onBack, onPostCreated }
                 </div>
             </header>
 
-            <div className="max-w-[1800px] mx-auto p-3 sm:p-6 pt-20 sm:pt-24">
+            {/* Floating Toolbar - Rendered outside of any overflow-hidden container for proper mobile display */}
+            <FloatingToolbar
+                editor={editor}
+                onOpenLinkPicker={() => setShowLinkPicker(true)}
+                onOpenMediaPicker={() => {
+                    setMediaPickerMode('editor')
+                    setShowMediaPicker(true)
+                }}
+                blocks={blocks}
+                onInsertBlock={insertBlock}
+                onSmartCallout={handleSmartCallout}
+                isAiLoading={isAiLoading}
+            />
+
+            <div className="max-w-[1800px] mx-auto p-3 sm:p-6 pt-28 sm:pt-32">
                 <div className="grid grid-cols-1 xl:grid-cols-[1fr,400px] gap-4 sm:gap-8">
                     {/* Main Editor Column */}
                     <div className="space-y-6">
@@ -851,20 +865,6 @@ export default function PostEditor({ postId, adminToken, onBack, onPostCreated }
                                     </div>
                                 </div>
                             </div>
-
-                            {/* Floating Toolbar */}
-                            <FloatingToolbar
-                                editor={editor}
-                                onOpenLinkPicker={() => setShowLinkPicker(true)}
-                                onOpenMediaPicker={() => {
-                                    setMediaPickerMode('editor')
-                                    setShowMediaPicker(true)
-                                }}
-                                blocks={blocks}
-                                onInsertBlock={insertBlock}
-                                onSmartCallout={handleSmartCallout}
-                                isAiLoading={isAiLoading}
-                            />
 
                             {/* Editor Area */}
                             <div className="min-h-[400px] sm:min-h-[650px] bg-gradient-to-b from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-900/50">
