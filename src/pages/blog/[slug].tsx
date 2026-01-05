@@ -1,7 +1,8 @@
-import { GetServerSideProps } from 'next'
+'use client'
+
 import Head from 'next/head'
 import Link from 'next/link'
-import { db } from '@/lib/firebase-admin'
+import { useRouter } from 'next/router'
 import { BlogPost } from '@/types/blog'
 import BlogLayout from '@/components/blog/BlogLayout'
 import PostActionBar from '@/components/blog/PostActionBar'
@@ -9,44 +10,104 @@ import BlogBreadcrumbs, { buildPostBreadcrumbs } from '@/components/blog/BlogBre
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Calendar, Clock, User, Share2, Facebook, Twitter, Linkedin, ArrowRight, Star, Check, Zap } from 'lucide-react'
+import { Calendar, Clock, User, Share2, Facebook, Twitter, Linkedin, ArrowRight, Star, Check, Zap, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { useEffect, useState } from 'react'
 import BlogAnalytics from '@/components/blog/BlogAnalytics'
 import EEATSignals, { TrustSignalsBar, EnhancedAuthorBox, SourcesCitations, ArticleMetaFooter, EditorialDisclosure } from '@/components/blog/EEATSignals'
+import { apiCall } from '@/lib/api-client'
 
-interface BlogPostPageProps {
-    post: BlogPost
-    relatedPosts: BlogPost[]
-    settings?: any
-}
+export default function BlogPostPage() {
+    const router = useRouter()
+    const { slug } = router.query
 
-export default function BlogPostPage({ post, relatedPosts, settings }: BlogPostPageProps) {
+    const [post, setPost] = useState<BlogPost | null>(null)
+    const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([])
+    const [settings, setSettings] = useState<any>({})
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
     const [toc, setToc] = useState<{ id: string, text: string, level: number }[]>([])
 
-    // Generate Table of Contents
+    // Fetch post data
     useEffect(() => {
-        if (typeof window === 'undefined') return
+        const fetchPost = async () => {
+            if (!slug) return
 
-        const headers = document.querySelectorAll('.blog-content h2, .blog-content h3')
-        const items = Array.from(headers).map((header, index) => {
-            const id = `heading-${index}`
-            header.id = id
-            return {
-                id,
-                text: header.textContent || '',
-                level: parseInt(header.tagName[1])
+            setLoading(true)
+            setError(null)
+
+            try {
+                const data = await apiCall(`/api/blog/${slug}`)
+
+                if (data.error) {
+                    setError(data.error)
+                    return
+                }
+
+                setPost(data.post)
+                setRelatedPosts(data.relatedPosts || [])
+                setSettings(data.settings || {})
+            } catch (err) {
+                console.error('Error fetching post:', err)
+                setError('Failed to load article')
+            } finally {
+                setLoading(false)
             }
-        })
-        setToc(items)
-
-        // Scroll Depth Tracker
-        const handleScroll = () => {
-            // Impl tracker here
         }
-        window.addEventListener('scroll', handleScroll)
-        return () => window.removeEventListener('scroll', handleScroll)
-    }, [post.content])
+
+        if (router.isReady) {
+            fetchPost()
+        }
+    }, [router.isReady, slug])
+
+    // Generate Table of Contents after content loads
+    useEffect(() => {
+        if (!post?.content || typeof window === 'undefined') return
+
+        // Small delay to ensure DOM is updated
+        const timer = setTimeout(() => {
+            const headers = document.querySelectorAll('.blog-content h2, .blog-content h3')
+            const items = Array.from(headers).map((header, index) => {
+                const id = `heading-${index}`
+                header.id = id
+                return {
+                    id,
+                    text: header.textContent || '',
+                    level: parseInt(header.tagName[1])
+                }
+            })
+            setToc(items)
+        }, 100)
+
+        return () => clearTimeout(timer)
+    }, [post?.content])
+
+    // Loading state
+    if (loading) {
+        return (
+            <BlogLayout settings={settings}>
+                <div className="flex items-center justify-center min-h-[60vh]">
+                    <Loader2 className="h-8 w-8 animate-spin text-violet-600" />
+                    <span className="ml-3 text-muted-foreground">Loading article...</span>
+                </div>
+            </BlogLayout>
+        )
+    }
+
+    // Error state
+    if (error || !post) {
+        return (
+            <BlogLayout settings={settings}>
+                <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+                    <h1 className="text-2xl font-bold mb-4">Article Not Found</h1>
+                    <p className="text-muted-foreground mb-6">{error || 'The article you are looking for does not exist.'}</p>
+                    <Link href="/blog">
+                        <Button>Back to Blog</Button>
+                    </Link>
+                </div>
+            </BlogLayout>
+        )
+    }
 
     // JSON-LD Schema
     const schema = {
@@ -405,111 +466,4 @@ export default function BlogPostPage({ post, relatedPosts, settings }: BlogPostP
             </article>
         </BlogLayout>
     )
-}
-
-export const getServerSideProps: GetServerSideProps = async (context) => {
-    const slug = context.params?.slug as string
-
-    try {
-        if (!db) {
-            return { notFound: true }
-        }
-        const snapshot = await db.collection('posts')
-            .where('slug', '==', slug)
-            .where('status', '==', 'published')
-            .limit(1)
-            .get()
-
-        if (snapshot.empty) {
-            return { notFound: true }
-        }
-
-        const doc = snapshot.docs[0]
-        const post = { id: doc.id, ...doc.data() } as BlogPost
-
-        // Fetch Related Posts
-        let relatedPosts: BlogPost[] = []
-
-        // Priority 1: Manual Selection
-        if (post.relatedPostIds && post.relatedPostIds.length > 0) {
-            try {
-                const refs = post.relatedPostIds.map(id => db!.collection('posts').doc(id))
-                // db.getAll is Variadic
-                const snapshots = await db.getAll(...refs)
-                relatedPosts = snapshots
-                    .filter(s => s.exists && s.data()?.status === 'published')
-                    .map(s => ({ id: s.id, ...s.data() } as BlogPost))
-            } catch (e) {
-                console.error('Error fetching manual related posts', e)
-            }
-        }
-
-        // Priority 2: Fallback to Tags if we have fewer than 3 manually selected
-        if (relatedPosts.length < 3 && post.tags && post.tags.length > 0) {
-            const limit = 4 // fetch a few more to account for dupes
-            const relatedSnap = await db.collection('posts')
-                .where('tags', 'array-contains', post.tags[0])
-                .where('status', '==', 'published')
-                .limit(limit)
-                .get()
-
-            const taggedPosts = relatedSnap.docs
-                .map(d => ({ id: d.id, ...d.data() } as BlogPost))
-                .filter(p => p.id !== post.id && !relatedPosts.some(rp => rp.id === p.id))
-
-            // Fill up to 3
-            relatedPosts = [...relatedPosts, ...taggedPosts].slice(0, 3)
-        }
-
-        // Serialize
-        const serializeInfo = (p: any) => ({
-            ...p,
-            publishedAt: p.publishedAt || null,
-            updatedAt: p.updatedAt || null,
-            createdAt: p.createdAt || null
-        })
-
-        // Fetch Global Settings
-        const settingsDoc = await db.collection('settings').doc('blog').get()
-        const settings = settingsDoc.exists ? settingsDoc.data() : {}
-
-        // Process Shortcodes (Content Blocks)
-        if (post.content && post.content.includes('[block id=')) {
-            try {
-                const regex = /\[block id="([^"]+)"\]/g
-                const matches = Array.from(post.content.matchAll(regex))
-
-                if (matches.length > 0) {
-                    const blockIds = [...new Set(matches.map(m => m[1]))]
-                    const blockRefs = blockIds.map(id => db!.collection('blog_blocks').doc(id))
-
-                    if (blockRefs.length > 0) {
-                        const blockSnaps = await db.getAll(...blockRefs)
-                        const blocksMap = new Map()
-                        blockSnaps.forEach(s => {
-                            if (s.exists) blocksMap.set(s.id, s.data()?.content || '')
-                        })
-
-                        post.content = post.content.replace(regex, (match, id) => {
-                            return blocksMap.get(id) || ''
-                        })
-                    }
-                }
-            } catch (blockError) {
-                console.error('Error processing content blocks:', blockError)
-            }
-        }
-
-        return {
-            props: {
-                post: serializeInfo(post),
-                relatedPosts: relatedPosts.map(serializeInfo),
-                settings
-            }
-        }
-
-    } catch (error) {
-        console.error('Error fetching post:', error)
-        return { notFound: true }
-    }
 }

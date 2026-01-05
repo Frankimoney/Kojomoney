@@ -1,16 +1,17 @@
-import { GetServerSideProps } from 'next'
+import type { NextApiRequest, NextApiResponse } from 'next'
 import { db } from '@/lib/firebase-admin'
 import { BlogPost } from '@/types/blog'
 
-export const getServerSideProps: GetServerSideProps = async ({ res }) => {
-    // Set caching headers: cache for 1 hour, stale-while-revalidate for 1 day
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+    if (req.method !== 'GET') {
+        return res.status(405).json({ error: 'Method not allowed' })
+    }
+
     res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400')
     res.setHeader('Content-Type', 'text/plain; charset=utf-8')
 
     if (!db) {
-        res.write('# KojoMoney\n\nService temporarily unavailable.')
-        res.end()
-        return { props: {} }
+        return res.status(200).send('# KojoMoney\n\nService temporarily unavailable.')
     }
 
     try {
@@ -42,18 +43,10 @@ export const getServerSideProps: GetServerSideProps = async ({ res }) => {
 
 ${posts.map(post => `- [${post.title}](${baseUrl}/blog/${post.slug}): ${post.excerpt ? post.excerpt.replace(/\n/g, ' ') : 'Learn more about this topic.'}`).join('\n')}
 `
-        res.write(content)
-        res.end()
+        return res.status(200).send(content)
 
     } catch (error) {
         console.error('Error generating llms.txt:', error)
-        res.write('# KojoMoney\n\nError generating documentation.')
-        res.end()
+        return res.status(200).send('# KojoMoney\n\nError generating documentation.')
     }
-
-    return { props: {} }
-}
-
-export default function LLMsTxt() {
-    return null
 }

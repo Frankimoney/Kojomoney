@@ -3,11 +3,9 @@
  * 
  * GET /api/blog/posts
  * Query Params:
- * - limit: number (default 10)
  * - page: number (default 1)
  * - category: string (optional)
- * - tag: string (optional)
- * - authorId: string (optional)
+ * - search: string (optional)
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next'
@@ -17,76 +15,91 @@ import { BlogPost } from '@/types/blog'
 
 export const dynamic = 'force-dynamic'
 
+const POSTS_PER_PAGE = 9
+
 async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method !== 'GET') {
         return res.status(405).json({ error: 'Method not allowed' })
     }
 
     if (!db) {
-        return res.status(500).json({ error: 'Database connection failed' })
+        return res.status(200).json({
+            posts: [],
+            page: 1,
+            hasMore: false,
+            categories: [],
+            activeCategory: null,
+            searchQuery: null,
+            settings: {}
+        })
     }
 
     try {
-        const { limit = '10', page = '1', category, tag, authorId } = req.query
-
-        const limitNum = Math.min(parseInt(limit as string) || 10, 50)
-        const pageNum = Math.max(parseInt(page as string) || 1, 1)
+        const page = parseInt(req.query.page as string || '1')
+        const search = (req.query.search as string || '').toLowerCase()
+        const category = req.query.category as string || null
 
         let query = db.collection('posts')
             .where('status', '==', 'published')
-            .orderBy('publishedAt', 'desc')
 
         if (category) {
             query = query.where('categories', 'array-contains', category)
-        } else if (tag) {
-            // Note: Cloud Firestore can act weird with multiple array-contains.
-            // Be careful if combining category + tag filtering logic.
-            query = query.where('tags', 'array-contains', tag)
         }
 
-        if (authorId) {
-            query = query.where('author.id', '==', authorId)
+        // Fetch posts
+        const snapshot = await query.orderBy('publishedAt', 'desc').limit(100).get()
+
+        let posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BlogPost))
+
+        // Filter by title (Search) - naive impl for MVP
+        if (search) {
+            posts = posts.filter(p =>
+                p.title.toLowerCase().includes(search) ||
+                p.excerpt?.toLowerCase().includes(search)
+            )
         }
 
-        // Pagination via offset is expensive in Firestore for deep pages, 
-        // but for a blog it's usually fine up to a few thousand posts.
-        // For cleaner scalable pagination, we'd use startAfter, but that requires
-        // the client to pass the last document snapshot or specific field values.
-        // We'll stick to offset for simplicity unless scale demands otherwise.
-        const offset = (pageNum - 1) * limitNum
+        // Pagination
+        const total = posts.length
+        const start = (page - 1) * POSTS_PER_PAGE
+        const paginatedPosts = posts.slice(start, start + POSTS_PER_PAGE)
+        const hasMore = start + POSTS_PER_PAGE < total
 
-        // Count total for pagination metadata (separate query)
-        // Note: count() aggregation is cheaper but requires admin SDK v11+ features or separate aggregated counter.
-        // For now, allow simple client-side logic: if results < limit, it's the last page.
+        // Extract Categories from all published posts
+        const allCategories = Array.from(new Set(posts.flatMap(p => p.tags || []))).slice(0, 10)
 
-        // Execute query
-        const snapshot = await query.limit(limitNum).offset(offset).get()
-
-        const posts: BlogPost[] = []
-        snapshot.forEach(doc => {
-            posts.push(doc.data() as BlogPost)
-        })
-
-        // Sanitized response (remove heavy content if listing?)
-        // Ideally, we return excerpts in list view, not full content.
-        const summaryPosts = posts.map(post => ({
+        // Serialize dates and strip content
+        const serializedPosts = paginatedPosts.map(post => ({
             ...post,
-            content: '', // Strip heavy content for list view to save bandwidth
-            // Keep excerpt
+            content: '', // Strip heavy content for list view
+            publishedAt: post.publishedAt || null,
+            createdAt: post.createdAt || null
         }))
 
+        // Fetch Global Settings
+        const settingsDoc = await db.collection('settings').doc('blog').get()
+        const settings = settingsDoc.exists ? settingsDoc.data() : {}
+
         return res.status(200).json({
-            success: true,
-            data: summaryPosts,
-            meta: {
-                page: pageNum,
-                limit: limitNum,
-                hasMore: posts.length === limitNum
-            }
+            posts: serializedPosts,
+            page,
+            hasMore,
+            categories: allCategories,
+            activeCategory: category,
+            searchQuery: search || null,
+            settings
         })
     } catch (error) {
         console.error('Error fetching blog posts:', error)
-        return res.status(500).json({ error: 'Failed to fetch posts' })
+        return res.status(200).json({
+            posts: [],
+            page: 1,
+            hasMore: false,
+            categories: [],
+            activeCategory: null,
+            searchQuery: null,
+            settings: {}
+        })
     }
 }
 
