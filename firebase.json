@@ -10,6 +10,14 @@
     "trailingSlash": false,
     "rewrites": [
       {
+        "source": "/blog/preview/**",
+        "destination": "/blog/preview/[id].html"
+      },
+      {
+        "source": "/blog/**",
+        "destination": "/blog/[slug].html"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }
