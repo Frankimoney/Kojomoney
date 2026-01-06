@@ -26,6 +26,8 @@ if (isDev) {
 
 const nextConfig = {
   ...(outputMode && { output: outputMode }),
+  // Use trailing slash for static exports (Capacitor compatibility)
+  ...(isStaticBuild && { trailingSlash: true }),
   typescript: { ignoreBuildErrors: true },
   eslint: { ignoreDuringBuilds: true },
   images: { unoptimized: true },
