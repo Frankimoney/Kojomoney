@@ -82,38 +82,71 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             })
         }
 
-        // Count how many users will receive the notification
+        // Get ALL users to store notification in Firestore
+        const usersSnapshot = await db.collection('users').get()
+        const allUserIds: string[] = []
+        usersSnapshot.forEach(doc => {
+            allUserIds.push(doc.id)
+        })
+
+        // Count how many users will receive the push notification
         const tokensSnapshot = await db.collection('push_tokens')
             .where('active', '==', true)
             .get()
 
-        const uniqueUsers = new Set<string>()
+        const uniquePushUsers = new Set<string>()
         tokensSnapshot.forEach(doc => {
-            uniqueUsers.add(doc.data().userId)
+            uniquePushUsers.add(doc.data().userId)
         })
 
         const totalTokens = tokensSnapshot.size
-        const totalUsers = uniqueUsers.size
+        const totalPushUsers = uniquePushUsers.size
+        const totalUsers = allUserIds.length
 
-        if (totalTokens === 0) {
-            return res.status(200).json({
-                success: false,
-                message: 'No active push tokens found. No notifications sent.',
-                totalTokens: 0,
-                totalUsers: 0
-            })
-        }
-
-        console.log(`[Broadcast] Sending to ${totalTokens} tokens across ${totalUsers} users`)
+        console.log(`[Broadcast] Sending push to ${totalTokens} tokens across ${totalPushUsers} users`)
+        console.log(`[Broadcast] Storing notification for ${totalUsers} total users`)
         console.log(`[Broadcast] Title: ${title}`)
         console.log(`[Broadcast] Body: ${body}`)
 
-        // Send to all users
-        const success = await sendPushToAll(title, body, {
+        // 1. Store notification in Firestore for ALL users (so notification bell works for everyone)
+        const notificationData = {
+            title,
+            body,
             type: 'broadcast',
-            timestamp: Date.now().toString(),
-            ...data
-        })
+            data: data || null,
+            actionUrl: null,
+            isRead: false,
+            createdAt: Date.now(),
+        }
+
+        // Batch write notifications (Firestore allows max 500 per batch)
+        const BATCH_SIZE = 500
+        let storedCount = 0
+
+        for (let i = 0; i < allUserIds.length; i += BATCH_SIZE) {
+            const batch = db.batch()
+            const userBatch = allUserIds.slice(i, i + BATCH_SIZE)
+
+            for (const userId of userBatch) {
+                const docRef = db.collection('user_notifications').doc()
+                batch.set(docRef, { ...notificationData, userId })
+            }
+
+            await batch.commit()
+            storedCount += userBatch.length
+        }
+
+        console.log(`[Broadcast] Stored ${storedCount} notifications in Firestore`)
+
+        // 2. Send push notifications to users with active tokens
+        let pushSuccess = true
+        if (totalTokens > 0) {
+            pushSuccess = await sendPushToAll(title, body, {
+                type: 'broadcast',
+                timestamp: Date.now().toString(),
+                ...data
+            })
+        }
 
         // Log the broadcast
         await db.collection('broadcast_logs').add({
@@ -122,17 +155,19 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             data: data || null,
             sentAt: Date.now(),
             totalTokens,
+            totalPushUsers,
             totalUsers,
-            success
+            storedNotifications: storedCount,
+            pushSuccess
         })
 
         return res.status(200).json({
-            success,
-            message: success
-                ? `Broadcast sent successfully to ${totalUsers} users (${totalTokens} devices)`
-                : 'Broadcast may have partially failed - check server logs',
+            success: true,
+            message: `Broadcast sent! Push: ${totalPushUsers} users (${totalTokens} devices). In-app: ${storedCount} users.`,
             totalTokens,
-            totalUsers,
+            totalPushUsers,
+            totalUsers: storedCount,
+            storedNotifications: storedCount,
             sentAt: new Date().toISOString()
         })
 
@@ -144,5 +179,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         })
     }
 }
+
 
 export default allowCors(handler)

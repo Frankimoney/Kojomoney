@@ -1,13 +1,19 @@
 /**
  * KojoMoney Points & Economy Configuration
  * Centralized config for all earning rates, multipliers, and thresholds
+ * 
+ * ECONOMICS RATIONALE:
+ * - Ads: You earn ~$0.01-0.03 CPM, pay out ~$0.002 = ~80% margin
+ * - News: Embedded ads earn ~$0.02, pay out ~$0.005 = ~75% margin  
+ * - Offerwalls: You keep 30-40% of what advertisers pay
+ * - Trivia/Spin: Loss leaders for engagement (keep low)
  */
 
 // ============================================
 // POINTS CONVERSION
 // ============================================
 export const POINTS_CONFIG = {
-    // 1000 points = $0.10 USD
+    // 10,000 points = $1.00 USD (unchanged - good rate)
     pointsPerDollar: 10000,
     dollarPerPoint: 0.0001,
 
@@ -27,26 +33,40 @@ export const POINTS_CONFIG = {
 }
 
 // ============================================
-// BASE EARNING RATES (in points)
+// BASE EARNING RATES (in points) - REDUCED FOR SUSTAINABILITY
 // ============================================
 export const EARNING_RATES = {
-    watchAd: 50,           // $0.005
-    readNews: 100,         // $0.01
-    triviaCorrect: 40,     // $0.004 per correct answer
-    triviaBonus: 200,      // $0.02 bonus for 5/5
-    surveyMin: 500,        // $0.05 minimum
-    surveyMax: 20000,      // $2.00 maximum
-    offerwallMin: 1000,    // $0.10 minimum
-    offerwallMax: 500000,  // $50.00 maximum
-    gamePlaytimePerMin: 5, // $0.0005 per minute
-    dailySpinMin: 100,     // $0.01
-    dailySpinMax: 10000,   // $1.00
-    referralSignup: 5000,  // $0.50 when referral signs up
-    referralCommission: 0.10, // 10% of referral's earnings
+    // Ads: Pay $0.002/ad, earn $0.01-0.03 = profitable
+    watchAd: 20,           // $0.002 (was $0.005) 
+
+    // News: Embedded ads cover this
+    readNews: 50,          // $0.005 (was $0.01)
+
+    // Trivia: Loss leader for engagement - keep low
+    triviaCorrect: 20,     // $0.002 per correct (was $0.004)
+    triviaBonus: 100,      // $0.01 bonus for 5/5 (was $0.02)
+
+    // Surveys/Offerwalls: You take 30-40% cut - these are your profit center
+    surveyMin: 500,        // $0.05 minimum (unchanged)
+    surveyMax: 20000,      // $2.00 maximum (unchanged)
+    offerwallMin: 1000,    // $0.10 minimum (unchanged)
+    offerwallMax: 500000,  // $50.00 maximum (unchanged)
+
+    // Games: Very low - mostly for engagement
+    gamePlaytimePerMin: 2, // $0.0002 per minute (was $0.0005)
+
+    // Daily Spin: Loss leader - reduced expectations
+    dailySpinMin: 50,      // $0.005 (was $0.01)
+    dailySpinMax: 5000,    // $0.50 max (was $1.00)
+
+    // Referrals: Reduced to protect margins
+    referralSignup: 2500,  // $0.25 when referral signs up (was $0.50)
+    referralCommission: 0.05, // 5% of referral's earnings (was 10%)
 }
 
 // ============================================
-// STREAK MULTIPLIERS
+// STREAK MULTIPLIERS - REDUCED TO PROTECT MARGINS
+// Max 1.25x instead of 3x - still rewards loyalty without killing profits
 // ============================================
 export interface StreakTier {
     minDays: number
@@ -56,11 +76,11 @@ export interface StreakTier {
 
 export const STREAK_TIERS: StreakTier[] = [
     { minDays: 0, multiplier: 1.0, label: 'No Streak' },
-    { minDays: 3, multiplier: 1.2, label: '3-Day Streak' },
-    { minDays: 5, multiplier: 1.5, label: '5-Day Streak' },
-    { minDays: 7, multiplier: 2.0, label: 'Week Warrior' },
-    { minDays: 14, multiplier: 2.5, label: 'Fortnight Champion' },
-    { minDays: 30, multiplier: 3.0, label: 'Month Master' },
+    { minDays: 3, multiplier: 1.05, label: '3-Day Streak' },      // was 1.2
+    { minDays: 7, multiplier: 1.10, label: 'Week Warrior' },      // was 2.0
+    { minDays: 14, multiplier: 1.15, label: 'Fortnight Champion' }, // was 2.5
+    { minDays: 30, multiplier: 1.20, label: 'Month Master' },     // was 3.0
+    { minDays: 60, multiplier: 1.25, label: 'Legend' },           // NEW top tier
 ]
 
 export function getStreakMultiplier(streakDays: number): { multiplier: number; tier: StreakTier } {
@@ -85,15 +105,15 @@ export function getNextStreakTier(streakDays: number): StreakTier | null {
 }
 
 // ============================================
-// USER LEVEL BONUSES (earning multipliers)
+// USER LEVEL BONUSES (earning multipliers) - REDUCED
 // ============================================
 export const LEVEL_BONUSES: Record<string, number> = {
     'Starter': 1.0,    // Base rate
-    'Bronze': 1.05,    // +5%
-    'Silver': 1.10,    // +10%
-    'Gold': 1.20,      // +20%
-    'Platinum': 1.30,  // +30%
-    'Diamond': 1.50,   // +50%
+    'Bronze': 1.02,    // +2% (was +5%)
+    'Silver': 1.05,    // +5% (was +10%)
+    'Gold': 1.08,      // +8% (was +20%)
+    'Platinum': 1.12,  // +12% (was +30%)
+    'Diamond': 1.15,   // +15% (was +50%)
 }
 
 export function getLevelBonus(levelName: string): number {
@@ -101,7 +121,7 @@ export function getLevelBonus(levelName: string): number {
 }
 
 // ============================================
-// WITHDRAWAL THRESHOLDS (USD)
+// WITHDRAWAL THRESHOLDS (USD) - INCREASED FOR NEW USERS
 // ============================================
 export type UserTier = 'new' | 'regular' | 'verified' | 'vip'
 
@@ -113,24 +133,24 @@ export interface WithdrawalTier {
 
 export const WITHDRAWAL_TIERS: Record<UserTier, WithdrawalTier> = {
     new: {
-        minWithdrawalUSD: 0.50,
-        dailyLimitUSD: 0.50,
+        minWithdrawalUSD: 1.00,  // INCREASED from $0.50 - ensures user is engaged before payout
+        dailyLimitUSD: 1.00,
         weeklyLimit: 1
     },
     regular: {
-        minWithdrawalUSD: 0.20,
+        minWithdrawalUSD: 0.50,  // was $0.20
         dailyLimitUSD: 2.00,
-        weeklyLimit: 2
+        weeklyLimit: 1           // was 2
     },
     verified: {
-        minWithdrawalUSD: 0.10,
+        minWithdrawalUSD: 0.25,  // was $0.10
         dailyLimitUSD: 5.00,
-        weeklyLimit: 3
+        weeklyLimit: 2           // was 3
     },
     vip: {
-        minWithdrawalUSD: 0.05,
+        minWithdrawalUSD: 0.10,  // was $0.05
         dailyLimitUSD: 10.00,
-        weeklyLimit: 7 // Daily
+        weeklyLimit: 3           // was 7
     }
 }
 
@@ -148,17 +168,17 @@ export function getUserTier(user: {
         return 'vip'
     }
 
-    // Verified: Email AND Phone verified, account > 7 days
-    if (user.emailVerified && user.phoneVerified && accountAgeDays >= 7) {
+    // Verified: Email AND Phone verified, account > 14 days (was 7)
+    if (user.emailVerified && user.phoneVerified && accountAgeDays >= 14) {
         return 'verified'
     }
 
-    // Regular: Account > 7 days
-    if (accountAgeDays >= 7) {
+    // Regular: Account > 14 days (was 7)
+    if (accountAgeDays >= 14) {
         return 'regular'
     }
 
-    // New: Account < 7 days
+    // New: Account < 14 days
     return 'new'
 }
 
@@ -179,15 +199,23 @@ export function getWithdrawalLimits(user: {
 }
 
 // ============================================
-// DAILY LIMITS
+// DAILY LIMITS - REDUCED TO CAP EXPOSURE
 // ============================================
 export const DAILY_LIMITS = {
-    maxAds: 10,
-    maxNews: 10,
-    maxTrivia: 1,    // Once per day
-    maxSurveys: 10,
-    maxGamesMinutes: 120, // 2 hours
+    maxAds: 5,          // was 10 - limits daily payout
+    maxNews: 5,         // was 10
+    maxTrivia: 1,       // Once per day (unchanged)
+    maxSurveys: 10,     // unchanged - these are profitable
+    maxGamesMinutes: 60, // 1 hour (was 2 hours)
 }
+
+// ============================================
+// DAILY EARNING CAP - NEW PROTECTION
+// Maximum a user can earn per day from basic activities
+// Offerwalls/Surveys are excluded as they're profitable
+// ============================================
+export const DAILY_EARNING_CAP = 2500 // $0.25/day max from ads/news/trivia/games
+// This ensures even power users can't drain you
 
 // ============================================
 // APPLY MULTIPLIERS TO POINTS

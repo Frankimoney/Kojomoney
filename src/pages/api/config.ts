@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { db } from '@/lib/firebase-admin'
 import { allowCors } from '@/lib/cors'
-import { EARNING_RATES, DAILY_LIMITS, POINTS_CONFIG } from '@/lib/points-config'
+import { EARNING_RATES, DAILY_LIMITS, POINTS_CONFIG, DAILY_EARNING_CAP } from '@/lib/points-config'
 
 // Cache config for 5 minutes
 export const revalidate = 300
@@ -17,6 +17,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             earningRates: EARNING_RATES,
             dailyLimits: DAILY_LIMITS,
             pointsConfig: POINTS_CONFIG,
+            dailyEarningCap: DAILY_EARNING_CAP,
             fromCache: false
         }
 
@@ -29,6 +30,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
                         earningRates: { ...EARNING_RATES, ...(data.earningRates || {}) },
                         dailyLimits: { ...DAILY_LIMITS, ...(data.dailyLimits || {}) },
                         pointsConfig: { ...POINTS_CONFIG, ...(data.pointsConfig || {}) },
+                        dailyEarningCap: data.dailyEarningCap ?? DAILY_EARNING_CAP,
                         fromCache: false
                     }
                 }
@@ -44,6 +46,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             earningRates: EARNING_RATES,
             dailyLimits: DAILY_LIMITS,
             pointsConfig: POINTS_CONFIG,
+            dailyEarningCap: DAILY_EARNING_CAP,
             error: 'Failed to fetch remote config, using defaults'
         })
     }

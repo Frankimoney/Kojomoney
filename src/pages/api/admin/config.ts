@@ -41,7 +41,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         }
     } else if (req.method === 'POST') {
         try {
-            const { earningRates, dailyLimits, pointsConfig, countryMultipliers, globalMargin, pointsPerDollar } = req.body
+            const { earningRates, dailyLimits, pointsConfig, countryMultipliers, globalMargin, pointsPerDollar, dailyEarningCap } = req.body
 
             // Validation could go here
 
@@ -52,6 +52,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
                 countryMultipliers: countryMultipliers || {},
                 globalMargin: globalMargin !== undefined ? globalMargin : 1.0,
                 pointsPerDollar: pointsPerDollar !== undefined ? pointsPerDollar : POINTS_CONFIG.pointsPerDollar,
+                dailyEarningCap: dailyEarningCap !== undefined ? dailyEarningCap : 2500, // $0.25 default
                 lastUpdated: Date.now(),
                 updatedBy: 'admin' // Could track specific admin email if available
             }

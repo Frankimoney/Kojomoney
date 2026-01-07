@@ -1,5 +1,5 @@
 import { formatDistanceToNow } from 'date-fns';
-import { Bell, Check, Info, Trash2, X, AlertTriangle, Gift, Trophy, Star } from 'lucide-react';
+import { Bell, Check, Info, Trash2, X, AlertTriangle, Gift, Trophy, Star, Megaphone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Notification, useNotificationStore } from '@/lib/notificationStore';
 import { Button } from '@/components/ui/button';
@@ -21,10 +21,15 @@ export function NotificationItem({ notification }: NotificationItemProps) {
                 return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
             case 'error':
                 return <X className="h-5 w-5 text-red-500" />;
+            case 'broadcast':
+                return <Megaphone className="h-5 w-5 text-purple-500" />;
+            case 'system':
+                return <Bell className="h-5 w-5 text-slate-500" />;
             default:
                 return <Info className="h-5 w-5 text-blue-500" />;
         }
     };
+
 
     const getBgColor = () => {
         if (notification.isRead) return 'bg-background/50';
@@ -33,9 +38,12 @@ export function NotificationItem({ notification }: NotificationItemProps) {
             case 'success': return 'bg-green-500/10 border-green-500/20';
             case 'warning': return 'bg-yellow-500/10 border-yellow-500/20';
             case 'error': return 'bg-red-500/10 border-red-500/20';
+            case 'broadcast': return 'bg-purple-500/10 border-purple-500/20';
+            case 'system': return 'bg-slate-500/10 border-slate-500/20';
             default: return 'bg-blue-500/10 border-blue-500/20';
         }
     };
+
 
     return (
         <div

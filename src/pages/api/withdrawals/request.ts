@@ -4,12 +4,16 @@
  * POST /api/withdrawals/request - Create a new withdrawal request
  * 
  * This endpoint deducts points from user and creates a pending withdrawal.
+ * Includes fraud detection to flag suspicious requests.
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { db } from '@/lib/firebase-admin'
 import { notifyNewWithdrawal } from '@/services/emailService'
 import { getEconomyConfig, pointsToUSD } from '@/lib/server-config'
+import { analyzeWithdrawalFraud, quickFraudCheck } from '@/lib/fraud-detection'
+import { checkRateLimit } from '@/lib/security'
+import { allowCors } from '@/lib/cors'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,9 +24,15 @@ interface WithdrawalRequest {
     accountDetails: string
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' })
+    }
+
+    // SECURITY: Rate limit withdrawal requests
+    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown'
+    if (!checkRateLimit(`withdrawal_ip_${ip}`, 3, 60000)) { // 3 requests per minute per IP
+        return res.status(429).json({ error: 'Too many withdrawal requests. Please wait.' })
     }
 
     if (!db) {
@@ -35,6 +45,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Validate inputs
         if (!userId || !amount || !method || !accountDetails) {
             return res.status(400).json({ error: 'Missing required fields' })
+        }
+
+        // SECURITY: Rate limit per user
+        if (!checkRateLimit(`withdrawal_user_${userId}`, 5, 3600000)) { // 5 per hour per user
+            return res.status(429).json({ error: 'Too many withdrawal requests. Please try again later.' })
         }
 
         if (amount < 1000) {
@@ -51,12 +66,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         const userData = userDoc.data()!
         const currentPoints = userData.points || 0
+        const now = Date.now()
 
-        if (currentPoints < amount) {
-            return res.status(400).json({ error: 'Insufficient points' })
+        // SECURITY: Require email verification before withdrawal
+        if (!userData.emailVerified) {
+            return res.status(403).json({
+                error: 'Please verify your email before requesting a withdrawal.',
+                code: 'EMAIL_NOT_VERIFIED'
+            })
         }
 
-        // Check for pending withdrawals
+        // SECURITY: Quick fraud check (blocks obvious abuse)
+        const accountAgeMs = now - (userData.createdAt || now)
         const pendingSnapshot = await db
             .collection('withdrawals')
             .where('userId', '==', userId)
@@ -64,15 +85,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             .limit(1)
             .get()
 
-        if (!pendingSnapshot.empty) {
-            return res.status(400).json({ error: 'You already have a pending withdrawal request' })
+        const quickCheck = quickFraudCheck(accountAgeMs, amount, pendingSnapshot.size)
+        if (quickCheck.blocked) {
+            return res.status(400).json({ error: quickCheck.reason })
         }
 
-        const now = Date.now()
+        if (currentPoints < amount) {
+            return res.status(400).json({ error: 'Insufficient points' })
+        }
+
+        // SECURITY: Full fraud analysis
+        const userCountry = userData.country || 'GLOBAL'
+        const fraudAnalysis = await analyzeWithdrawalFraud(userId, amount, userCountry)
+
+        // Auto-reject high-risk requests
+        if (fraudAnalysis.riskScore >= 80) {
+            console.warn(`[FRAUD] Auto-rejected withdrawal: userId=${userId}, score=${fraudAnalysis.riskScore}`, fraudAnalysis.signals)
+            return res.status(400).json({
+                error: 'Your withdrawal request could not be processed. Please contact support if you believe this is an error.',
+                code: 'SECURITY_CHECK_FAILED'
+            })
+        }
 
         // Get configurable conversion rate from economy config
         const economyConfig = await getEconomyConfig()
-        const userCountry = userData.country || 'GLOBAL'
         const amountUSD = pointsToUSD(amount, economyConfig, userCountry)
 
         // Deduct points
@@ -80,7 +116,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             points: currentPoints - amount,
         })
 
-        // Create withdrawal record
+        // Create withdrawal record with fraud data
         const withdrawalData = {
             userId,
             userEmail: userData.email,
@@ -88,8 +124,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             amountUSD,
             method,
             accountDetails,
-            status: 'pending',
+            status: fraudAnalysis.riskScore >= 40 ? 'flagged' : 'pending', // Flag suspicious ones
             createdAt: now,
+            // Include fraud analysis for admin review
+            riskScore: fraudAnalysis.riskScore,
+            fraudSignals: fraudAnalysis.signals,
+            fraudRecommendation: fraudAnalysis.recommendation,
         }
 
         const withdrawalRef = await db.collection('withdrawals').add(withdrawalData)
@@ -106,7 +146,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             createdAt: now,
         })
 
-        // Notify admins of new withdrawal
+        // Notify admins of new withdrawal (include fraud warning)
         try {
             await notifyNewWithdrawal({
                 id: withdrawalRef.id,
@@ -117,6 +157,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 method,
                 accountDetails,
                 createdAt: now,
+                riskScore: fraudAnalysis.riskScore,
+                fraudSignals: fraudAnalysis.signals,
             })
         } catch (emailErr) {
             console.error('Failed to send admin notification:', emailErr)
@@ -132,3 +174,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({ error: 'Failed to create withdrawal request' })
     }
 }
+
+export default allowCors(handler)

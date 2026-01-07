@@ -50,6 +50,8 @@ interface WithdrawalData {
     method: string
     accountDetails: string
     createdAt: number
+    riskScore?: number        // Fraud detection score (0-100)
+    fraudSignals?: string[]   // Fraud warning signals
 }
 
 /**
@@ -90,12 +92,35 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
  * Notify admins of a new withdrawal request
  */
 export async function notifyNewWithdrawal(withdrawal: WithdrawalData): Promise<void> {
-    const subject = `🔔 New Withdrawal Request - ${withdrawal.amount} pts`
+    const riskScore = withdrawal.riskScore || 0
+    const isHighRisk = riskScore >= 40
+    const subject = `${isHighRisk ? '⚠️ ' : ''}🔔 New Withdrawal Request - ${withdrawal.amount} pts${isHighRisk ? ` (Risk: ${riskScore})` : ''}`
+
+    // Build fraud warning section if applicable
+    let fraudSection = ''
+    if (riskScore > 0 && withdrawal.fraudSignals && withdrawal.fraudSignals.length > 0) {
+        const riskColor = riskScore >= 60 ? '#ef4444' : riskScore >= 40 ? '#f59e0b' : '#10b981'
+        const signalsList = withdrawal.fraudSignals.map(s => `<li style="margin-bottom: 5px;">${s}</li>`).join('')
+        fraudSection = `
+            <div style="margin-top: 20px; padding: 15px; background: ${riskScore >= 40 ? '#fef2f2' : '#fefce8'}; border-left: 4px solid ${riskColor}; border-radius: 4px;">
+                <h3 style="margin: 0 0 10px 0; color: ${riskColor}; font-size: 16px;">
+                    ⚠️ Fraud Risk Score: ${riskScore}/100
+                </h3>
+                <ul style="margin: 0; padding-left: 20px; color: #64748b; font-size: 14px;">
+                    ${signalsList}
+                </ul>
+                <p style="margin: 10px 0 0 0; font-size: 12px; color: #94a3b8;">
+                    ${riskScore >= 60 ? 'Consider rejecting or investigating this request.' : riskScore >= 40 ? 'Review carefully before approving.' : 'Low risk - likely legitimate.'}
+                </p>
+            </div>
+        `
+    }
 
     const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 20px; color: white; border-radius: 10px 10px 0 0;">
+            <div style="background: linear-gradient(135deg, ${isHighRisk ? '#ef4444, #f97316' : '#6366f1, #8b5cf6'}); padding: 20px; color: white; border-radius: 10px 10px 0 0;">
                 <h1 style="margin: 0; font-size: 24px;">🔔 New Withdrawal Request</h1>
+                ${isHighRisk ? '<p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">⚠️ Flagged for review</p>' : ''}
             </div>
             <div style="padding: 30px; background: #f8fafc; border-radius: 0 0 10px 10px;">
                 <p style="color: #64748b; margin-bottom: 20px;">A new withdrawal request needs your attention:</p>
@@ -123,9 +148,11 @@ export async function notifyNewWithdrawal(withdrawal: WithdrawalData): Promise<v
                     </tr>
                 </table>
                 
+                ${fraudSection}
+                
                 <div style="margin-top: 30px; text-align: center;">
                     <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://kojomoney.com'}/admin" 
-                       style="display: inline-block; padding: 12px 30px; background: #6366f1; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                       style="display: inline-block; padding: 12px 30px; background: ${isHighRisk ? '#ef4444' : '#6366f1'}; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
                         Review in Admin Panel
                     </a>
                 </div>
@@ -140,7 +167,7 @@ export async function notifyNewWithdrawal(withdrawal: WithdrawalData): Promise<v
         to: ADMIN_EMAILS,
         subject,
         html,
-        text: `New withdrawal request: ${withdrawal.amount} pts from ${withdrawal.userEmail}. Review at ${process.env.NEXT_PUBLIC_APP_URL}/admin`,
+        text: `New withdrawal request: ${withdrawal.amount} pts from ${withdrawal.userEmail}${riskScore > 0 ? ` (Risk: ${riskScore}/100)` : ''}. Review at ${process.env.NEXT_PUBLIC_APP_URL}/admin`,
     })
 }
 

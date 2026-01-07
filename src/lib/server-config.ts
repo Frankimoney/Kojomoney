@@ -1,5 +1,5 @@
 import { db } from '@/lib/firebase-admin'
-import { EARNING_RATES, DAILY_LIMITS, POINTS_CONFIG } from '@/lib/points-config'
+import { EARNING_RATES, DAILY_LIMITS, POINTS_CONFIG, DAILY_EARNING_CAP } from '@/lib/points-config'
 
 export interface EconomyConfig {
     earningRates: typeof EARNING_RATES
@@ -7,6 +7,7 @@ export interface EconomyConfig {
     countryMultipliers: Record<string, number>
     globalMargin: number
     pointsPerDollar: number
+    dailyEarningCap: number
     lastUpdated?: number
 }
 
@@ -29,7 +30,8 @@ export async function getEconomyConfig(): Promise<EconomyConfig> {
             'GLOBAL': 0.2 // Rest of World (default)
         },
         globalMargin: 1.0, // Safety margin (0.9 = 10% margin for protection)
-        pointsPerDollar: POINTS_CONFIG.pointsPerDollar // Default: 10000 pts = $1
+        pointsPerDollar: POINTS_CONFIG.pointsPerDollar, // Default: 10000 pts = $1
+        dailyEarningCap: DAILY_EARNING_CAP // Default: 2500 pts = $0.25/day
     }
 
     if (db) {
@@ -43,6 +45,7 @@ export async function getEconomyConfig(): Promise<EconomyConfig> {
                     if (data.countryMultipliers) config.countryMultipliers = { ...config.countryMultipliers, ...data.countryMultipliers }
                     if (data.globalMargin !== undefined) config.globalMargin = data.globalMargin
                     if (data.pointsPerDollar !== undefined) config.pointsPerDollar = data.pointsPerDollar
+                    if (data.dailyEarningCap !== undefined) config.dailyEarningCap = data.dailyEarningCap
                     if (data.lastUpdated) config.lastUpdated = data.lastUpdated
                 }
             }

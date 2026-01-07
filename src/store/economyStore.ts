@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { EARNING_RATES, DAILY_LIMITS, POINTS_CONFIG } from '@/lib/points-config'
 import { apiCall } from '@/lib/api-client'
+import { useEffect } from 'react'
 
 // Increment this when you update earning rates to force cache invalidation
 const CONFIG_VERSION = 2
@@ -82,8 +83,10 @@ export const useEconomyStore = create<EconomyState>()(
 export const useEconomyInit = () => {
     const fetchConfig = useEconomyStore(state => state.fetchConfig)
 
-    // Call on mount
-    if (typeof window !== 'undefined') {
-        fetchConfig()
-    }
+    // Call on mount - must be in useEffect to avoid setState during render
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            fetchConfig()
+        }
+    }, [fetchConfig])
 }

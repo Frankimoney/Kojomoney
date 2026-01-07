@@ -63,6 +63,32 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             triviaCompleted: triviaCompletedToday
         }
 
+        // Validate streak - reset if user missed more than 1 day
+        let validatedStreak = userData.dailyStreak || 0
+        if (userData.lastActiveDate && validatedStreak > 0) {
+            const lastActive = new Date(userData.lastActiveDate)
+            const todayDate = new Date(today)
+            const yesterday = new Date(todayDate)
+            yesterday.setDate(yesterday.getDate() - 1)
+            const yesterdayStr = yesterday.toISOString().split('T')[0]
+
+            // Streak is only valid if lastActiveDate is today or yesterday
+            if (userData.lastActiveDate !== today && userData.lastActiveDate !== yesterdayStr) {
+                // User missed a day - streak is broken
+                validatedStreak = 0
+
+                // Also update the database to reflect the broken streak
+                try {
+                    await db.collection('users').doc(userIdStr).update({
+                        dailyStreak: 0,
+                        updatedAt: Date.now()
+                    })
+                } catch (updateError) {
+                    console.error('Failed to reset broken streak:', updateError)
+                }
+            }
+        }
+
         // Remove sensitive fields
         const safeUser = {
             id: userIdStr,
@@ -80,7 +106,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             referralCode: userData.referralCode,
             referralCount: userData.referralCount || 0,
             referralRewards: userData.referralRewards || 0,
-            dailyStreak: userData.dailyStreak || 0,
+            dailyStreak: validatedStreak, // Use validated streak
             lastActiveDate: userData.lastActiveDate,
             lastTriviaDate: userData.lastTriviaDate,
             isEmailVerified: userData.isEmailVerified || false,

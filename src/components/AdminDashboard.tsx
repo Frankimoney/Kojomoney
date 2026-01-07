@@ -38,6 +38,8 @@ interface DashboardStats {
     completedMissions24h: number
     // Diesel Metrics
     totalLiabilityPoints?: number
+    totalLiabilityUSD?: number
+    pointsPerDollar?: number
     adRevenue24h?: number
     payouts24h?: number
     netMargin?: number
@@ -697,10 +699,11 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <StatsCard
                                 title="Points Liability"
-                                value={stats?.totalLiabilityPoints || 0}
+                                value={stats?.totalLiabilityUSD || 0}
                                 icon={Users}
-                                format="number"
+                                format="currency"
                                 loading={isLoading}
+                                trend={`${(stats?.totalLiabilityPoints || 0).toLocaleString()} pts`}
                             />
                             <StatsCard
                                 title="Ad Revenue (24h)"
@@ -1540,8 +1543,16 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                                                 <Input type="number" className="h-8 text-sm" value={config.earningRates?.gamePlaytimePerMin ?? 0} onChange={(e) => updateConfigRate('gamePlaytimePerMin', e.target.value)} />
                                             </div>
                                             <div className="space-y-1">
-                                                <Label className="text-xs">Referral</Label>
+                                                <Label className="text-xs">Referral Signup</Label>
                                                 <Input type="number" className="h-8 text-sm" value={config.earningRates?.referralSignup ?? 0} onChange={(e) => updateConfigRate('referralSignup', e.target.value)} />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <Label className="text-xs">Referral % (0.05 = 5%)</Label>
+                                                <Input type="number" step="0.01" className="h-8 text-sm" value={config.earningRates?.referralCommission ?? 0.05} onChange={(e) => updateConfigRate('referralCommission', e.target.value)} />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <Label className="text-xs">Daily Cap (pts)</Label>
+                                                <Input type="number" className="h-8 text-sm" value={config.dailyEarningCap ?? 2500} onChange={(e) => setConfig({ ...config, dailyEarningCap: parseInt(e.target.value) || 0 })} />
                                             </div>
                                         </div>
                                     </CardContent>

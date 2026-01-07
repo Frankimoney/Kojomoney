@@ -38,6 +38,7 @@ import { useEngagementNotifications } from '@/hooks/useEngagementNotifications'
 // Capacitor plugins - only available on mobile, lazy loaded
 // import { PushNotifications } from '@capacitor/push-notifications'
 // import { FirebaseAnalytics } from '@capacitor-firebase/analytics'
+// import { useRouter } from 'next/navigation'
 // import { FirebaseMessaging } from '@capacitor-firebase/messaging'
 
 interface User {
@@ -1002,7 +1003,23 @@ function HomeTab({ user, userPoints, setActiveTab, setActiveView, onOpenSpin }: 
                     </CardContent>
                 </Card>
 
-                <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => window.location.href = '/blog'}>
+                <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={async () => {
+                    // Check if running in Capacitor native
+                    const isNative = typeof window !== 'undefined' && (window as any)?.Capacitor?.isNativePlatform?.()
+                    if (isNative) {
+                        // Use in-app browser for native platforms
+                        try {
+                            const { Browser } = await import('@capacitor/browser')
+                            await Browser.open({ url: 'https://kojomoney.com/blog/' })
+                        } catch (e) {
+                            console.error('Browser plugin error:', e)
+                            window.open('https://kojomoney.com/blog/', '_blank')
+                        }
+                    } else {
+                        // Web: standard navigation
+                        window.location.href = '/blog/'
+                    }
+                }}>
                     <CardHeader className="pb-3">
                         <div className="flex items-center space-x-2">
                             <FileText className="h-6 w-6 text-orange-500" />
@@ -2015,7 +2032,16 @@ function ProfileTab({ user, setUser, resolvedTheme, setTheme, onLogout, onShowLe
                             <button
                                 key={i}
                                 onClick={() => {
-                                    if (item.action === 'blog') window.location.href = '/blog'
+                                    if (item.action === 'blog') {
+                                        const isNative = typeof window !== 'undefined' && (window as any)?.Capacitor?.isNativePlatform?.()
+                                        if (isNative) {
+                                            import('@capacitor/browser').then(({ Browser }) => {
+                                                Browser.open({ url: 'https://kojomoney.com/blog/' })
+                                            }).catch(() => window.open('https://kojomoney.com/blog/', '_blank'))
+                                        } else {
+                                            window.location.href = '/blog/'
+                                        }
+                                    }
                                     else onShowLegal(item.action as any)
                                 }}
                                 className="flex w-full items-center justify-between p-4 hover:bg-muted/50 transition-colors border-b last:border-0"
@@ -2047,13 +2073,14 @@ function ProfileTab({ user, setUser, resolvedTheme, setTheme, onLogout, onShowLe
 
 export default function EarnApp() {
     useEconomyInit()
+    // const router = useRouter()
+    const { theme, setTheme, resolvedTheme } = useTheme()
     const [activeTab, setActiveTab] = useState('home')
     const [activeView, setActiveView] = useState<'news' | 'trivia' | 'ads' | null>(null)
     const [activeLegalPage, setActiveLegalPage] = useState<LegalPageType | null>(null)
     const [user, setUser] = useState<User | null>(null)
     const [userPoints, setUserPoints] = useState(0)
     const [isClient, setIsClient] = useState(false)
-    const { resolvedTheme, setTheme } = useTheme()
     const [showLuckySpin, setShowLuckySpin] = useState(false)
     const [showOnboarding, setShowOnboarding] = useState(false)
 

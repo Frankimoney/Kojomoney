@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Bell, CheckCheck, Trash2, Settings } from 'lucide-react'
+import { Bell, CheckCheck, Trash2, RefreshCw, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
@@ -15,21 +15,71 @@ export function NotificationCenter() {
     const {
         notifications,
         unreadCount,
+        isLoading,
         markAllAsRead,
-        clearAll
+        clearAll,
+        syncFromServer,
+        markAsReadOnServer,
+        clearAllOnServer
     } = useNotificationStore()
 
     const [isOpen, setIsOpen] = useState(false)
+    const [userId, setUserId] = useState<string | null>(null)
 
-    // Initialize service on mount
+    // Get userId from localStorage
+    useEffect(() => {
+        const savedUser = localStorage.getItem('kojomoneyUser')
+        if (savedUser) {
+            try {
+                const user = JSON.parse(savedUser)
+                setUserId(user?.id || null)
+            } catch (e) {
+                console.error('Failed to parse user:', e)
+            }
+        }
+    }, [])
+
+    // Initialize service and sync on mount
     useEffect(() => {
         NotificationService.init();
+
+        // Sync from server if we have a userId
+        if (userId) {
+            syncFromServer(userId)
+        }
 
         // Listen for custom event to open center
         const handleOpen = () => setIsOpen(true)
         window.addEventListener('open-notifications', handleOpen)
         return () => window.removeEventListener('open-notifications', handleOpen)
-    }, [])
+    }, [userId])
+
+    // Sync when opening the notification center
+    useEffect(() => {
+        if (isOpen && userId) {
+            syncFromServer(userId)
+        }
+    }, [isOpen, userId])
+
+    const handleMarkAllAsRead = async () => {
+        markAllAsRead()
+        if (userId) {
+            await markAsReadOnServer(userId)
+        }
+    }
+
+    const handleClearAll = async () => {
+        clearAll()
+        if (userId) {
+            await clearAllOnServer(userId)
+        }
+    }
+
+    const handleRefresh = () => {
+        if (userId) {
+            syncFromServer(userId)
+        }
+    }
 
     const unreadNotifications = notifications.filter(n => !n.isRead)
     const rewardNotifications = notifications.filter(n => n.type === 'reward' || n.type === 'success')
@@ -55,12 +105,25 @@ export function NotificationCenter() {
                                 {unreadCount} New
                             </Badge>
                         </SheetTitle>
-                        <div className="flex gap-3">
+                        <div className="flex gap-2">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Refresh"
+                                onClick={handleRefresh}
+                                disabled={isLoading}
+                            >
+                                {isLoading ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <RefreshCw className="h-4 w-4" />
+                                )}
+                            </Button>
                             <Button
                                 variant="ghost"
                                 size="icon"
                                 title="Mark all as read"
-                                onClick={() => markAllAsRead()}
+                                onClick={handleMarkAllAsRead}
                                 disabled={unreadCount === 0}
                             >
                                 <CheckCheck className="h-4 w-4" />
@@ -69,7 +132,7 @@ export function NotificationCenter() {
                                 variant="ghost"
                                 size="icon"
                                 title="Clear all"
-                                onClick={() => clearAll()}
+                                onClick={handleClearAll}
                                 disabled={notifications.length === 0}
                                 className="mr-6"
                             >
@@ -90,7 +153,9 @@ export function NotificationCenter() {
 
                     <ScrollArea className="flex-1 min-h-0 px-4 py-4">
                         <TabsContent value="all" className="m-0 space-y-4">
-                            {notifications.length === 0 ? (
+                            {isLoading && notifications.length === 0 ? (
+                                <LoadingState />
+                            ) : notifications.length === 0 ? (
                                 <EmptyState />
                             ) : (
                                 notifications.map(notification => (
@@ -132,6 +197,15 @@ function EmptyState({ message = "You're all caught up!" }: { message?: string })
                 <Bell className="h-8 w-8 opacity-50" />
             </div>
             <p>{message}</p>
+        </div>
+    )
+}
+
+function LoadingState() {
+    return (
+        <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+            <Loader2 className="h-8 w-8 animate-spin mb-4 opacity-50" />
+            <p>Loading notifications...</p>
         </div>
     )
 }

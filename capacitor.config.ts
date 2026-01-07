@@ -4,11 +4,11 @@ const config: CapacitorConfig = {
   appId: 'com.kojomoney.app',
   appName: 'Kojomoney',
   webDir: 'out',
-  // Server URL removed to load local files
-  /* server: {
+  // Use local hostname to enable proper navigation (instead of file://)
+  server: {
     androidScheme: 'https',
-    url: 'https://kojomoney-app.onrender.com'
-  } */
+    hostname: 'app.kojomoney.local'
+  }
 }
 
 export default config

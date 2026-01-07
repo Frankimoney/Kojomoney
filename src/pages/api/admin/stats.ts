@@ -7,6 +7,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { db } from '@/lib/firebase-admin'
 import { requireAdmin } from '@/lib/admin-auth'
+import { POINTS_CONFIG } from '@/lib/points-config'
+import * as admin from 'firebase-admin'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,12 +25,19 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         const now = Date.now()
         const oneDayAgo = now - 24 * 60 * 60 * 1000
 
-        // 1. Fetch Configuration for dynamic points rate
-        let pointsPerDollar = 10000
+        // 1. Fetch Configuration for dynamic points rate from CORRECT location
+        let pointsPerDollar = POINTS_CONFIG.pointsPerDollar // Default: 10000
         try {
-            const configDoc = await db.collection('config').doc('general').get()
-            if (configDoc.exists) {
-                pointsPerDollar = configDoc.data()?.pointsPerDollar || 10000
+            // Try the economy config first (new location)
+            const economyDoc = await db.collection('system_config').doc('economy').get()
+            if (economyDoc.exists && economyDoc.data()?.pointsPerDollar) {
+                pointsPerDollar = economyDoc.data()?.pointsPerDollar
+            } else {
+                // Fallback to old location
+                const configDoc = await db.collection('config').doc('general').get()
+                if (configDoc.exists && configDoc.data()?.pointsPerDollar) {
+                    pointsPerDollar = configDoc.data()?.pointsPerDollar
+                }
             }
         } catch (e) {
             console.error('Error fetching config:', e)
@@ -49,31 +58,38 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         let adRevenue24h = 0
         let payouts24h = 0
 
-        // Get user stats (safely)
+        // Get user stats - manual iteration (aggregation requires special index)
         try {
-            // Note: For large userbases, this should be a count() query, but Firestore SDK might not support it in this env.
-            // Using listDocuments() or just getting size if possible, but .get() is reliable for small-medium apps.
-            const usersSnapshot = await db.collection('users').get()
+            const usersColl = db.collection('users')
+            const usersSnapshot = await usersColl.get()
+
             totalUsers = usersSnapshot.size
 
             usersSnapshot.forEach(doc => {
                 const data = doc.data()
+
+                // Sum up points - users may have totalPoints or points field
+                const userPoints = data.totalPoints || data.points || 0
+                totalLiabilityPoints += userPoints
+
+                // Count new users today
                 if (data.createdAt && data.createdAt > oneDayAgo) {
                     newUsersToday++
                 }
-                totalLiabilityPoints += (data.points || 0)
+
+                // Count active users (check both timestamp and date string)
                 if (data.lastActive && data.lastActive > oneDayAgo) {
                     activeUsers++
-                }
-                // Also count lastActiveDate (legacy/alternative check)
-                if (data.lastActiveDate) {
-                    const lastActiveStr = data.lastActiveDate
+                } else if (data.lastActiveDate) {
                     const today = new Date().toISOString().split('T')[0]
-                    if (lastActiveStr === today) {
+                    if (data.lastActiveDate === today) {
                         activeUsers++
                     }
                 }
             })
+
+            console.log(`[STATS] Users: ${totalUsers}, Liability: ${totalLiabilityPoints}`)
+
         } catch (e) {
             console.error('Error fetching users:', e)
         }
@@ -210,9 +226,17 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             completedMissions24h,
             // Diesel Metrics
             totalLiabilityPoints,
+            totalLiabilityUSD: Number(toUSD(totalLiabilityPoints)), // Added for proper USD display
+            pointsPerDollar, // Include rate so frontend knows the conversion
             adRevenue24h,
             payouts24h,
             netMargin: adRevenue24h - payouts24h,
+            // Debug info
+            _debug: {
+                liabilityPts: totalLiabilityPoints,
+                liabilityUSD: Number(toUSD(totalLiabilityPoints)),
+                rate: pointsPerDollar
+            },
             // Earnings Breakdown (24h)
             totalPoints24h,
             earningsBySource,

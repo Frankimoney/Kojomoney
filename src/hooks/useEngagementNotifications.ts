@@ -76,23 +76,28 @@ export function useEngagementNotifications(user: User | null) {
 
     // 3. Streak Celebration
     useEffect(() => {
-        if (!user) return;
+        if (!user || !user.dailyStreak) return;
 
-        const streakKey = `streak_celebrated_${user.dailyStreak}`;
         const { multiplier, tier } = getStreakMultiplier(user.dailyStreak || 0);
 
-        // Celebrate when reaching new streak milestones
-        if (user.dailyStreak >= 3 && !processedRef.current[streakKey]) {
-            const nextTier = getNextStreakTier(user.dailyStreak || 0);
+        // Only celebrate at exact milestone days (3, 7, 14, 30)
+        if (tier.minDays === user.dailyStreak && user.dailyStreak >= 3) {
+            // Check if we already celebrated this specific milestone today
+            const celebrationKey = `streak_milestone_${user.dailyStreak}_${user.lastActiveDate}`;
+            const alreadyCelebrated = localStorage.getItem(celebrationKey);
 
-            if (tier.minDays === user.dailyStreak) {
-                // User just hit a milestone
+            if (!alreadyCelebrated) {
                 FloatingNotifications.streak(user.dailyStreak);
-            }
+                localStorage.setItem(celebrationKey, 'true');
 
-            processedRef.current[streakKey] = true;
+                // Clean up old celebration keys (keep only last 5)
+                const keys = Object.keys(localStorage).filter(k => k.startsWith('streak_milestone_'));
+                if (keys.length > 5) {
+                    keys.sort().slice(0, keys.length - 5).forEach(k => localStorage.removeItem(k));
+                }
+            }
         }
-    }, [user?.dailyStreak]);
+    }, [user?.dailyStreak, user?.lastActiveDate]);
 
     // 4. Survey/Offer Availability Simulator
     useEffect(() => {
