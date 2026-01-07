@@ -1391,7 +1391,7 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
                 <CardContent className="space-y-4">
                     <form onSubmit={handleWithdrawal} className="space-y-4">
                         {/* Payment Method Selector */}
-                        <div className="grid grid-cols-5 gap-2">
+                        <div className="grid grid-cols-4 gap-2">
                             <button
                                 type="button"
                                 onClick={() => setWithdrawalForm(prev => ({ ...prev, method: 'bank_transfer' }))}
@@ -1402,37 +1402,32 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => setWithdrawalForm(prev => ({ ...prev, method: 'airtime' }))}
-                                className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${withdrawalForm.method === 'airtime' ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20' : 'border-muted hover:bg-muted'}`}
-                            >
-                                <Smartphone className={`h-5 w-5 mb-1 ${withdrawalForm.method === 'airtime' ? 'text-purple-600' : 'text-muted-foreground'}`} />
-                                <span className={`text-xs font-medium ${withdrawalForm.method === 'airtime' ? 'text-purple-700' : 'text-muted-foreground'}`}>Airtime</span>
-                            </button>
-                            <button
-                                type="button"
                                 onClick={() => setWithdrawalForm(prev => ({ ...prev, method: 'paypal' }))}
                                 className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${withdrawalForm.method === 'paypal' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-muted hover:bg-muted'}`}
                             >
                                 <span className={`text-lg font-bold mb-1 ${withdrawalForm.method === 'paypal' ? 'text-blue-600' : 'text-muted-foreground'}`}>P</span>
                                 <span className={`text-xs font-medium ${withdrawalForm.method === 'paypal' ? 'text-blue-700' : 'text-muted-foreground'}`}>PayPal</span>
                             </button>
-                            <button
-                                type="button"
-                                onClick={() => setWithdrawalForm(prev => ({ ...prev, method: 'crypto' }))}
-                                className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${withdrawalForm.method === 'crypto' ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20' : 'border-muted hover:bg-muted'}`}
+                            {/* Airtime - Coming Soon */}
+                            <div
+                                className="relative flex flex-col items-center justify-center p-3 rounded-lg border-2 border-muted bg-muted/30 cursor-not-allowed opacity-60"
+                                title="Coming Soon"
                             >
-                                <Bitcoin className={`h-5 w-5 mb-1 ${withdrawalForm.method === 'crypto' ? 'text-orange-600' : 'text-muted-foreground'}`} />
-                                <span className={`text-xs font-medium ${withdrawalForm.method === 'crypto' ? 'text-orange-700' : 'text-muted-foreground'}`}>Crypto</span>
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setWithdrawalForm(prev => ({ ...prev, method: 'gift_card' }))}
-                                className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${withdrawalForm.method === 'gift_card' ? 'border-pink-500 bg-pink-50 dark:bg-pink-900/20' : 'border-muted hover:bg-muted'}`}
+                                <Smartphone className="h-5 w-5 mb-1 text-muted-foreground" />
+                                <span className="text-xs font-medium text-muted-foreground">Airtime</span>
+                                <span className="absolute -top-2 -right-2 text-[9px] bg-purple-500 text-white px-1.5 py-0.5 rounded-full font-semibold">Soon</span>
+                            </div>
+                            {/* Gift Card - Coming Soon */}
+                            <div
+                                className="relative flex flex-col items-center justify-center p-3 rounded-lg border-2 border-muted bg-muted/30 cursor-not-allowed opacity-60"
+                                title="Coming Soon"
                             >
-                                <Gift className={`h-5 w-5 mb-1 ${withdrawalForm.method === 'gift_card' ? 'text-pink-600' : 'text-muted-foreground'}`} />
-                                <span className={`text-xs font-medium ${withdrawalForm.method === 'gift_card' ? 'text-pink-700' : 'text-muted-foreground'}`}>Gift Card</span>
-                            </button>
+                                <Gift className="h-5 w-5 mb-1 text-muted-foreground" />
+                                <span className="text-xs font-medium text-muted-foreground">Gift Card</span>
+                                <span className="absolute -top-2 -right-2 text-[9px] bg-pink-500 text-white px-1.5 py-0.5 rounded-full font-semibold">Soon</span>
+                            </div>
                         </div>
+
 
                         <div>
                             <label className="text-sm font-medium">Amount (Points)</label>
@@ -1557,6 +1552,7 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
                             </div>
                         )}
 
+                        {/* Crypto form - temporarily disabled
                         {withdrawalForm.method === 'crypto' && (
                             <>
                                 <div>
@@ -1586,75 +1582,24 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
                                 </div>
                             </>
                         )}
+                        */}
 
+                        {/* Airtime form - DISABLED: Requires Reloadly funding (₦200,000 minimum)
                         {withdrawalForm.method === 'airtime' && (
                             <div className="space-y-3">
-                                <div>
-                                    <label className="text-sm font-medium">Phone Number</label>
-                                    <input
-                                        type="tel"
-                                        className="w-full mt-1 px-3 py-2 border rounded-md"
-                                        placeholder="+234 XXX XXX XXXX"
-                                        value={withdrawalForm.phoneNumber}
-                                        onChange={(e) => setWithdrawalForm(prev => ({ ...prev, phoneNumber: e.target.value }))}
-                                        required={withdrawalForm.method === 'airtime'}
-                                    />
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                        Enter your phone number with country code. Airtime will be sent instantly upon approval.
-                                    </p>
-                                </div>
-                                <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
-                                    <p className="text-xs text-purple-700 dark:text-purple-300">
-                                        ⚡ <strong>Instant Delivery:</strong> Airtime is delivered within minutes after admin approval.
-                                        Supported networks: MTN, Airtel, Glo, 9mobile (Nigeria) and more.
-                                    </p>
-                                </div>
+                                ...
                             </div>
                         )}
+                        */}
 
+                        {/* Gift Card form - DISABLED: Requires Reloadly funding (₦200,000 minimum)
                         {withdrawalForm.method === 'gift_card' && (
                             <div className="space-y-3">
-                                <div>
-                                    <label className="text-sm font-medium">Gift Card Brand</label>
-                                    <select
-                                        className="w-full mt-1 px-3 py-2 border rounded-md"
-                                        value={withdrawalForm.giftCardBrand}
-                                        onChange={(e) => setWithdrawalForm(prev => ({ ...prev, giftCardBrand: e.target.value }))}
-                                        required={withdrawalForm.method === 'gift_card'}
-                                    >
-                                        <option value="">Select Gift Card</option>
-                                        <option value="amazon">🛒 Amazon</option>
-                                        <option value="google_play">▶️ Google Play</option>
-                                        <option value="steam">🎮 Steam</option>
-                                        <option value="itunes">🍎 iTunes / Apple</option>
-                                        <option value="netflix">📺 Netflix</option>
-                                        <option value="spotify">🎵 Spotify</option>
-                                        <option value="playstation">🎮 PlayStation</option>
-                                        <option value="xbox">🎮 Xbox</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="text-sm font-medium">Recipient Email</label>
-                                    <input
-                                        type="email"
-                                        className="w-full mt-1 px-3 py-2 border rounded-md"
-                                        placeholder="email@example.com"
-                                        value={withdrawalForm.recipientEmail}
-                                        onChange={(e) => setWithdrawalForm(prev => ({ ...prev, recipientEmail: e.target.value }))}
-                                        required={withdrawalForm.method === 'gift_card'}
-                                    />
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                        Gift card code will be sent to this email address.
-                                    </p>
-                                </div>
-                                <div className="p-3 bg-pink-50 dark:bg-pink-900/20 rounded-lg border border-pink-200 dark:border-pink-800">
-                                    <p className="text-xs text-pink-700 dark:text-pink-300">
-                                        🎁 <strong>Digital Delivery:</strong> Gift card codes are sent to your email within 24-48 hours after approval.
-                                        Available brands may vary by region.
-                                    </p>
-                                </div>
+                                ...
                             </div>
                         )}
+                        */}
+
 
                         <Button type="submit" className="w-full" disabled={isLoadingWithdrawal || userPoints < 1000}>
                             {isLoadingWithdrawal ? 'Processing...' : 'Request Withdrawal'}
