@@ -89,6 +89,38 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
         const userData = userDoc.data()!
         const currentPoints = userData.totalPoints || 0
 
+        // --- TIER-BASED WITHDRAWAL LIMITS ---
+        const withdrawalLimits = getWithdrawalLimits({
+            createdAt: userData.createdAt,
+            emailVerified: userData.emailVerified,
+            phoneVerified: userData.phoneVerified,
+            totalPoints: currentPoints
+        })
+
+        // Check minimum points requirement based on tier
+        if (amount < withdrawalLimits.minPoints) {
+            return res.status(400).json({
+                error: `Minimum withdrawal for ${withdrawalLimits.tier} tier is ${withdrawalLimits.minPoints.toLocaleString()} points ($${withdrawalLimits.minWithdrawalUSD.toFixed(2)} USD). You requested ${amount.toLocaleString()} points.`
+            })
+        }
+
+        // Check weekly withdrawal limit
+        const oneWeekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000)
+        const weeklyWithdrawals = await db.collection('withdrawals')
+            .where('userId', '==', userId)
+            .where('createdAt', '>', oneWeekAgo)
+            .get()
+
+        const weeklyCount = weeklyWithdrawals.docs.filter(d =>
+            ['pending', 'approved', 'completed'].includes(d.data().status)
+        ).length
+
+        if (weeklyCount >= withdrawalLimits.weeklyLimit) {
+            return res.status(400).json({
+                error: `Weekly limit reached. ${withdrawalLimits.tier} tier allows ${withdrawalLimits.weeklyLimit} withdrawal(s) per week. You've used ${weeklyCount}. Verify email/phone to increase limits.`
+            })
+        }
+
         const config = await getEconomyConfig()
 
         // --- DIESEL ECONOMY LOGIC ---
@@ -123,8 +155,8 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
             })
         }
 
-        // 4. Minimum Check (e.g. $1.00)
-        if (dieselUSD < 0.50) { // Keep low for local currencies? Prompt said "Max $10".
+        // 4. Minimum USD Check (hard floor)
+        if (dieselUSD < 0.50) {
             return res.status(400).json({ error: `Minimum withdrawal value is $0.50. Your request is valued at $${dieselUSD.toFixed(2)} based on regional rates.` })
         }
 
@@ -227,9 +259,12 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
             message: 'Withdrawal request submitted successfully',
             withdrawal
         })
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error creating withdrawal:', error)
-        return res.status(500).json({ error: 'Failed to create withdrawal' })
+        return res.status(500).json({
+            error: 'Failed to create withdrawal',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        })
     }
 }
 

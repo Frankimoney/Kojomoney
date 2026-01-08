@@ -84,7 +84,10 @@ export const useNotificationStore = create<NotificationState>()(
 
             // Sync notifications from Firestore
             syncFromServer: async (userId: string) => {
-                if (!userId) return
+                if (!userId) {
+                    // User not logged in - silently skip sync
+                    return
+                }
 
                 set({ isLoading: true })
 
@@ -127,11 +130,16 @@ export const useNotificationStore = create<NotificationState>()(
 
                         console.log(`[NotificationStore] Synced ${serverNotifications.length} notifications from server`)
                     } else {
-                        console.error('[NotificationStore] Failed to sync:', await response.text())
+                        // Don't spam console for expected errors when user data doesn't exist yet
+                        const text = await response.text()
+                        if (!text.includes('not found')) {
+                            console.warn('[NotificationStore] Sync issue:', text)
+                        }
                         set({ isLoading: false })
                     }
                 } catch (error) {
-                    console.error('[NotificationStore] Sync error:', error)
+                    // Silent fail - notifications are not critical
+                    console.warn('[NotificationStore] Sync skipped:', error)
                     set({ isLoading: false })
                 }
             },

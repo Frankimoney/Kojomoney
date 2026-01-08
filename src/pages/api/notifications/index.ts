@@ -27,21 +27,47 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         }
 
         try {
-            const snapshot = await db.collection('user_notifications')
-                .where('userId', '==', userId)
-                .orderBy('createdAt', 'desc')
-                .limit(50)
-                .get()
+            let notifications: any[] = []
 
-            const notifications = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-            }))
+            try {
+                // Try optimized query with ordering (requires composite index)
+                const snapshot = await db.collection('user_notifications')
+                    .where('userId', '==', userId)
+                    .orderBy('createdAt', 'desc')
+                    .limit(50)
+                    .get()
+
+                notifications = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data(),
+                }))
+            } catch (indexError: any) {
+                // Fallback: If index missing, fetch without ordering and sort client-side
+                if (indexError.code === 9 || indexError.message?.includes('index')) {
+                    console.warn('[Notifications] Index missing, using fallback query')
+                    const snapshot = await db.collection('user_notifications')
+                        .where('userId', '==', userId)
+                        .limit(50)
+                        .get()
+
+                    notifications = snapshot.docs
+                        .map(doc => ({
+                            id: doc.id,
+                            ...doc.data(),
+                        }))
+                        .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0))
+                } else {
+                    throw indexError
+                }
+            }
 
             return res.status(200).json({ notifications })
         } catch (error: any) {
-            console.error('[Notifications] GET error:', error)
-            return res.status(500).json({ error: 'Failed to fetch notifications' })
+            console.error('[Notifications] GET error:', error?.message || error)
+            return res.status(500).json({
+                error: 'Failed to fetch notifications',
+                details: error?.message || 'Unknown error'
+            })
         }
     }
 
@@ -115,20 +141,37 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         try {
             if (markAll) {
                 // Mark all user notifications as read
-                const snapshot = await db.collection('user_notifications')
-                    .where('userId', '==', userId)
-                    .where('isRead', '==', false)
-                    .get()
+                let docsToUpdate: FirebaseFirestore.QueryDocumentSnapshot[] = []
+
+                try {
+                    // Try compound query (requires index)
+                    const snapshot = await db.collection('user_notifications')
+                        .where('userId', '==', userId)
+                        .where('isRead', '==', false)
+                        .get()
+                    docsToUpdate = snapshot.docs
+                } catch (indexError: any) {
+                    // Fallback: fetch all user notifications and filter client-side
+                    if (indexError.code === 9 || indexError.message?.includes('index')) {
+                        console.warn('[Notifications] Index missing for PATCH, using fallback')
+                        const snapshot = await db.collection('user_notifications')
+                            .where('userId', '==', userId)
+                            .get()
+                        docsToUpdate = snapshot.docs.filter(doc => !doc.data().isRead)
+                    } else {
+                        throw indexError
+                    }
+                }
 
                 const batch = db.batch()
-                snapshot.docs.forEach(doc => {
+                docsToUpdate.forEach(doc => {
                     batch.update(doc.ref, { isRead: true, readAt: Date.now() })
                 })
                 await batch.commit()
 
                 return res.status(200).json({
                     success: true,
-                    updated: snapshot.size
+                    updated: docsToUpdate.length
                 })
             }
 

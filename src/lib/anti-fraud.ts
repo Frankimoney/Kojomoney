@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
-import { Timestamp } from 'firebase-admin/firestore'
+import { db } from '@/lib/firebase-admin'
+import { FieldValue, Timestamp } from 'firebase-admin/firestore'
 
 // Basic anti-fraud detection
 export async function detectFraud(request: NextRequest, userId?: string) {
@@ -16,7 +16,7 @@ export async function detectFraud(request: NextRequest, userId?: string) {
     }
 
     // Check for rapid requests (rate limiting)
-    if (userId) {
+    if (userId && db) {
         const recentAdSnap = await db
             .collection('ad_views')
             .where('userId', '==', userId)
@@ -69,6 +69,11 @@ export async function checkDeviceLimit(request: NextRequest, userId: string) {
     // Prefer client-side persistent ID, fallback to fingerprint
     const clientDeviceId = request.headers.get('x-device-id')
     const deviceId = clientDeviceId || generateDeviceId(userAgent, (request as any).ip || 'unknown')
+
+    // If db is not available, allow by default
+    if (!db) {
+        return { isAllowed: true, deviceCount: 1 }
+    }
 
     // Check how many accounts are using this device
     const sameDeviceSnap = await db.collection('users').where('lastDeviceId', '==', deviceId).get()

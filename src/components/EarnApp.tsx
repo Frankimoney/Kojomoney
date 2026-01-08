@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { DAILY_LIMITS as DEFAULT_DAILY_LIMITS, EARNING_RATES as DEFAULT_EARNING_RATES } from '@/lib/points-config'
+import { DAILY_LIMITS as DEFAULT_DAILY_LIMITS, EARNING_RATES as DEFAULT_EARNING_RATES, getWithdrawalLimits, POINTS_CONFIG } from '@/lib/points-config'
 import { useEconomyStore, useEconomyInit } from '@/store/economyStore'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -1210,6 +1210,33 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
         ? (parseInt(withdrawalForm.amount) / 1000 * rateInfo.usdPer1000Points).toFixed(2)
         : '0.00'
 
+    // Calculate withdrawal eligibility based on user tier
+    const withdrawalLimits = getWithdrawalLimits({
+        createdAt: user.createdAt,
+        emailVerified: user.emailVerified,
+        phoneVerified: user.phoneVerified,
+        totalPoints: userPoints
+    })
+
+    // Check if user has already withdrawn this week
+    const [weeklyWithdrawalsCount, setWeeklyWithdrawalsCount] = useState(0)
+
+    // Calculate eligibility
+    const canWithdraw = userPoints >= withdrawalLimits.minPoints
+    const hasReachedWeeklyLimit = weeklyWithdrawalsCount >= withdrawalLimits.weeklyLimit
+    const isEligibleToWithdraw = canWithdraw && !hasReachedWeeklyLimit
+
+    // Eligibility message
+    const getEligibilityMessage = () => {
+        if (!canWithdraw) {
+            return `You need at least ${withdrawalLimits.minPoints.toLocaleString()} points ($${withdrawalLimits.minWithdrawalUSD.toFixed(2)} USD) to withdraw. You have ${userPoints.toLocaleString()} points.`
+        }
+        if (hasReachedWeeklyLimit) {
+            return `You've reached your weekly limit of ${withdrawalLimits.weeklyLimit} withdrawal(s). Upgrade your account by verifying email/phone for higher limits!`
+        }
+        return null
+    }
+
     // Show banner ad at bottom of wallet tab
     useBannerAd('bottom', true)
 
@@ -1218,7 +1245,15 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
             const response = await apiCall(`/api/withdrawal?userId=${user?.id}`)
             if (response.ok) {
                 const data = await response.json()
-                setWithdrawals(data.withdrawals || [])
+                const allWithdrawals = data.withdrawals || []
+                setWithdrawals(allWithdrawals)
+
+                // Count withdrawals this week for limit check
+                const oneWeekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000)
+                const thisWeekWithdrawals = allWithdrawals.filter((w: any) =>
+                    w.createdAt > oneWeekAgo && (w.status === 'pending' || w.status === 'approved' || w.status === 'completed')
+                ).length
+                setWeeklyWithdrawalsCount(thisWeekWithdrawals)
             }
         } catch (error) {
             console.error('Failed to fetch withdrawals:', error)
@@ -1381,11 +1416,17 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
             </Card>
 
             {/* Withdrawal Form */}
-            <Card>
+            <Card className={!isEligibleToWithdraw ? 'opacity-75' : ''}>
                 <CardHeader>
-                    <CardTitle>Withdraw Points</CardTitle>
+                    <CardTitle className="flex items-center gap-2">
+                        Withdraw Points
+                        <Badge variant={isEligibleToWithdraw ? 'default' : 'secondary'} className={isEligibleToWithdraw ? 'bg-green-500' : ''}>
+                            {withdrawalLimits.tier.charAt(0).toUpperCase() + withdrawalLimits.tier.slice(1)} Tier
+                        </Badge>
+                    </CardTitle>
                     <CardDescription>
-                        Minimum withdrawal: 1,000 points
+                        Minimum: {withdrawalLimits.minPoints.toLocaleString()} points (${withdrawalLimits.minWithdrawalUSD.toFixed(2)} USD)
+                        {' • '} {withdrawalLimits.weeklyLimit - weeklyWithdrawalsCount} withdrawal(s) remaining this week
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -1601,11 +1642,24 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
                         */}
 
 
-                        <Button type="submit" className="w-full" disabled={isLoadingWithdrawal || userPoints < 1000}>
-                            {isLoadingWithdrawal ? 'Processing...' : 'Request Withdrawal'}
+                        {/* Eligibility Warning */}
+                        {!isEligibleToWithdraw && (
+                            <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                                <p className="text-sm text-amber-700 dark:text-amber-300">
+                                    ⚠️ {getEligibilityMessage()}
+                                </p>
+                            </div>
+                        )}
+
+                        <Button
+                            type="submit"
+                            className="w-full"
+                            disabled={isLoadingWithdrawal || !isEligibleToWithdraw}
+                        >
+                            {isLoadingWithdrawal ? 'Processing...' : isEligibleToWithdraw ? 'Request Withdrawal' : 'Not Eligible Yet'}
                         </Button>
                         <p className="text-xs text-muted-foreground">
-                            One withdrawal per week. Processing takes 24-48 hours.
+                            {withdrawalLimits.weeklyLimit} withdrawal(s)/week for {withdrawalLimits.tier} tier. Processing takes 24-48 hours.
                         </p>
                     </form>
                 </CardContent>
