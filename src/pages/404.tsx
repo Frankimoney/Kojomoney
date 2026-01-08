@@ -1,25 +1,27 @@
+import Link from 'next/link'
+import Head from 'next/head'
+
 export default function Custom404() {
     return (
-        <div style={{ 
-            display: 'flex', 
-            flexDirection: 'column', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            minHeight: '100vh', 
-            backgroundColor: '#0f172a', 
-            color: 'white' 
-        }}>
-            <h1 style={{ fontSize: '4rem', marginBottom: '1rem' }}>404</h1>
-            <p style={{ marginBottom: '2rem', color: '#94a3b8' }}>Page not found</p>
-            <a href="/" style={{ 
-                padding: '0.75rem 1.5rem', 
-                backgroundColor: '#6366f1', 
-                borderRadius: '0.5rem',
-                textDecoration: 'none',
-                color: 'white'
-            }}>
-                Go Home
-            </a>
-        </div>
+        <>
+            <Head>
+                <title>404 - Page Not Found | Kojomoney</title>
+            </Head>
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500">
+                <div className="text-center text-white p-8">
+                    <h1 className="text-6xl font-bold mb-4">404</h1>
+                    <h2 className="text-2xl mb-4">Page Not Found</h2>
+                    <p className="mb-8 text-purple-100">
+                        The page you're looking for doesn't exist or has been moved.
+                    </p>
+                    <Link
+                        href="/"
+                        className="inline-block bg-white text-purple-600 px-6 py-3 rounded-lg font-semibold hover:bg-purple-100 transition-colors"
+                    >
+                        Go Home
+                    </Link>
+                </div>
+            </div>
+        </>
     )
 }

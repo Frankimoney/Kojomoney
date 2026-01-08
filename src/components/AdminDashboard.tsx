@@ -207,6 +207,8 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
             loadTransactions()
         } else if (activeTab === 'economy') {
             loadConfig()
+        } else if (activeTab === 'overview') {
+            loadConfig() // Load config for Quick Actions (Boosts)
         }
     }, [activeTab, withdrawalFilter])
 
@@ -308,6 +310,33 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
         const newMultipliers = { ...config.countryMultipliers }
         delete newMultipliers[code]
         setConfig({ ...config, countryMultipliers: newMultipliers })
+    }
+
+    const toggleBoostedProvider = async (provider: string) => {
+        if (!config) return
+        const currentBoosted = config.boostedProviders || []
+        const isBoosted = currentBoosted.includes(provider)
+
+        const newBoosted = isBoosted
+            ? currentBoosted.filter((p: string) => p !== provider)
+            : [...currentBoosted, provider]
+
+        // Optimistic update
+        const newConfig = { ...config, boostedProviders: newBoosted }
+        setConfig(newConfig)
+
+        // Save to server
+        try {
+            await authApiCall('/api/admin/config', {
+                method: 'POST',
+                body: JSON.stringify(newConfig)
+            })
+            // success
+        } catch (err) {
+            console.error('Failed to save boost', err)
+            // Revert on error
+            setConfig(config)
+        }
     }
 
     const loadDashboardData = async () => {
@@ -797,6 +826,54 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                                     <span className="text-sm">Total Withdrawals</span>
                                     <span className="font-bold">{stats?.totalWithdrawals || 0}</span>
                                 </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Partner Links & Status */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Globe className="h-5 w-5 text-blue-500" />
+                                    Partner Links & Status
+                                </CardTitle>
+                                <CardDescription>Check for new surveys/offers and boost providers.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                {[
+                                    { name: 'CPX', url: 'https://cpx-research.com/', icon: '📋' },
+                                    { name: 'Kiwiwall', url: 'https://www.kiwiwall.com/', icon: '🥝' },
+                                    { name: 'Timewall', url: 'https://timewall.io/', icon: '⏳' },
+                                    { name: 'Wannads', url: 'https://wannads.com/', icon: '📈' },
+                                    { name: 'AdGate', url: 'https://adgaterewards.com/', icon: '🚪' },
+                                ].map((partner) => {
+                                    const isBoosted = config?.boostedProviders?.includes(partner.name)
+                                    return (
+                                        <div key={partner.name} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-xl">{partner.icon}</span>
+                                                <div>
+                                                    <p className="font-medium text-sm">{partner.name}</p>
+                                                    <a
+                                                        href={partner.url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-xs text-blue-500 hover:underline flex items-center gap-1"
+                                                    >
+                                                        Login to Dash <ExternalLink className="h-3 w-3" />
+                                                    </a>
+                                                </div>
+                                            </div>
+                                            <Button
+                                                size="sm"
+                                                variant={isBoosted ? "default" : "outline"}
+                                                onClick={() => toggleBoostedProvider(partner.name)}
+                                                className={isBoosted ? "bg-orange-500 hover:bg-orange-600 text-white" : ""}
+                                            >
+                                                {isBoosted ? '🔥 Boosted' : 'Boost'}
+                                            </Button>
+                                        </div>
+                                    )
+                                })}
                             </CardContent>
                         </Card>
                     </div>

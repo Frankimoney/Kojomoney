@@ -29,6 +29,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
                     earningRates: EARNING_RATES,
                     dailyLimits: DAILY_LIMITS,
                     pointsConfig: POINTS_CONFIG,
+                    boostedProviders: [],
                     lastUpdated: Date.now()
                 }
                 // Optionally seed the DB? No, let's keep it clean until edited.
@@ -53,8 +54,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
                 globalMargin: globalMargin !== undefined ? globalMargin : 1.0,
                 pointsPerDollar: pointsPerDollar !== undefined ? pointsPerDollar : POINTS_CONFIG.pointsPerDollar,
                 dailyEarningCap: dailyEarningCap !== undefined ? dailyEarningCap : 2500, // $0.25 default
+                boostedProviders: req.body.boostedProviders || [], // Array of provider names
                 lastUpdated: Date.now(),
-                updatedBy: 'admin' // Could track specific admin email if available
+                updatedBy: 'admin'
             }
 
             await configRef.set(updateData, { merge: true })

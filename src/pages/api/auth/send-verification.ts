@@ -163,7 +163,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         await db.collection('verifications').doc(verificationId).set(verificationData)
 
         // SENDING LOGIC
-        const isDev = process.env.NODE_ENV === 'development' || true // Always log for now since we have no SMS provider
+        const isDev = process.env.NODE_ENV === 'development'
 
         if (isPhone) {
             // MOCK SMS SENDING
@@ -187,7 +187,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             verificationId,
             target: normalizedTarget,
             message: `Verification code sent to ${normalizedTarget}`,
-            devCode: code // Return code in response for easier testing/demo
+            devCode: isDev ? code : undefined // Return code in response for easier testing/demo only in dev
         })
 
     } catch (error) {

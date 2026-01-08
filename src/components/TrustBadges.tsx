@@ -115,14 +115,7 @@ export default function TrustBadges({ user, onVerificationComplete }: TrustBadge
             description: 'Verify your email address to secure your account.',
             action: () => !user.emailVerified && startVerification('email')
         },
-        {
-            id: 'phone',
-            label: 'Phone Verified',
-            icon: Smartphone,
-            earned: !!user.phoneVerified,
-            description: 'Link a phone number for withdrawal security.',
-            action: () => !user.phoneVerified && startVerification('phone')
-        },
+
         {
             id: 'cashout',
             label: 'First Cashout',

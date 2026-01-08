@@ -59,7 +59,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         // Update last active date and timezone
         const updateData: any = {
             lastActiveDate: new Date().toISOString().split('T')[0],
-            updatedAt: Date.now()
+            updatedAt: Date.now(),
+            emailVerified: true // Confirmed via OTP Login flow
         }
         // Update timezone if provided (user may have moved or device changed)
         if (timezone) {

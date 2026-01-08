@@ -726,17 +726,7 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
                                             />
                                         </div>
 
-                                        <div>
-                                            <Label htmlFor="reg-phone">Phone Number *</Label>
-                                            <Input
-                                                id="reg-phone"
-                                                type="tel"
-                                                placeholder="+2348000000000"
-                                                value={registerForm.phone}
-                                                onChange={(e) => setRegisterForm(prev => ({ ...prev, phone: e.target.value }))}
-                                                required
-                                            />
-                                        </div>
+
 
                                         <div>
                                             <Label htmlFor="reg-referral">Referral Code (Optional)</Label>
@@ -752,7 +742,7 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
                                         <Button
                                             type="submit"
                                             className="w-full"
-                                            disabled={isLoading || !registerForm.username || !registerForm.email || !registerForm.password || !registerForm.passwordConfirm || !registerForm.name || !registerForm.phone || registerForm.password !== registerForm.passwordConfirm}
+                                            disabled={isLoading || !registerForm.username || !registerForm.email || !registerForm.password || !registerForm.passwordConfirm || !registerForm.name || registerForm.password !== registerForm.passwordConfirm}
                                         >
                                             {isLoading ? 'Sending Verification...' : 'Continue to Verification'}
                                         </Button>

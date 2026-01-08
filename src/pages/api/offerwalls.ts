@@ -8,6 +8,7 @@
 
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { allowCors } from '@/lib/cors'
+import { db } from '@/lib/firebase-admin'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,6 +22,7 @@ interface OfferwallItem {
     url: string | null
     available: boolean
     message?: string
+    boosted?: boolean
 }
 
 // Provider configurations (offerwalls and tasks only, no surveys)
@@ -35,6 +37,19 @@ const PROVIDER_CONFIG = {
             const appId = process.env.NEXT_PUBLIC_KIWIWALL_APP_ID
             return appId
                 ? `https://www.kiwiwall.com/wall/${appId}/${userId}`
+                : null
+        },
+    },
+    cpx: {
+        name: 'CPX Research',
+        description: 'Highest paying surveys with daily bonuses',
+        color: '#14b8a6', // teal
+        types: ['Survey', 'Daily'],
+        bestFor: 'High paying surveys',
+        getUrl: (userId: string) => {
+            const appId = process.env.NEXT_PUBLIC_CPX_APP_ID
+            return appId
+                ? `https://offers.cpx-research.com/index.php?app_id=${appId}&ext_user_id=${userId}`
                 : null
         },
     },
@@ -68,6 +83,15 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
         const offerwalls: OfferwallItem[] = []
 
+        // Fetch config to check for boosts
+        let boostedProviders: string[] = []
+        if (db) {
+            const configDoc = await db.collection('system_config').doc('economy').get()
+            if (configDoc.exists) {
+                boostedProviders = configDoc.data()?.boostedProviders || []
+            }
+        }
+
         // Kiwiwall
         const kiwiwallUrl = PROVIDER_CONFIG.kiwiwall.getUrl(userIdStr)
         offerwalls.push({
@@ -80,6 +104,22 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             url: kiwiwallUrl,
             available: !!kiwiwallUrl,
             message: kiwiwallUrl ? undefined : 'Configure NEXT_PUBLIC_KIWIWALL_APP_ID in .env.local',
+            boosted: boostedProviders.includes('Kiwiwall')
+        })
+
+        // CPX Research
+        const cpxUrl = PROVIDER_CONFIG.cpx.getUrl(userIdStr)
+        offerwalls.push({
+            provider: 'CPX',
+            name: PROVIDER_CONFIG.cpx.name,
+            description: PROVIDER_CONFIG.cpx.description,
+            color: PROVIDER_CONFIG.cpx.color,
+            types: PROVIDER_CONFIG.cpx.types,
+            bestFor: PROVIDER_CONFIG.cpx.bestFor,
+            url: cpxUrl,
+            available: !!cpxUrl,
+            message: cpxUrl ? undefined : 'Configure NEXT_PUBLIC_CPX_APP_ID in .env.local',
+            boosted: boostedProviders.includes('CPX')
         })
 
         // Timewall
@@ -94,6 +134,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             url: timewallUrl,
             available: !!timewallUrl,
             message: timewallUrl ? undefined : 'Configure NEXT_PUBLIC_TIMEWALL_SITE_ID in .env.local',
+            boosted: boostedProviders.includes('Timewall')
         })
 
         const configured = offerwalls.some(o => o.available)

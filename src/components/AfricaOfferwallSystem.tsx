@@ -36,7 +36,8 @@ import {
     TrendingUp,
     Globe,
     Zap,
-    Info
+    Info,
+    Flame
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -50,6 +51,7 @@ interface OfferwallProvider {
     url: string | null
     available: boolean
     message?: string
+    boosted?: boolean
 }
 
 interface AfricaOfferwallSystemProps {

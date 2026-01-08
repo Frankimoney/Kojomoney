@@ -66,7 +66,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             email: normalizedEmail,
             password: hashedPassword, // Store hashed password
             name: name || '',
-            phone: phone || '',
+            phone: phone || '', // Optional now
             timezone: timezone || 'UTC',  // User's IANA timezone string
             referralCode: userReferralCode,
             referredBy: referralCode || null,
