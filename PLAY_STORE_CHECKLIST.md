@@ -34,10 +34,16 @@
 - [x] Deep link handling (`kojomoney://`)
 
 ### Legal & Compliance
-- [x] Privacy Policy page (`/privacy`)
-- [x] Terms of Service page (`/terms`)
-- [x] GDPR page (`/gdpr`)
-- [x] Cookies policy (`/cookies`)
+- [x] Privacy Policy page (`/privacy`) - ✅ **UPDATED Jan 2026**
+- [x] Terms of Service page (`/terms`) - ✅ **UPDATED with Loyalty Program Terms**
+- [x] GDPR page (`/gdpr`) - ✅ **UPDATED Jan 2026**
+- [x] Cookies policy (`/cookies`) - ✅ **UPDATED Jan 2026**
+- [ ] **ACTION REQUIRED:** Add legal entity info (company name & address)
+- [x] Loyalty Program Terms added (CRITICAL for rewards apps)
+- [x] Data encryption disclosure added
+- [x] Data deletion process documented
+
+**📄 See LEGAL_COMPLIANCE_REPORT.md for detailed analysis**
 
 ---
 
@@ -57,8 +63,10 @@
 - [ ] **Tablet Screenshots:** Min 1 for 7" and 10" tablets
 
 ### Categorization
-- [ ] **Category:** Finance > Rewards
-- [ ] **Tags:** rewards, earn money, cash back, surveys, games
+- [ ] **Category:** Lifestyle (recommended to reduce scrutiny)
+  - *Alternative: Finance > Rewards (more accurate but heavier verification)*
+- [ ] **Tags:** rewards, lifestyle, entertainment, games, tasks, videos
+- [ ] **Positioning:** Focus on "rewards program" not "money app"
 
 ---
 

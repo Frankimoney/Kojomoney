@@ -86,10 +86,22 @@ function PrivacyPolicy() {
         <div className="space-y-6">
             <div>
                 <h2 className="text-2xl font-bold mb-2">Privacy Policy</h2>
-                <p className="text-sm text-muted-foreground">Last updated: December 2024</p>
+                <p className="text-sm text-muted-foreground">Last updated: January 2026</p>
                 <div className="flex items-center gap-2 mt-2 text-sm text-blue-600">
                     <Globe className="h-4 w-4" />
                     <span>This policy applies globally to all KojoMoney users worldwide</span>
+                </div>
+                <div className="mt-3 p-3 bg-muted rounded-lg text-sm">
+                    <p className="font-semibold">Developer Information:</p>
+                    <p className="text-muted-foreground mt-1">
+                        Developer: [Your Name or Company Name]<br />
+                        Location: [Your Country/Region]<br />
+                        Email: admin@kojomoney.com<br />
+                        Package: com.kojomoney.app
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-2 italic">
+                        You can register as an individual or organization developer.
+                    </p>
                 </div>
             </div>
 
@@ -221,14 +233,37 @@ function PrivacyPolicy() {
                 <CardHeader>
                     <CardTitle className="text-lg">8. Security</CardTitle>
                 </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                    <p>We implement industry-standard security measures including encryption, secure servers, and regular security audits to protect your information. However, no method of transmission over the Internet is 100% secure.</p>
+                <CardContent className="space-y-2 text-sm text-muted-foreground">
+                    <p>We implement industry-standard security measures to protect your information:</p>
+                    <ul className="list-disc pl-5 space-y-1 mt-2">
+                        <li><strong>Data Encryption:</strong> All data transmitted between your device and our servers is encrypted using TLS/SSL protocols</li>
+                        <li><strong>Secure Storage:</strong> Personal data is encrypted at rest using industry-standard encryption</li>
+                        <li><strong>Authentication:</strong> We use Firebase Authentication with secure password hashing</li>
+                        <li><strong>Regular Audits:</strong> Our security practices are regularly reviewed and updated</li>
+                        <li><strong>Access Controls:</strong> Strict access controls limit who can access user data</li>
+                    </ul>
+                    <p className="mt-3">However, no method of transmission over the Internet or electronic storage is 100% secure. While we strive to protect your personal information, we cannot guarantee absolute security.</p>
                 </CardContent>
             </Card>
 
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-lg">9. Contact Us</CardTitle>
+                    <CardTitle className="text-lg">9. Data Deletion</CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm text-muted-foreground">
+                    <p>You can request deletion of your account and all associated data at any time:</p>
+                    <ul className="list-disc pl-5 space-y-1 mt-2">
+                        <li>Email us at admin@kojomoney.com with "Account Deletion Request" as the subject</li>
+                        <li>Or use the "Delete Account" option in app settings</li>
+                        <li>We will process your request within 30 days</li>
+                        <li>Some data may be retained for legal compliance (e.g., financial records for 7 years)</li>
+                    </ul>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-lg">10. Contact Us</CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm text-muted-foreground">
                     <p>For privacy-related questions, contact us at:</p>
@@ -247,10 +282,19 @@ function TermsOfService() {
         <div className="space-y-6">
             <div>
                 <h2 className="text-2xl font-bold mb-2">Terms of Service</h2>
-                <p className="text-sm text-muted-foreground">Last updated: December 2024</p>
+                <p className="text-sm text-muted-foreground">Last updated: January 2026</p>
                 <div className="flex items-center gap-2 mt-2 text-sm text-blue-600">
                     <Globe className="h-4 w-4" />
                     <span>These terms apply to all users worldwide</span>
+                </div>
+                <div className="mt-3 p-3 bg-muted rounded-lg text-sm">
+                    <p className="font-semibold">Developer Information:</p>
+                    <p className="text-muted-foreground mt-1">
+                        Developer: [Your Name or Company Name]<br />
+                        Location: [Your Country/Region]<br />
+                        Email: admin@kojomoney.com<br />
+                        Package: com.kojomoney.app
+                    </p>
                 </div>
             </div>
 
@@ -324,9 +368,19 @@ function TermsOfService() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-lg">6. Withdrawals & Currency</CardTitle>
+                    <CardTitle className="text-lg">6. Loyalty Program & Rewards Terms</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 text-sm text-muted-foreground">
+                <CardContent className="space-y-3 text-sm text-muted-foreground">
+                    <p className="font-semibold text-foreground">Point System:</p>
+                    <ul className="list-disc pl-5 space-y-1">
+                        <li>Points are awarded for completing activities within the app</li>
+                        <li>Points have no inherent cash value and cannot be sold or transferred</li>
+                        <li>Approximate conversion rate varies by region and payment method</li>
+                        <li>Rewards are supplementary to the app's core functionality</li>
+                        <li>We reserve the right to adjust point values and reward offerings</li>
+                        <li>Points may expire after periods of account inactivity (6+ months)</li>
+                    </ul>
+                    <p className="font-semibold text-foreground mt-3">Withdrawals & Redemption:</p>
                     <ul className="list-disc pl-5 space-y-1">
                         <li>Minimum withdrawal thresholds vary by country and payment method</li>
                         <li>Withdrawals are processed in your local currency where available</li>
@@ -335,6 +389,7 @@ function TermsOfService() {
                         <li>We reserve the right to investigate suspicious activity</li>
                         <li>Fraudulent earnings will be forfeited</li>
                         <li>Exchange rates are determined at time of withdrawal</li>
+                        <li>Points cannot be redeemed for cash directly, only for available rewards</li>
                     </ul>
                 </CardContent>
             </Card>
@@ -412,7 +467,7 @@ function CookiePolicy() {
         <div className="space-y-6">
             <div>
                 <h2 className="text-2xl font-bold mb-2">Cookie Policy</h2>
-                <p className="text-sm text-muted-foreground">Last updated: December 2024</p>
+                <p className="text-sm text-muted-foreground">Last updated: January 2026</p>
                 <div className="flex items-center gap-2 mt-2 text-sm text-blue-600">
                     <Globe className="h-4 w-4" />
                     <span>This policy applies to users worldwide</span>
@@ -491,7 +546,7 @@ function GDPRRights() {
         <div className="space-y-6">
             <div>
                 <h2 className="text-2xl font-bold mb-2">Data Protection Rights</h2>
-                <p className="text-sm text-muted-foreground">Last updated: December 2024</p>
+                <p className="text-sm text-muted-foreground">Last updated: January 2026</p>
                 <div className="flex items-center gap-2 mt-2 text-sm text-blue-600">
                     <Globe className="h-4 w-4" />
                     <span>We respect data rights globally - GDPR, CCPA, and more</span>
