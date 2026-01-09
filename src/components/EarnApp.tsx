@@ -875,7 +875,7 @@ function HomeTab({ user, userPoints, setActiveTab, setActiveView, onOpenSpin }: 
                 <CardHeader>
                     <div className="flex justify-between items-start">
                         <div>
-                            <CardTitle className="text-2xl">Welcome back, {user.name || user.email}!</CardTitle>
+                            <CardTitle className="text-2xl">Welcome back, {user.name ? user.name.split(' ')[0] : user.email}!</CardTitle>
                             <CardDescription className="text-purple-100">
                                 Ready to earn more points today?
                             </CardDescription>
