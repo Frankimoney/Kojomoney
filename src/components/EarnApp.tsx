@@ -569,7 +569,7 @@ function EarnTab({ user, userPoints, setUserPoints, setActiveView }: EarnTabProp
 
     return (
         <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6">
                 <Card className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white border-none shadow-lg transform transition-all hover:scale-[1.02] cursor-pointer" onClick={() => setView('offerwall')}>
                     <CardHeader>
                         <CardTitle className="flex items-center space-x-2">
@@ -805,7 +805,7 @@ function EarnTab({ user, userPoints, setUserPoints, setActiveView }: EarnTabProp
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                         <div className="p-4 border rounded-lg">
                             <h4 className="font-semibold">Streak Bonus</h4>
                             <p className="text-sm text-muted-foreground">
@@ -987,7 +987,7 @@ function HomeTab({ user, userPoints, setActiveTab, setActiveView, onOpenSpin }: 
                 </Card>
             </motion.div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-5">
                 <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setActiveView('ads')}>
                     <CardHeader className="pb-3">
                         <div className="flex items-center space-x-2">
@@ -1503,7 +1503,7 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
 
                         {withdrawalForm.method === 'bank_transfer' && (
                             <>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                                     <div>
                                         <label className="text-sm font-medium">Bank Name</label>
                                         <select className="w-full mt-1 px-3 py-2 border rounded-md"
@@ -2342,7 +2342,7 @@ export default function EarnApp() {
 
     return (
         <div className="min-h-screen bg-background">
-            <div className="container mx-auto px-4 py-6 max-w-6xl">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 max-w-7xl 2xl:max-w-[1600px]">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center space-x-2">

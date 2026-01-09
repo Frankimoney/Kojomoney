@@ -318,7 +318,7 @@ const NewsReadingSystem = ({ userId }: NewsReadingSystemProps) => {
 
     if (readingState.currentStory) {
         return (
-            <Card className="max-w-2xl mx-auto">
+            <Card className="max-w-2xl xl:max-w-3xl mx-auto">
                 <CardHeader>
                     <div className="flex items-center justify-between">
                         <CardTitle className="flex items-center space-x-2">
@@ -478,7 +478,7 @@ const NewsReadingSystem = ({ userId }: NewsReadingSystemProps) => {
                     <Badge variant="outline">{stories.length} available</Badge>
                 </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 md:gap-4 xl:gap-5">
                 {stories.map((story) => (
                     <Card key={story.id} className="group cursor-pointer hover:shadow-sm transition-shadow">
                         {story.imageUrl ? (

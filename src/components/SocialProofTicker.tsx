@@ -58,23 +58,23 @@ export default function SocialProofTicker({ onClose }: SocialProofTickerProps) {
 
     return (
         <div
-            className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 shadow-lg border-t border-indigo-500/30"
+            className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 shadow-lg border-t border-indigo-500/30 w-full overflow-hidden"
             onMouseEnter={() => setIsPaused(true)}
             onMouseLeave={() => setIsPaused(false)}
         >
             {/* Close button */}
             <button
                 onClick={handleClose}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors z-10"
+                className="absolute right-3 sm:right-4 xl:right-6 top-1/2 -translate-y-1/2 p-1.5 xl:p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors z-10"
                 aria-label="Close ticker"
             >
-                <X className="h-3 w-3 text-white" />
+                <X className="h-3 w-3 xl:h-4 xl:w-4 text-white" />
             </button>
 
             {/* Ticker container */}
-            <div className="overflow-hidden py-2.5 pr-10">
+            <div className="overflow-hidden py-2.5 xl:py-3 pr-10 sm:pr-12 xl:pr-16 max-w-full">
                 <div
-                    className={`flex gap-8 whitespace-nowrap ${isPaused ? '' : 'animate-marquee'}`}
+                    className={`flex gap-6 md:gap-8 xl:gap-10 whitespace-nowrap ${isPaused ? '' : 'animate-marquee'}`}
                     style={{
                         animation: isPaused ? 'none' : 'marquee 15s linear infinite',
                     }}
@@ -82,14 +82,14 @@ export default function SocialProofTicker({ onClose }: SocialProofTickerProps) {
                     {duplicatedActivities.map((activity, index) => (
                         <div
                             key={`${activity.id}-${index}`}
-                            className="inline-flex items-center gap-2 text-white text-sm"
+                            className="inline-flex items-center gap-2 xl:gap-3 text-white text-sm xl:text-base"
                         >
                             {/* Icon */}
-                            <span className="flex items-center justify-center h-6 w-6 rounded-full bg-white/20">
+                            <span className="flex items-center justify-center h-6 w-6 xl:h-7 xl:w-7 rounded-full bg-white/20">
                                 {activity.type === 'withdrawal' ? (
-                                    <DollarSign className="h-3.5 w-3.5 text-green-300" />
+                                    <DollarSign className="h-3.5 w-3.5 xl:h-4 xl:w-4 text-green-300" />
                                 ) : (
-                                    <Coins className="h-3.5 w-3.5 text-yellow-300" />
+                                    <Coins className="h-3.5 w-3.5 xl:h-4 xl:w-4 text-yellow-300" />
                                 )}
                             </span>
 
@@ -106,7 +106,7 @@ export default function SocialProofTicker({ onClose }: SocialProofTickerProps) {
                             </span>
 
                             {/* Separator dot */}
-                            <span className="mx-2 h-1 w-1 rounded-full bg-white/40" />
+                            <span className="mx-2 xl:mx-3 h-1 w-1 xl:h-1.5 xl:w-1.5 rounded-full bg-white/40" />
                         </div>
                     ))}
                 </div>

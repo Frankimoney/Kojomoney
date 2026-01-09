@@ -2,6 +2,12 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Custom breakpoints for large tablets */
+@theme {
+    --breakpoint-3xl: 1800px;
+    --breakpoint-tablet-lg: 1400px;
+}
+
 @theme inline {
     --color-background: var(--background);
     --color-foreground: var(--foreground);
