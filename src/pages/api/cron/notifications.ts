@@ -31,6 +31,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         streakWarnings: 0,
         inactivityReminders: 0,
         tournamentReminders: 0,
+        dailyReminders: 0,
+        weeklySummaries: 0,
         errors: 0
     }
 
@@ -216,10 +218,145 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         oldNotifs.forEach(doc => batch.delete(doc.ref))
         await batch.commit()
 
+        // 4. Daily Morning Reminder (8-9am in user's timezone)
+        // Reminds users to start their daily tasks
+        const allUsersForMorning = await db.collection('users')
+            .where('pushTokens', '!=', null)
+            .limit(200)
+            .get()
+
+        for (const doc of allUsersForMorning.docs) {
+            const user = doc.data()
+            const userId = doc.id
+
+            // Only process if user has push tokens
+            if (!user.pushTokens || user.pushTokens.length === 0) continue
+
+            const userTimezone = user.timezone || 'UTC'
+            const userLocalHour = getLocalHourServer(userTimezone)
+
+            // Only send if it's morning (8-9am) in USER's timezone
+            if (userLocalHour >= 8 && userLocalHour <= 9) {
+                const today = new Date().toISOString().split('T')[0]
+                const notifKey = `daily_morning_${userId}_${today}`
+                const sentCheck = await db.collection('sent_notifications').doc(notifKey).get()
+
+                if (!sentCheck.exists) {
+                    // Check if user already active today
+                    const todayStart = new Date()
+                    todayStart.setUTCHours(0, 0, 0, 0)
+                    const hasActivity = user.lastActiveDate &&
+                        new Date(user.lastActiveDate).getTime() > todayStart.getTime()
+
+                    // Only send if not active yet today
+                    if (!hasActivity) {
+                        try {
+                            // Vary the message based on streak
+                            const streak = user.dailyStreak || 0
+                            let title = "🌅 Good Morning!"
+                            let body = "Start your day right - complete tasks and earn points!"
+
+                            if (streak >= 7) {
+                                title = `🔥 Day ${streak + 1} Awaits!`
+                                body = "Keep your amazing streak going! Daily tasks are ready."
+                            } else if (streak >= 3) {
+                                title = "👋 Ready to Earn?"
+                                body = `You're on a ${streak}-day streak! Don't break it today.`
+                            }
+
+                            await sendPushToUser(userId, title, body, { type: 'daily_reminder' })
+
+                            await db.collection('sent_notifications').doc(notifKey).set({
+                                sentAt: now,
+                                type: 'daily_morning'
+                            })
+
+                            results.dailyReminders++
+                        } catch (e) {
+                            results.errors++
+                        }
+                    }
+                }
+            }
+        }
+
+        // 5. Weekly Earnings Summary (Sunday 6-8pm in user's timezone)
+        const dayOfWeekSummary = new Date().getUTCDay()
+
+        if (dayOfWeekSummary === 0) { // Sunday
+            const usersForSummary = await db.collection('users')
+                .where('pushTokens', '!=', null)
+                .limit(200)
+                .get()
+
+            for (const doc of usersForSummary.docs) {
+                const user = doc.data()
+                const userId = doc.id
+
+                if (!user.pushTokens || user.pushTokens.length === 0) continue
+
+                const userTimezone = user.timezone || 'UTC'
+                const userLocalHour = getLocalHourServer(userTimezone)
+
+                // Only send between 6-8pm on Sunday
+                if (userLocalHour >= 18 && userLocalHour <= 20) {
+                    const weekNumber = Math.ceil((now - new Date(new Date().getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000))
+                    const notifKey = `weekly_summary_${userId}_${new Date().getFullYear()}_W${weekNumber}`
+                    const sentCheck = await db.collection('sent_notifications').doc(notifKey).get()
+
+                    if (!sentCheck.exists) {
+                        try {
+                            // Calculate this week's earnings
+                            const oneWeekAgo = now - (7 * 24 * 60 * 60 * 1000)
+                            const weeklyTransactions = await db.collection('transactions')
+                                .where('userId', '==', userId)
+                                .where('type', '==', 'credit')
+                                .where('createdAt', '>=', oneWeekAgo)
+                                .get()
+
+                            let weeklyEarnings = 0
+                            weeklyTransactions.forEach(txDoc => {
+                                weeklyEarnings += txDoc.data().amount || 0
+                            })
+
+                            const totalPoints = user.totalPoints || 0
+
+                            let title = "📊 Your Weekly Summary"
+                            let body = `This week: ${weeklyEarnings} pts earned! Total balance: ${totalPoints.toLocaleString()} pts.`
+
+                            if (weeklyEarnings >= 1000) {
+                                title = "🎉 Amazing Week!"
+                                body = `You earned ${weeklyEarnings.toLocaleString()} points this week! Keep it up!`
+                            } else if (weeklyEarnings === 0) {
+                                title = "💡 Missed Opportunities!"
+                                body = "You didn't earn any points this week. Start fresh tomorrow!"
+                            }
+
+                            await sendPushToUser(userId, title, body, {
+                                type: 'weekly_summary',
+                                weeklyEarnings,
+                                totalPoints
+                            })
+
+                            await db.collection('sent_notifications').doc(notifKey).set({
+                                sentAt: now,
+                                type: 'weekly_summary',
+                                weeklyEarnings
+                            })
+
+                            results.weeklySummaries++
+                        } catch (e) {
+                            results.errors++
+                        }
+                    }
+                }
+            }
+        }
+
         return res.status(200).json({
             success: true,
             ...results,
-            message: `Sent ${results.streakWarnings + results.inactivityReminders + results.tournamentReminders} notifications`
+            message: `Sent ${results.streakWarnings + results.inactivityReminders + results.tournamentReminders + results.dailyReminders + results.weeklySummaries} notifications`
         })
 
     } catch (error) {

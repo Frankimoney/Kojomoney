@@ -6,6 +6,7 @@ import { allowCors } from '@/lib/cors'
 import { getHappyHourBonus } from '@/lib/happyHour'
 import { DAILY_LIMITS, getStreakMultiplier } from '@/lib/points-config'
 import { getEconomyConfig } from '@/lib/server-config'
+import { checkMilestoneAsync } from '@/services/milestoneService'
 
 export const dynamic = 'force-dynamic'
 
@@ -404,6 +405,9 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, config: any
                     description: `Read: ${storyData?.title || 'News Story'}${bonusDescription}`,
                     createdAt: now
                 })
+
+                // Check for milestone celebration (fire and forget)
+                checkMilestoneAsync(userId, currentPoints, currentPoints + pointsToAward)
 
                 // Update Tournament Points (Add 5 points per story read)
                 const entrySnapshot = await db.collection('tournament_entries')

@@ -26,12 +26,12 @@ interface SpinSegment {
 }
 
 const SEGMENTS: SpinSegment[] = [
-    { id: 1, label: '50 Pts', value: 50, color: '#ef4444', probability: 0.3 },   // Red
-    { id: 2, label: '10 Pts', value: 10, color: '#3b82f6', probability: 0.4 },   // Blue
-    { id: 3, label: '100 Pts', value: 100, color: '#eab308', probability: 0.15 }, // Yellow
-    { id: 4, label: '20 Pts', value: 20, color: '#22c55e', probability: 0.25 },  // Green
-    { id: 5, label: '500 Pts', value: 500, color: '#a855f7', probability: 0.05 }, // Purple (Jackpot)
-    { id: 6, label: 'TRY AGAIN', value: 0, color: '#64748b', probability: 0.1 }, // Gray
+    { id: 1, label: '50 Pts', value: 50, color: '#ef4444', probability: 0.24 },   // Red
+    { id: 2, label: '10 Pts', value: 10, color: '#3b82f6', probability: 0.32 },   // Blue
+    { id: 3, label: '100 Pts', value: 100, color: '#eab308', probability: 0.12 }, // Yellow
+    { id: 4, label: '20 Pts', value: 20, color: '#22c55e', probability: 0.20 },  // Green
+    { id: 5, label: '500 Pts', value: 500, color: '#a855f7', probability: 0.04 }, // Purple (Jackpot)
+    { id: 6, label: 'TRY AGAIN', value: 0, color: '#64748b', probability: 0.08 }, // Gray
 ]
 
 export default function LuckySpin({ userId, onClose }: LuckySpinProps) {
@@ -133,8 +133,12 @@ export default function LuckySpin({ userId, onClose }: LuckySpinProps) {
 
             const segmentIndex = SEGMENTS.findIndex(s => s.id === targetSegment.id)
             // Add randomness within the segment wedge to look natural (+/- 25 deg)
-            const wedgeCenter = segmentIndex * segmentDegree
-            const randomOffset = (Math.random() * (segmentDegree - 10)) - ((segmentDegree - 10) / 2)
+            // Fix: Target the CENTER of the wedge (index * 60 + 30)
+            const wedgeCenter = (segmentIndex * segmentDegree) + (segmentDegree / 2)
+
+            // Random offset should be smaller than half wedge to avoid crossing boundary
+            // segmentDegree is 60. Safe zone is +/- 25.
+            const randomOffset = (Math.random() * 40) - 20 // +/- 20 degrees variance
 
             // Target Visual Rotation = -(WedgePos) + ExtraSpins
             // We ADD full spins to current rotation for smooth forward motion

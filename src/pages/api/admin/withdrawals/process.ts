@@ -12,6 +12,7 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { db } from '@/lib/firebase-admin'
 import { notifyWithdrawalProcessed } from '@/services/emailService'
 import { requireAdmin } from '@/lib/admin-auth'
+import { sendPushToUser } from '@/pages/api/notifications/send'
 
 export const dynamic = 'force-dynamic'
 
@@ -189,6 +190,19 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
                 console.error('Failed to send approval email:', emailErr)
             }
 
+            // Send push notification to user
+            try {
+                const amountUSD = withdrawal.amountUSD || (withdrawal.amount / 100).toFixed(2)
+                await sendPushToUser(
+                    withdrawal.userId,
+                    "💰 Withdrawal Approved!",
+                    `Your withdrawal of $${amountUSD} has been approved and is being processed.`,
+                    { type: 'withdrawal_approved', withdrawalId, amount: withdrawal.amount }
+                )
+            } catch (pushErr) {
+                console.error('Failed to send approval push notification:', pushErr)
+            }
+
             return res.status(200).json({
                 success: true,
                 message: 'Withdrawal approved',
@@ -236,6 +250,18 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
                 }
             } catch (emailErr) {
                 console.error('Failed to send rejection email:', emailErr)
+            }
+
+            // Send push notification to user
+            try {
+                await sendPushToUser(
+                    withdrawal.userId,
+                    "❌ Withdrawal Update",
+                    `Your withdrawal request was not approved. Points have been refunded to your account.`,
+                    { type: 'withdrawal_rejected', withdrawalId, refunded: true }
+                )
+            } catch (pushErr) {
+                console.error('Failed to send rejection push notification:', pushErr)
             }
 
             return res.status(200).json({

@@ -7,6 +7,7 @@ import { getHappyHourBonus } from '@/lib/happyHour'
 import { getStreakMultiplier } from '@/lib/points-config'
 import { checkRateLimit, verifyRequestSignature } from '@/lib/security'
 import { getEconomyConfig } from '@/lib/server-config'
+import { checkMilestoneAsync } from '@/services/milestoneService'
 
 export const dynamic = 'force-dynamic'
 
@@ -282,6 +283,9 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, config: any
                 description: `Daily Trivia Score: ${correctCount}/${questions.length}${bonusDescription}`,
                 createdAt: now
             })
+
+            // Check for milestone celebration (fire and forget)
+            checkMilestoneAsync(userId, currentPoints, currentPoints + pointsEarned)
 
             // Update Tournament Points (Add 20 points for playing trivia)
             const entrySnapshot = await db.collection('tournament_entries')

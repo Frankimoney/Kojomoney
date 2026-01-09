@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { db } from '@/lib/firebase-admin'
 import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
+import { sendPushToUser } from '@/pages/api/notifications/send'
 
 export const dynamic = 'force-dynamic'
 
@@ -123,6 +124,18 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
                     description: `Referral bonus for ${normalizedUsername}`,
                     createdAt: now
                 })
+
+                // Send push notification to referrer
+                try {
+                    await sendPushToUser(
+                        referrerDoc.id,
+                        "🎉 Referral Bonus Earned!",
+                        `${normalizedUsername} just signed up with your code! +100 points added.`,
+                        { type: 'referral_bonus', referredUser: normalizedUsername }
+                    )
+                } catch (pushErr) {
+                    console.error('Failed to send referral push notification:', pushErr)
+                }
             }
         }
 

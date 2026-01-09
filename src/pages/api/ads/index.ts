@@ -10,10 +10,16 @@ import { db } from '@/lib/firebase-admin'
 import { allowCors } from '@/lib/cors'
 import { getHappyHourBonus } from '@/lib/happyHour'
 import { getStreakMultiplier } from '@/lib/points-config'
+import { checkMilestoneAsync } from '@/services/milestoneService'
 
 import { getEconomyConfig } from '@/lib/server-config'
 
 export const dynamic = 'force-dynamic'
+
+// Constants for ads
+const BASE_AD_REWARD_POINTS = 10
+const TOURNAMENT_POINTS_PER_AD = 10
+const MAX_ADS_PER_DAY = 10 // Fallback, prefer config.dailyLimits.maxAds
 
 function getTodayKey(): string {
     return new Date().toISOString().split('T')[0]
@@ -226,6 +232,9 @@ async function handlePatch(req: NextApiRequest, res: NextApiResponse, config: an
             description: `Watched ad #${adsWatched + 1}${bonusDescription}`,
             createdAt: now,
         })
+
+        // Check for milestone celebration (fire and forget)
+        checkMilestoneAsync(userId, currentPoints, currentPoints + pointsToAward)
 
         // Update Tournament Points
         const entrySnapshot = await db!.collection('tournament_entries')
