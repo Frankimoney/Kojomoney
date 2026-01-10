@@ -1690,7 +1690,7 @@ export default function PostEditor({ postId, adminToken, onBack, onPostCreated }
                                     <CardContent className="p-5 space-y-6">
                                         <ReadabilityScore content={editor?.getHTML() || ''} />
                                         <div className="w-full h-px bg-slate-100 dark:bg-slate-800" />
-                                        <HeadingChecker content={editor?.getHTML() || ''} />
+                                        <HeadingChecker content={editor?.getHTML() || ''} hasTitle={true} title={title} />
                                         <div className="w-full h-px bg-slate-100 dark:bg-slate-800" />
                                         <ImageSEOChecker content={editor?.getHTML() || ''} />
                                         <div className="w-full h-px bg-slate-100 dark:bg-slate-800" />

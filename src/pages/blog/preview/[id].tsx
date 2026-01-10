@@ -42,6 +42,7 @@ export default function BlogPreview() {
                 headers: { Authorization: `Bearer ${token}` }
             })
             if (res.success) {
+                console.log('[Preview] Loaded post:', res.data?.title, 'Featured Image:', res.data?.featuredImage)
                 setPost(res.data)
             } else {
                 setError('Failed to load draft')
@@ -114,6 +115,24 @@ export default function BlogPreview() {
                             {post.updatedAt && <span>Updated {new Date(post.updatedAt).toLocaleDateString()}</span>}
                         </div>
                     </header>
+
+                    {/* Featured Image */}
+                    {post.featuredImage && (
+                        <div className="mb-12 relative group">
+                            <div className="absolute -inset-1 bg-gradient-to-r from-violet-600 to-indigo-600 rounded-[2.5rem] opacity-20 blur-lg group-hover:opacity-30 transition duration-1000"></div>
+                            <div className="relative rounded-[2rem] overflow-hidden shadow-2xl">
+                                <img
+                                    src={post.featuredImage.url}
+                                    alt={post.featuredImage.alt || 'Featured image'}
+                                    title={post.featuredImage.title}
+                                    className="w-full h-auto object-cover max-h-[600px] transform group-hover:scale-105 transition duration-700 ease-out"
+                                />
+                            </div>
+                            {post.featuredImage.caption && (
+                                <p className="text-center text-sm text-muted-foreground mt-4 italic">{post.featuredImage.caption}</p>
+                            )}
+                        </div>
+                    )}
 
                     {/* Content */}
                     <EditorialDisclosure post={post} />

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { apiCall } from '@/lib/api-client'
 
 interface BlogAnalyticsProps {
     postId: string
@@ -21,29 +22,29 @@ export default function BlogAnalytics({ postId, title }: BlogAnalyticsProps) {
     })
 
     useEffect(() => {
-        // Track Page View
+        // Track Page View - silently fail without breaking the page
         const trackView = async () => {
             try {
-                // Ensure we don't count duplicate views in same session if we want strictness,
-                // but for now simple page load tracking
-                await fetch('/api/analytics/track', {
+                await apiCall('/api/analytics/track', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         postId,
                         title,
                         type: 'view',
-                        referrer: document.referrer
+                        referrer: typeof document !== 'undefined' ? document.referrer : ''
                     })
                 })
             } catch (e) {
-                console.error('Failed to track view', e)
+                // Silently fail - analytics should never break the page
+                console.debug('[Analytics] Tracking failed (non-critical):', e)
             }
         }
 
-        // Only track in client
+        // Only track in client with a small delay to not block page load
+        let timer: NodeJS.Timeout | undefined
         if (typeof window !== 'undefined') {
-            trackView()
+            timer = setTimeout(trackView, 1000)
         }
 
         const handleScroll = () => {
@@ -72,7 +73,10 @@ export default function BlogAnalytics({ postId, title }: BlogAnalyticsProps) {
         }
 
         window.addEventListener('scroll', handleScroll)
-        return () => window.removeEventListener('scroll', handleScroll)
+        return () => {
+            if (timer) clearTimeout(timer)
+            window.removeEventListener('scroll', handleScroll)
+        }
     }, [postId, title])
 
     // Outbound Link Tracking

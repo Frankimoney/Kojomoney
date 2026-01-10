@@ -52,6 +52,7 @@ export default function BlogPostPage() {
                 }
 
                 setPost(data.post)
+                console.log('[BlogPost] Loaded:', data.post?.title, 'Featured Image:', data.post?.featuredImage)
                 setRelatedPosts(data.relatedPosts || [])
                 setSettings(data.settings || {})
             } catch (err) {
@@ -336,7 +337,27 @@ export default function BlogPostPage() {
                                 <ul className="space-y-2 text-sm">
                                     {toc.map(item => (
                                         <li key={item.id} className={item.level === 3 ? 'pl-4' : ''}>
-                                            <a href={`#${item.id}`} className="text-muted-foreground hover:text-primary block py-1">{item.text}</a>
+                                            <a
+                                                href={`#${item.id}`}
+                                                onClick={(e) => {
+                                                    e.preventDefault()
+                                                    const element = document.getElementById(item.id)
+                                                    if (element) {
+                                                        const headerOffset = 80
+                                                        const elementPosition = element.getBoundingClientRect().top
+                                                        const offsetPosition = elementPosition + window.pageYOffset - headerOffset
+
+                                                        window.scrollTo({
+                                                            top: offsetPosition,
+                                                            behavior: 'smooth'
+                                                        })
+                                                        history.pushState(null, '', `#${item.id}`)
+                                                    }
+                                                }}
+                                                className="text-muted-foreground hover:text-primary block py-1 cursor-pointer"
+                                            >
+                                                {item.text}
+                                            </a>
                                         </li>
                                     ))}
                                 </ul>
@@ -454,7 +475,27 @@ export default function BlogPostPage() {
                                     <ul className="space-y-3 text-sm">
                                         {toc.map(item => (
                                             <li key={item.id} className={item.level === 3 ? 'pl-4' : ''}>
-                                                <a href={`#${item.id}`} className="text-slate-500 dark:text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors block py-0.5 leading-relaxed">
+                                                <a
+                                                    href={`#${item.id}`}
+                                                    onClick={(e) => {
+                                                        e.preventDefault()
+                                                        const element = document.getElementById(item.id)
+                                                        if (element) {
+                                                            const headerOffset = 100 // Offset for sticky header
+                                                            const elementPosition = element.getBoundingClientRect().top
+                                                            const offsetPosition = elementPosition + window.pageYOffset - headerOffset
+
+                                                            window.scrollTo({
+                                                                top: offsetPosition,
+                                                                behavior: 'smooth'
+                                                            })
+
+                                                            // Update URL hash without jumping
+                                                            history.pushState(null, '', `#${item.id}`)
+                                                        }
+                                                    }}
+                                                    className="text-slate-500 dark:text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors block py-0.5 leading-relaxed cursor-pointer"
+                                                >
                                                     {item.text}
                                                 </a>
                                             </li>

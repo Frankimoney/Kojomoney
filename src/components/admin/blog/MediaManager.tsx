@@ -58,13 +58,22 @@ export default function MediaManager({ isOpen, onOpenChange, onSelect, adminToke
     }
 
     // Convert Google Drive share link to direct image URL
+    // Note: Google Drive has CORS restrictions. For best results:
+    // 1. The file must be set to "Anyone with the link can view"
+    // 2. We use the thumbnail URL which is more reliable for embedding
     const convertGoogleDriveToImageUrl = (urlStr: string): string => {
         const fileId = extractGoogleDriveId(urlStr)
         if (fileId) {
-            // Direct view URL for images
-            return `https://drive.google.com/uc?export=view&id=${fileId}`
+            // Use lh3.googleusercontent.com for better CORS compatibility
+            // This returns a high-res thumbnail that works for most images
+            return `https://lh3.googleusercontent.com/d/${fileId}=w2000`
         }
         return urlStr
+    }
+
+    // Alternative format for direct download (may have CORS issues)
+    const getGoogleDriveFallbackUrl = (fileId: string): string => {
+        return `https://drive.google.com/uc?export=view&id=${fileId}`
     }
 
     // Convert Google Drive share link to embed URL (for videos)
@@ -251,7 +260,18 @@ export default function MediaManager({ isOpen, onOpenChange, onSelect, adminToke
                                                 src={isGoogleDriveUrl(url) ? convertGoogleDriveToImageUrl(url) : url}
                                                 alt="Preview"
                                                 className="w-full h-full object-cover"
-                                                onError={(e) => e.currentTarget.style.display = 'none'}
+                                                onError={(e) => {
+                                                    // Show error placeholder
+                                                    const target = e.currentTarget
+                                                    target.style.display = 'none'
+                                                    const parent = target.parentElement
+                                                    if (parent && !parent.querySelector('.error-placeholder')) {
+                                                        const errorDiv = document.createElement('div')
+                                                        errorDiv.className = 'error-placeholder w-full h-full flex flex-col items-center justify-center bg-red-50 dark:bg-red-900/30 text-red-500 text-[8px] text-center p-1'
+                                                        errorDiv.innerHTML = '<span>⚠️</span><span>Preview unavailable</span>'
+                                                        parent.appendChild(errorDiv)
+                                                    }
+                                                }}
                                             />
                                         )}
                                     </div>
@@ -260,27 +280,37 @@ export default function MediaManager({ isOpen, onOpenChange, onSelect, adminToke
 
                             {/* Google Drive Type Toggle */}
                             {isGoogleDriveUrl(url) && (
-                                <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                                    <span className="text-sm text-blue-700 dark:text-blue-300">Google Drive file detected. Is this an:</span>
-                                    <div className="flex gap-1">
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant={forceType === 'image' || (forceType === 'auto' && detectMediaType(url) === 'image') ? 'default' : 'outline'}
-                                            onClick={() => setForceType('image')}
-                                            className="h-7 text-xs"
-                                        >
-                                            <ImageIcon className="h-3 w-3 mr-1" /> Image
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant={forceType === 'video' || (forceType === 'auto' && detectMediaType(url) === 'video') ? 'default' : 'outline'}
-                                            onClick={() => setForceType('video')}
-                                            className="h-7 text-xs"
-                                        >
-                                            <Video className="h-3 w-3 mr-1" /> Video
-                                        </Button>
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                        <span className="text-sm text-blue-700 dark:text-blue-300">Google Drive file detected. Is this an:</span>
+                                        <div className="flex gap-1">
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant={forceType === 'image' || (forceType === 'auto' && detectMediaType(url) === 'image') ? 'default' : 'outline'}
+                                                onClick={() => setForceType('image')}
+                                                className="h-7 text-xs"
+                                            >
+                                                <ImageIcon className="h-3 w-3 mr-1" /> Image
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant={forceType === 'video' || (forceType === 'auto' && detectMediaType(url) === 'video') ? 'default' : 'outline'}
+                                                onClick={() => setForceType('video')}
+                                                className="h-7 text-xs"
+                                            >
+                                                <Video className="h-3 w-3 mr-1" /> Video
+                                            </Button>
+                                        </div>
+                                    </div>
+                                    <div className="p-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                                        <p className="text-[10px] text-amber-700 dark:text-amber-300 leading-tight">
+                                            <strong>⚠️ Important:</strong> The file must be set to <strong>"Anyone with the link can view"</strong> in Google Drive sharing settings, or the image won't display.
+                                        </p>
+                                        <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1">
+                                            File ID: <code className="bg-amber-100 dark:bg-amber-900/40 px-1 rounded">{extractGoogleDriveId(url)}</code>
+                                        </p>
                                     </div>
                                 </div>
                             )}
