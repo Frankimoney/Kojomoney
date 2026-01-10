@@ -13,6 +13,16 @@ import slugify from 'slugify'
 
 export const dynamic = 'force-dynamic'
 
+// Increase body size limit for large blog posts
+export const config = {
+    api: {
+        bodyParser: {
+            sizeLimit: '10mb',
+        },
+        responseLimit: false,
+    },
+}
+
 async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (!db) {
         return res.status(500).json({ error: 'Database connection failed' })

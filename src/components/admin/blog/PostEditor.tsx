@@ -735,13 +735,17 @@ export default function PostEditor({ postId, adminToken, onBack, onPostCreated }
         type?: 'image' | 'video';
         embedType?: 'iframe' | 'video' | 'image'
     }) => {
+        console.log('[MediaSelect] Mode:', mediaPickerMode, 'Media:', media)
+
         if (mediaPickerMode === 'featured') {
-            setFeaturedImage({
+            const newFeaturedImage = {
                 url: media.url,
                 alt: media.alt,
                 title: media.title,
                 caption: media.caption
-            })
+            }
+            console.log('[FeaturedImage] Setting:', newFeaturedImage)
+            setFeaturedImage(newFeaturedImage)
             return
         }
 
@@ -1123,8 +1127,19 @@ export default function PostEditor({ postId, adminToken, onBack, onPostCreated }
                                                     <>
                                                         <img
                                                             src={featuredImage.url}
-                                                            alt={featuredImage.alt}
+                                                            alt={featuredImage.alt || 'Featured image'}
                                                             className="w-full h-full object-cover"
+                                                            onError={(e) => {
+                                                                // Show error state if image fails to load
+                                                                e.currentTarget.style.display = 'none'
+                                                                const parent = e.currentTarget.parentElement
+                                                                if (parent) {
+                                                                    const errorDiv = document.createElement('div')
+                                                                    errorDiv.className = 'w-full h-full flex flex-col items-center justify-center bg-red-50 dark:bg-red-900/20 text-red-500'
+                                                                    errorDiv.innerHTML = '<svg class="h-8 w-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg><span class="text-xs font-medium">Image failed to load</span>'
+                                                                    parent.appendChild(errorDiv)
+                                                                }
+                                                            }}
                                                         />
                                                         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                                                             <Button variant="secondary" size="sm" className="h-8">
@@ -1154,6 +1169,12 @@ export default function PostEditor({ postId, adminToken, onBack, onPostCreated }
                                                     </>
                                                 )}
                                             </div>
+                                            {/* Show URL below image */}
+                                            {featuredImage && (
+                                                <div className="text-[10px] text-slate-400 truncate bg-slate-50 dark:bg-slate-800 px-2 py-1 rounded" title={featuredImage.url}>
+                                                    📷 {featuredImage.url.length > 50 ? featuredImage.url.substring(0, 50) + '...' : featuredImage.url}
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div className="space-y-2">
