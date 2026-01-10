@@ -99,56 +99,65 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             const deletedSlug = postData.slug
             const deletedCategories = postData.categories || []
 
-            // Find a similar post to redirect to
+            // Find a similar post to redirect to (optional - don't let this fail the delete)
             let redirectToSlug: string | null = null
 
-            // First, try to find a post in the same category
-            if (deletedCategories.length > 0) {
-                const similarQuery = await db.collection('posts')
-                    .where('status', '==', 'published')
-                    .where('categories', 'array-contains-any', deletedCategories)
-                    .limit(5)
-                    .get()
+            try {
+                // First, try to find a post in the same category
+                if (deletedCategories.length > 0) {
+                    const similarQuery = await db.collection('posts')
+                        .where('status', '==', 'published')
+                        .where('categories', 'array-contains-any', deletedCategories)
+                        .limit(5)
+                        .get()
 
-                // Find one that isn't the current post
-                for (const similar of similarQuery.docs) {
-                    if (similar.id !== id) {
-                        redirectToSlug = (similar.data() as BlogPost).slug
-                        break
+                    // Find one that isn't the current post
+                    for (const similar of similarQuery.docs) {
+                        if (similar.id !== id) {
+                            redirectToSlug = (similar.data() as BlogPost).slug
+                            break
+                        }
                     }
                 }
-            }
 
-            // If no similar post found, get the most recent published post
-            if (!redirectToSlug) {
-                const recentQuery = await db.collection('posts')
-                    .where('status', '==', 'published')
-                    .orderBy('publishedAt', 'desc')
-                    .limit(2)
-                    .get()
+                // If no similar post found, get the most recent published post
+                if (!redirectToSlug) {
+                    const recentQuery = await db.collection('posts')
+                        .where('status', '==', 'published')
+                        .orderBy('publishedAt', 'desc')
+                        .limit(2)
+                        .get()
 
-                for (const recent of recentQuery.docs) {
-                    if (recent.id !== id) {
-                        redirectToSlug = (recent.data() as BlogPost).slug
-                        break
+                    for (const recent of recentQuery.docs) {
+                        if (recent.id !== id) {
+                            redirectToSlug = (recent.data() as BlogPost).slug
+                            break
+                        }
                     }
                 }
+            } catch (redirectError) {
+                // Log but don't fail - redirect lookup is optional
+                console.warn('Could not find redirect target (index may be missing):', redirectError)
             }
 
-            // Save the redirect mapping
+            // Save the redirect mapping (if we found a redirect target)
             if (deletedSlug && redirectToSlug) {
-                await db.collection('redirects').doc(deletedSlug).set({
-                    from: deletedSlug,
-                    to: redirectToSlug,
-                    type: '301', // Permanent redirect
-                    createdAt: Date.now(),
-                    reason: 'post_deleted',
-                    originalTitle: postData.title
-                })
-                console.log(`[Redirect] Created: /blog/${deletedSlug} -> /blog/${redirectToSlug}`)
+                try {
+                    await db.collection('redirects').doc(deletedSlug).set({
+                        from: deletedSlug,
+                        to: redirectToSlug,
+                        type: '301', // Permanent redirect
+                        createdAt: Date.now(),
+                        reason: 'post_deleted',
+                        originalTitle: postData.title
+                    })
+                    console.log(`[Redirect] Created: /blog/${deletedSlug} -> /blog/${redirectToSlug}`)
+                } catch (redirectSaveError) {
+                    console.warn('Could not save redirect:', redirectSaveError)
+                }
             }
 
-            // Delete post
+            // Delete post - this is the critical operation
             // Note: Versions in subcollection generally stay unless recursive delete is used.
             await docRef.delete()
 
