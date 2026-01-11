@@ -14,11 +14,11 @@
     "rewrites": [
       {
         "source": "/blog/preview/**",
-        "destination": "/blog/preview/[id].html"
+        "destination": "/blog/preview/[id]/index.html"
       },
       {
         "source": "/blog/**",
-        "destination": "/blog/[slug].html"
+        "destination": "/blog/[slug]/index.html"
       },
       {
         "source": "**",
