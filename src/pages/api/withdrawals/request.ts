@@ -111,10 +111,16 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         const economyConfig = await getEconomyConfig()
         const amountUSD = pointsToUSD(amount, economyConfig, userCountry)
 
-        // Deduct points
+        // Deduct points from BOTH fields (points and totalPoints) for consistency
+        // Some parts of the app use 'points', others use 'totalPoints'
+        const currentTotalPoints = userData.totalPoints || userData.points || 0
+
         await userRef.update({
             points: currentPoints - amount,
+            totalPoints: currentTotalPoints - amount, // Keep both fields in sync
         })
+
+        console.log(`[Withdrawal] Deducted ${amount} pts from user ${userId}. Balance: ${currentPoints} -> ${currentPoints - amount}`)
 
         // Create withdrawal record with fraud data
         const withdrawalData = {
