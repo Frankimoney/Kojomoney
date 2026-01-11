@@ -108,41 +108,49 @@ export default function LuckySpin({ userId, onClose }: LuckySpinProps) {
             // Note: If 0 points, it matches TRY AGAIN
             const targetSegment = SEGMENTS.find(s => s.value === winningValue) || SEGMENTS.find(s => s.value === 0)!
 
-            // Calculate rotation to land on target
-            // Each segment is 60 degrees (360 / 6)
-            // Segment 1 is at top (0 deg) to start? No, typically right or top.
-            // Let's assume standard CSS rotation where 0 is top.
-            // We need to calculate precise degrees.
+            console.log('[Spin] Won', winningValue, 'pts - Target Segment:', targetSegment.label)
 
-            const segmentDegree = 360 / SEGMENTS.length
-            // Current rotation
+            // Calculate rotation to land on target
+            // Each segment is 60 degrees (360 / 6 = 60)
+            const segmentDegree = 360 / SEGMENTS.length  // 60
+
+            // Current rotation for continuous spinning
             const currentRotation = rotation
 
             // Random extra spins (5 to 10 full spins)
             const extraSpins = 360 * (5 + Math.floor(Math.random() * 5))
 
-            // Calculate stopping point
-            // Index 0 (Segment 1) is at 0 degrees usually?
-            // Actually, we need to map Segment ID to visual position.
-            // Let's assume Segment 1 is at [0, 60], Segment 2 [60, 120] etc.
-            // To land on Segment i, we need to rotate NEGATIVE or POSITIVE to align it with the pointer (usually at top)
-
-            // Let's say Pointer is at TOP (0 degrees).
-            // To bring Segment 1 to Top, rotation should be 0 (or 360).
-            // To bring Segment 2 (at 60deg initially) to Top, we rotate -60 degrees.
-
+            // Find segment index (0-based)
             const segmentIndex = SEGMENTS.findIndex(s => s.id === targetSegment.id)
-            // Add randomness within the segment wedge to look natural (+/- 25 deg)
-            // Fix: Target the CENTER of the wedge (index * 60 + 30)
-            const wedgeCenter = (segmentIndex * segmentDegree) + (segmentDegree / 2)
 
-            // Random offset should be smaller than half wedge to avoid crossing boundary
-            // segmentDegree is 60. Safe zone is +/- 25.
-            const randomOffset = (Math.random() * 40) - 20 // +/- 20 degrees variance
+            // IMPORTANT: The SVG wheel has transform: rotate(-90deg)
+            // This means segment 0 doesn't start at the top (where pointer is)
+            // It starts 90 degrees clockwise from top (i.e. at right side)
+            // So we need to account for this 90 degree offset
 
-            // Target Visual Rotation = -(WedgePos) + ExtraSpins
-            // We ADD full spins to current rotation for smooth forward motion
-            const targetRotation = currentRotation + extraSpins + (360 - (wedgeCenter % 360)) + randomOffset
+            // Each segment center is at: (index * 60) + 30 degrees from the -90deg start
+            // To bring segment center to TOP (where pointer is at 0/360 degrees):
+            // We need to rotate by: -(segmentCenter + svgOffset) 
+            // svgOffset is -90 (because SVG is rotated -90 which effectively means all segments start 90deg early)
+
+            const segmentStart = segmentIndex * segmentDegree  // Where segment starts (0, 60, 120, ...)
+            const segmentCenter = segmentStart + (segmentDegree / 2)  // Center of segment
+
+            // Add small random offset within the segment (to look natural)
+            // Safe zone is +/- 20 degrees (to not cross segment boundary)
+            const randomOffset = (Math.random() * 30) - 15  // +/- 15 degrees
+
+            // The wheel rotates clockwise. Positive rotation moves segments clockwise.
+            // So to bring segmentCenter to TOP, we rotate NEGATIVE of its position
+            // But since we spin forward (positive rotation), we calculate: 360 - segmentCenter
+            // PLUS the SVG offset of +90 (because SVG is -90, we need to add 90 to compensate)
+            const offsetForSvg = 90  // SVG starts at -90deg, so segments are shifted 90deg ahead
+            const targetAngle = 360 - segmentCenter - offsetForSvg + randomOffset
+
+            // Total rotation: current + extra spins + target angle (normalized)
+            const targetRotation = currentRotation + extraSpins + ((targetAngle + 360) % 360)
+
+            console.log('[Spin] Rotation calc:', { segmentIndex, segmentCenter, offsetForSvg, targetAngle, targetRotation })
 
             // Animate
             await controls.start({

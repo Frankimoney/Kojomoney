@@ -39,19 +39,32 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         const search = (req.query.search as string || '').toLowerCase()
         const category = req.query.category as string || null
 
-        let query = db.collection('posts')
+        console.log(`[Blog Posts API] Query: category=${category}, search=${search}`)
+
+        // First, fetch ALL published posts for category extraction
+        // We need this to build the category list for the sidebar
+        const allPostsSnapshot = await db.collection('posts')
             .where('status', '==', 'published')
+            .orderBy('publishedAt', 'desc')
+            .limit(100)
+            .get()
 
+        console.log(`[Blog Posts API] Found ${allPostsSnapshot.docs.length} total published posts`)
+
+        let posts = allPostsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BlogPost))
+
+        // Extract ALL categories from published posts (use categories field, not tags)
+        const allCategories = Array.from(
+            new Set(posts.flatMap(p => p.categories || []))
+        ).slice(0, 10)
+
+        console.log(`[Blog Posts API] Available categories:`, allCategories)
+
+        // Now filter by category if requested
         if (category) {
-            query = query.where('categories', 'array-contains', category)
+            posts = posts.filter(p => p.categories?.includes(category))
+            console.log(`[Blog Posts API] After category filter (${category}): ${posts.length} posts`)
         }
-
-        // Fetch posts
-        const snapshot = await query.orderBy('publishedAt', 'desc').limit(100).get()
-
-        console.log(`[Blog Posts API] Found ${snapshot.docs.length} published posts`)
-
-        let posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BlogPost))
 
         // Filter by title (Search) - naive impl for MVP
         if (search) {
@@ -67,8 +80,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         const paginatedPosts = posts.slice(start, start + POSTS_PER_PAGE)
         const hasMore = start + POSTS_PER_PAGE < total
 
-        // Extract Categories from all published posts
-        const allCategories = Array.from(new Set(posts.flatMap(p => p.tags || []))).slice(0, 10)
+        // DEPRECATED: This was incorrectly using tags, now using categories above
+        // const allCategories = Array.from(new Set(posts.flatMap(p => p.tags || []))).slice(0, 10)
 
         // Serialize dates and strip content
         const serializedPosts = paginatedPosts.map(post => ({

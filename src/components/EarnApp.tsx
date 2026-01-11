@@ -380,17 +380,25 @@ function AdsPage({ user, onBack }: AdsPageProps) {
                 })
                 const creditData = await creditRes.json()
 
+                console.log('[Ad Watch] Credit response:', creditData)
+
                 // Show multiplier feedback notification
-                if (creditData.success && creditData.pointsAwarded) {
+                // Check for success or pointsAwarded (API returns success: true)
+                if (creditData.success || creditData.pointsAwarded) {
+                    const points = creditData.pointsAwarded || creditData.finalPoints || 10
+                    console.log('[Ad Watch] Showing notification for', points, 'points')
+
                     FloatingNotifications.pointsEarned({
                         source: 'Ad Watch',
-                        basePoints: creditData.basePoints || 5,
-                        finalPoints: creditData.pointsAwarded,
+                        basePoints: creditData.basePoints || 10,
+                        finalPoints: points,
                         happyHourMultiplier: creditData.happyHourMultiplier,
                         happyHourName: creditData.happyHourName,
                         streakMultiplier: creditData.streakMultiplier,
                         streakName: creditData.streakName
                     })
+                } else {
+                    console.warn('[Ad Watch] No success in credit response:', creditData)
                 }
 
                 // Start cooldown

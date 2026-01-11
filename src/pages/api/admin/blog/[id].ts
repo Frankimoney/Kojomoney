@@ -88,6 +88,19 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
                     console.log(`[Blog API] Setting publishedAt for post ${id}`)
                 }
 
+                // Check if slug has changed - create redirect for SEO
+                const oldSlug = currentData.slug
+                const newSlug = newData.slug
+
+                if (oldSlug && newSlug && oldSlug !== newSlug && currentData.status === 'published') {
+                    // Slug changed on a published post - create 301 redirect
+                    console.log(`[Blog API] Slug changed: ${oldSlug} -> ${newSlug}, creating redirect`)
+
+                    // We can't do Firestore operations outside the transaction target doc,
+                    // so we'll flag this to do after transaction completes
+                    updateData._createRedirectFrom = oldSlug
+                }
+
                 if (newData.title && !newData.slug) {
                     // Update slug if title changed and slug is empty (resetting slug)
                     // But usually slug is passed explicitly.
@@ -95,6 +108,32 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
                 t.update(docRef, updateData)
             })
+
+            // After transaction: Create redirect if slug changed
+            const updatedDoc = await docRef.get()
+            const updatedData = updatedDoc.data()
+
+            if (updatedData?._createRedirectFrom) {
+                const oldSlug = updatedData._createRedirectFrom
+                const newSlug = updatedData.slug
+
+                try {
+                    await db.collection('redirects').doc(oldSlug).set({
+                        from: oldSlug,
+                        to: newSlug,
+                        type: '301', // Permanent redirect
+                        createdAt: Date.now(),
+                        reason: 'slug_changed',
+                        postId: id
+                    })
+                    console.log(`[Redirect] Created: /blog/${oldSlug} -> /blog/${newSlug}`)
+
+                    // Clean up the flag
+                    await docRef.update({ _createRedirectFrom: null })
+                } catch (redirectError) {
+                    console.warn('Could not create slug redirect:', redirectError)
+                }
+            }
 
             return res.status(200).json({ success: true, message: 'Post updated' })
 
