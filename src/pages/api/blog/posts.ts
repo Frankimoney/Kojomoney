@@ -49,6 +49,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         // Fetch posts
         const snapshot = await query.orderBy('publishedAt', 'desc').limit(100).get()
 
+        console.log(`[Blog Posts API] Found ${snapshot.docs.length} published posts`)
+
         let posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BlogPost))
 
         // Filter by title (Search) - naive impl for MVP

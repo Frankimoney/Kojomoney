@@ -96,6 +96,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
                 status: status || 'draft',
                 updatedAt: now,
                 createdAt: now,
+                // Set publishedAt if creating as published
+                ...(status === 'published' && { publishedAt: now }),
                 author: req.body.author || { name: 'Admin', id: 'admin' }, // Should come from token ideally
                 tags: req.body.tags || [],
                 categories: req.body.categories || [],

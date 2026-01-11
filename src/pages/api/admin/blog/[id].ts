@@ -77,9 +77,15 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
                 // Note: strict transactional uniqueness check requires a separate index/collection or very strict locking. 
                 // We'll trust the admin or rely on standard merge.
 
-                const updateData = {
+                const updateData: Record<string, any> = {
                     ...newData,
                     updatedAt: Date.now()
+                }
+
+                // Auto-set publishedAt when publishing for the first time
+                if (newData.status === 'published' && !currentData.publishedAt) {
+                    updateData.publishedAt = Date.now()
+                    console.log(`[Blog API] Setting publishedAt for post ${id}`)
                 }
 
                 if (newData.title && !newData.slug) {
