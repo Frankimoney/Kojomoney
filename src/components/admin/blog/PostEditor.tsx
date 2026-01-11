@@ -1692,7 +1692,7 @@ export default function PostEditor({ postId, adminToken, onBack, onPostCreated }
                                         <div className="w-full h-px bg-slate-100 dark:bg-slate-800" />
                                         <HeadingChecker content={editor?.getHTML() || ''} hasTitle={true} title={title} />
                                         <div className="w-full h-px bg-slate-100 dark:bg-slate-800" />
-                                        <ImageSEOChecker content={editor?.getHTML() || ''} />
+                                        <ImageSEOChecker content={editor?.getHTML() || ''} featuredImage={featuredImage} />
                                         <div className="w-full h-px bg-slate-100 dark:bg-slate-800" />
                                         <LinkChecker content={editor?.getHTML() || ''} />
                                     </CardContent>
