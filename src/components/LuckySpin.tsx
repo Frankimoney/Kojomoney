@@ -23,15 +23,27 @@ interface SpinSegment {
     value: number
     color: string
     probability: number // 0-1
+    visualAngle: number // Degrees from TOP (0°) where this segment's center is when wheel rotation is 0
 }
 
+// SEGMENTS with explicit visual positions
+// The SVG wheel is rendered with transform: rotate(-90deg)
+// So visual position = (index * 60 + 30) - 90
+// 
+// When wheel rotation = 0:
+// - Segment 0 (50 pts) center is at -60° = 300° (11 o'clock area)  
+// - Segment 1 (10 pts) center is at 0° = TOP (12 o'clock - right at pointer!)
+// - Segment 2 (100 pts) center is at 60° (1-2 o'clock)
+// - Segment 3 (20 pts) center is at 120° (4-5 o'clock)
+// - Segment 4 (500 pts) center is at 180° = BOTTOM (6 o'clock)
+// - Segment 5 (TRY AGAIN) center is at 240° (8 o'clock)
 const SEGMENTS: SpinSegment[] = [
-    { id: 1, label: '50 Pts', value: 50, color: '#ef4444', probability: 0.24 },   // Red
-    { id: 2, label: '10 Pts', value: 10, color: '#3b82f6', probability: 0.32 },   // Blue
-    { id: 3, label: '100 Pts', value: 100, color: '#eab308', probability: 0.12 }, // Yellow
-    { id: 4, label: '20 Pts', value: 20, color: '#22c55e', probability: 0.20 },  // Green
-    { id: 5, label: '500 Pts', value: 500, color: '#a855f7', probability: 0.04 }, // Purple (Jackpot)
-    { id: 6, label: 'TRY AGAIN', value: 0, color: '#64748b', probability: 0.08 }, // Gray
+    { id: 1, label: '50 Pts', value: 50, color: '#ef4444', probability: 0.24, visualAngle: 300 },   // Red - 11 o'clock
+    { id: 2, label: '10 Pts', value: 10, color: '#3b82f6', probability: 0.32, visualAngle: 0 },     // Blue - 12 o'clock (TOP)
+    { id: 3, label: '100 Pts', value: 100, color: '#eab308', probability: 0.12, visualAngle: 60 },  // Yellow - 2 o'clock
+    { id: 4, label: '20 Pts', value: 20, color: '#22c55e', probability: 0.20, visualAngle: 120 },   // Green - 4 o'clock
+    { id: 5, label: '500 Pts', value: 500, color: '#a855f7', probability: 0.04, visualAngle: 180 }, // Purple - 6 o'clock (BOTTOM)
+    { id: 6, label: 'TRY AGAIN', value: 0, color: '#64748b', probability: 0.08, visualAngle: 240 }, // Gray - 8 o'clock
 ]
 
 export default function LuckySpin({ userId, onClose }: LuckySpinProps) {
@@ -110,47 +122,40 @@ export default function LuckySpin({ userId, onClose }: LuckySpinProps) {
 
             console.log('[Spin] Won', winningValue, 'pts - Target Segment:', targetSegment.label)
 
-            // Calculate rotation to land on target
-            // Each segment is 60 degrees (360 / 6 = 60)
-            const segmentDegree = 360 / SEGMENTS.length  // 60
+            // === SIMPLIFIED ROTATION CALCULATION ===
+            // 
+            // Each segment has an explicit visualAngle property that defines where
+            // its center is when the wheel rotation is 0 (pointer at TOP = 0°)
+            // 
+            // To bring a segment to TOP (where pointer is):
+            // - The wheel rotates CLOCKWISE (positive rotation)
+            // - We rotate by (360 - visualAngle) to bring it to 0°
+            //
+            // Example: 50 Pts has visualAngle=300 (top-left area)
+            // To bring it to TOP: rotate 360-300 = 60° clockwise
 
-            // Current rotation for continuous spinning
+            const visualAngle = targetSegment.visualAngle
+
+            // Calculate rotation needed to bring this segment to TOP (0°)
+            const rotationToTop = (360 - visualAngle) % 360
+
+            // Add random offset within segment (±20 degrees, safe zone to not cross boundary)
+            const randomOffset = (Math.random() * 30) - 15
+
+            // Add multiple full spins for visual effect
             const currentRotation = rotation
-
-            // Random extra spins (5 to 10 full spins)
             const extraSpins = 360 * (5 + Math.floor(Math.random() * 5))
 
-            // Find segment index (0-based)
-            const segmentIndex = SEGMENTS.findIndex(s => s.id === targetSegment.id)
+            // Total rotation
+            const targetRotation = currentRotation + extraSpins + rotationToTop + randomOffset
 
-            // IMPORTANT: The SVG wheel has transform: rotate(-90deg)
-            // This means segment 0 doesn't start at the top (where pointer is)
-            // It starts 90 degrees clockwise from top (i.e. at right side)
-            // So we need to account for this 90 degree offset
-
-            // Each segment center is at: (index * 60) + 30 degrees from the -90deg start
-            // To bring segment center to TOP (where pointer is at 0/360 degrees):
-            // We need to rotate by: -(segmentCenter + svgOffset) 
-            // svgOffset is -90 (because SVG is rotated -90 which effectively means all segments start 90deg early)
-
-            const segmentStart = segmentIndex * segmentDegree  // Where segment starts (0, 60, 120, ...)
-            const segmentCenter = segmentStart + (segmentDegree / 2)  // Center of segment
-
-            // Add small random offset within the segment (to look natural)
-            // Safe zone is +/- 20 degrees (to not cross segment boundary)
-            const randomOffset = (Math.random() * 30) - 15  // +/- 15 degrees
-
-            // The wheel rotates clockwise. Positive rotation moves segments clockwise.
-            // So to bring segmentCenter to TOP, we rotate NEGATIVE of its position
-            // But since we spin forward (positive rotation), we calculate: 360 - segmentCenter
-            // PLUS the SVG offset of +90 (because SVG is -90, we need to add 90 to compensate)
-            const offsetForSvg = 90  // SVG starts at -90deg, so segments are shifted 90deg ahead
-            const targetAngle = 360 - segmentCenter - offsetForSvg + randomOffset
-
-            // Total rotation: current + extra spins + target angle (normalized)
-            const targetRotation = currentRotation + extraSpins + ((targetAngle + 360) % 360)
-
-            console.log('[Spin] Rotation calc:', { segmentIndex, segmentCenter, offsetForSvg, targetAngle, targetRotation })
+            console.log('[Spin] Rotation calc:', {
+                targetSegment: targetSegment.label,
+                visualAngle,
+                rotationToTop,
+                randomOffset,
+                targetRotation
+            })
 
             // Animate
             await controls.start({
@@ -274,29 +279,17 @@ export default function LuckySpin({ userId, onClose }: LuckySpinProps) {
                                             className="absolute top-0 left-1/2 w-1/2 h-full -translate-x-1/2 origin-center"
                                             style={{
                                                 transform: `rotate(${rotation}deg)`,
-                                                // Using clip-path to create wedges is complex, CSS conic-gradient is easier for background
-                                                // but for content (text), we need rotation.
                                             }}
                                         >
-                                            {/* Wedge Background */}
+                                            {/* Wedge Background - hidden by SVG overlay, kept for fallback */}
                                             <div
-                                                className="absolute top-0 left-0 w-full h-[50%] origin-bottom-center"
+                                                className="absolute top-0 left-0 w-full h-[50%] origin-bottom-center opacity-0"
                                                 style={{
                                                     backgroundColor: segment.color,
                                                     height: '50%',
                                                     transformOrigin: '50% 100%',
-                                                    // This part is visual trickery, simplified for React:
-                                                    // In reality, building a CSS wheel requires simpler geometry or SVG
                                                 }}
                                             />
-                                            {/* Text Content */}
-                                            <div
-                                                className="absolute top-[20%] left-1/2 -translate-x-1/2 text-white font-bold text-sm md:text-base flex flex-col items-center gap-1 shadow-black/50 drop-shadow-md"
-                                                style={{ zIndex: 10 }}
-                                            >
-                                                {segment.id === 5 && <Trophy className="h-4 w-4 text-yellow-200" />}
-                                                {segment.label}
-                                            </div>
                                         </div>
                                     )
                                 })}
@@ -326,13 +319,18 @@ export default function LuckySpin({ userId, onClose }: LuckySpinProps) {
                                 </svg>
 
                                 {/* Inner labels (re-rendered on top of SVG) */}
+                                {/* Note: SVG has -90deg rotation, so labels need same offset */}
                                 {SEGMENTS.map((segment, index) => {
-                                    const angle = (index * 60) + 30 // Center of wedge
+                                    // SVG is rotated -90deg, so visual positions are shifted
+                                    // Segment center in SVG coords: (index * 60) + 30
+                                    // After -90deg rotation: subtract 90
+                                    const svgAngle = (index * 60) + 30
+                                    const visualAngle = svgAngle - 90 // Match SVG rotation
                                     return (
                                         <div
                                             key={`label-${segment.id}`}
                                             className="absolute w-full h-full top-0 left-0 flex justify-center pt-4"
-                                            style={{ transform: `rotate(${angle}deg)` }}
+                                            style={{ transform: `rotate(${visualAngle}deg)` }}
                                         >
                                             <span className="text-white font-bold text-xs md:text-sm drop-shadow-md z-10 bg-black/10 px-1 rounded transform rotate-180" style={{ writingMode: 'vertical-rl' }}>
                                                 {segment.label}
