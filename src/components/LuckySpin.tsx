@@ -26,16 +26,16 @@ interface SpinSegment {
     visualAngle: number // Degrees from TOP (0°) where this segment's center is when wheel rotation is 0
 }
 
-// SEGMENTS with corrected visual positions
-// Wheel is rotated -90deg, so Segment 0 starts at Top (0°)
-// Visual angles are center points Clockwise from Top
+// SEGMENTS visual positions - where each wedge CENTER appears on screen
+// After SVG's -90° rotation, wedge Index N spans screen angles N*60 to (N+1)*60
+// Center of wedge N = N*60 + 30
 const SEGMENTS: SpinSegment[] = [
-    { id: 1, label: '50 Pts', value: 50, color: '#ef4444', probability: 0.24, visualAngle: 30 },
-    { id: 2, label: '10 Pts', value: 10, color: '#3b82f6', probability: 0.32, visualAngle: 90 },
-    { id: 3, label: '100 Pts', value: 100, color: '#eab308', probability: 0.12, visualAngle: 150 },
-    { id: 4, label: '20 Pts', value: 20, color: '#22c55e', probability: 0.20, visualAngle: 210 },
-    { id: 5, label: '500 Pts', value: 500, color: '#a855f7', probability: 0.04, visualAngle: 270 },
-    { id: 6, label: 'TRY AGAIN', value: 0, color: '#64748b', probability: 0.08, visualAngle: 330 },
+    { id: 1, label: '50 Pts', value: 50, color: '#ef4444', probability: 0.24, visualAngle: 30 },   // 0°-60°, center 30°
+    { id: 2, label: '10 Pts', value: 10, color: '#3b82f6', probability: 0.32, visualAngle: 90 },   // 60°-120°, center 90°
+    { id: 3, label: '100 Pts', value: 100, color: '#eab308', probability: 0.12, visualAngle: 150 },// 120°-180°, center 150°
+    { id: 4, label: '20 Pts', value: 20, color: '#22c55e', probability: 0.20, visualAngle: 210 },  // 180°-240°, center 210°
+    { id: 5, label: '500 Pts', value: 500, color: '#a855f7', probability: 0.04, visualAngle: 270 },// 240°-300°, center 270°
+    { id: 6, label: 'TRY AGAIN', value: 0, color: '#64748b', probability: 0.08, visualAngle: 330 },// 300°-360°, center 330°
 ]
 
 export default function LuckySpin({ userId, onClose }: LuckySpinProps) {
@@ -137,8 +137,8 @@ export default function LuckySpin({ userId, onClose }: LuckySpinProps) {
 
             const visualAngle = targetSegment.visualAngle
 
-            // ABSOLUTE rotation (0-360) needed for this specific segment to be at Top
-            const desiredEndRotation = (360 - visualAngle) % 360
+            // ABSOLUTE rotation needed - adding 180° offset because results were consistently opposite
+            const desiredEndRotation = (360 - visualAngle + 180) % 360
 
             // Current state
             const currentRotation = rotation
@@ -330,18 +330,18 @@ export default function LuckySpin({ userId, onClose }: LuckySpinProps) {
                                 </svg>
 
                                 {/* Inner labels (re-rendered on top of SVG) */}
-                                {/* Note: SVG has -90deg rotation, so labels need same offset */}
+                                {/* Labels are in wheel container coords, NOT SVG coords */}
                                 {SEGMENTS.map((segment, index) => {
-                                    // SVG is rotated -90deg, so visual positions are shifted
-                                    // Segment center in SVG coords: (index * 60) + 30
-                                    // After -90deg rotation: subtract 90
-                                    const svgAngle = (index * 60) + 30
-                                    const visualAngle = svgAngle - 90 // Match SVG rotation
+                                    // Wedge visual positions (from SEGMENTS.visualAngle):
+                                    // Index 0 (50 pts) = 30° (1 o'clock)
+                                    // Index 1 (10 pts) = 90° (3 o'clock) etc.
+                                    // Labels should be at same position as their wedge!
+                                    const labelAngle = segment.visualAngle
                                     return (
                                         <div
                                             key={`label-${segment.id}`}
                                             className="absolute w-full h-full top-0 left-0 flex justify-center pt-4"
-                                            style={{ transform: `rotate(${visualAngle}deg)` }}
+                                            style={{ transform: `rotate(${labelAngle}deg)` }}
                                         >
                                             <span className="text-white font-bold text-xs md:text-sm drop-shadow-md z-10 bg-black/10 px-1 rounded transform rotate-180" style={{ writingMode: 'vertical-rl' }}>
                                                 {segment.label}

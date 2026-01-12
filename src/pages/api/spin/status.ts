@@ -4,8 +4,8 @@ import { allowCors } from '@/lib/cors'
 
 export const dynamic = 'force-dynamic'
 
-// ⚠️ TESTING MODE - Set to false for production!
-const TESTING_MODE = true
+// ⚠️ TESTING MODE - Set to true for testing (bypasses cooldown)
+const TESTING_MODE = false
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method !== 'GET') {
