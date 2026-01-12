@@ -4,6 +4,9 @@ import { allowCors } from '@/lib/cors'
 
 export const dynamic = 'force-dynamic'
 
+// ⚠️ TESTING MODE - Set to false for production!
+const TESTING_MODE = true
+
 // Normalized probabilities (Sum approx 1.0)
 const OUTCOMES = [
     { points: 50, weight: 0.24 },
@@ -53,15 +56,18 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             const oneDayMs = 24 * 60 * 60 * 1000
 
             // Check if this is a bonus spin (from watching ad)
-            if (bonusSpin) {
-                // Check if bonus spin was already used today
-                if (now - lastBonusSpinAt < oneDayMs) {
-                    throw new Error('Bonus spin already used today')
-                }
-            } else {
-                // Regular spin - check normal cooldown
-                if (now - lastSpinAt < oneDayMs) {
-                    throw new Error('Daily spin cooldown active')
+            // TESTING_MODE bypasses all cooldowns
+            if (!TESTING_MODE) {
+                if (bonusSpin) {
+                    // Check if bonus spin was already used today
+                    if (now - lastBonusSpinAt < oneDayMs) {
+                        throw new Error('Bonus spin already used today')
+                    }
+                } else {
+                    // Regular spin - check normal cooldown
+                    if (now - lastSpinAt < oneDayMs) {
+                        throw new Error('Daily spin cooldown active')
+                    }
                 }
             }
 

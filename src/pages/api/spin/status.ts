@@ -4,6 +4,9 @@ import { allowCors } from '@/lib/cors'
 
 export const dynamic = 'force-dynamic'
 
+// ⚠️ TESTING MODE - Set to false for production!
+const TESTING_MODE = true
+
 async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method !== 'GET') {
         return res.status(405).json({ error: 'Method not allowed' })
@@ -35,10 +38,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         const oneDayMs = 24 * 60 * 60 * 1000
 
         const timeDiff = now - lastSpinAt
-        const canSpin = timeDiff >= oneDayMs
+        // TESTING_MODE bypasses cooldown
+        const canSpin = TESTING_MODE || (timeDiff >= oneDayMs)
 
         const bonusTimeDiff = now - lastBonusSpinAt
-        const canBonusSpin = bonusTimeDiff >= oneDayMs
+        const canBonusSpin = TESTING_MODE || (bonusTimeDiff >= oneDayMs)
 
         const nextSpinTime = canSpin ? null : (lastSpinAt + oneDayMs)
 

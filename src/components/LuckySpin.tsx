@@ -137,28 +137,35 @@ export default function LuckySpin({ userId, onClose }: LuckySpinProps) {
 
             const visualAngle = targetSegment.visualAngle
 
-            // Rotation calculation:
-            // Since spin adds CLOCKWISE rotation, to bring a segment at angle A to Top (0),
-            // we must rotate by (360 - A).
-            const rotationToTop = (360 - visualAngle) % 360
+            // ABSOLUTE rotation (0-360) needed for this specific segment to be at Top
+            const desiredEndRotation = (360 - visualAngle) % 360
 
-            // Add random offset within segment (±15 degrees, safe zone to not cross boundary)
+            // Current state
+            const currentRotation = rotation
+            const currentMod = currentRotation % 360
+
+            // Distance to rotate forward to reach desiredEndRotation
+            let rotationDelta = desiredEndRotation - currentMod
+            // Ensure we always spin forward at least a bit to reach the target
+            if (rotationDelta <= 0) rotationDelta += 360
+
+            // Add random offset (±12 deg)
             const randomOffset = (Math.random() * 24) - 12
 
-            // Add multiple full spins for visual effect
-            const currentRotation = rotation
+            // Add extra spins for visual effect
             const extraSpins = 360 * (5 + Math.floor(Math.random() * 5))
 
-            // Total rotation
-            const targetRotation = currentRotation + extraSpins + rotationToTop + randomOffset
+            // Final target rotation
+            const targetRotation = currentRotation + rotationDelta + extraSpins + randomOffset
 
             console.log('[Spin] Rotation calc:', {
                 targetSegment: targetSegment.label,
                 visualAngle,
-                rotationToTop,
-                randomOffset,
+                desiredEndRotation,
+                currentRotation,
+                rotationDelta,
                 targetRotation,
-                finalPosition: targetRotation % 360
+                finalMod: targetRotation % 360
             })
 
             // Animate
