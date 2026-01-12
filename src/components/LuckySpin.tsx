@@ -26,24 +26,16 @@ interface SpinSegment {
     visualAngle: number // Degrees from TOP (0°) where this segment's center is when wheel rotation is 0
 }
 
-// SEGMENTS with explicit visual positions
-// The SVG wheel is rendered with transform: rotate(-90deg)
-// So visual position = (index * 60 + 30) - 90
-// 
-// When wheel rotation = 0:
-// - Segment 0 (50 pts) center is at -60° = 300° (11 o'clock area)  
-// - Segment 1 (10 pts) center is at 0° = TOP (12 o'clock - right at pointer!)
-// - Segment 2 (100 pts) center is at 60° (1-2 o'clock)
-// - Segment 3 (20 pts) center is at 120° (4-5 o'clock)
-// - Segment 4 (500 pts) center is at 180° = BOTTOM (6 o'clock)
-// - Segment 5 (TRY AGAIN) center is at 240° (8 o'clock)
+// SEGMENTS with corrected visual positions
+// Wheel is rotated -90deg, so Segment 0 starts at Top (0°)
+// Visual angles are center points Clockwise from Top
 const SEGMENTS: SpinSegment[] = [
-    { id: 1, label: '50 Pts', value: 50, color: '#ef4444', probability: 0.24, visualAngle: 300 },   // Red - 11 o'clock
-    { id: 2, label: '10 Pts', value: 10, color: '#3b82f6', probability: 0.32, visualAngle: 0 },     // Blue - 12 o'clock (TOP)
-    { id: 3, label: '100 Pts', value: 100, color: '#eab308', probability: 0.12, visualAngle: 60 },  // Yellow - 2 o'clock
-    { id: 4, label: '20 Pts', value: 20, color: '#22c55e', probability: 0.20, visualAngle: 120 },   // Green - 4 o'clock
-    { id: 5, label: '500 Pts', value: 500, color: '#a855f7', probability: 0.04, visualAngle: 180 }, // Purple - 6 o'clock (BOTTOM)
-    { id: 6, label: 'TRY AGAIN', value: 0, color: '#64748b', probability: 0.08, visualAngle: 240 }, // Gray - 8 o'clock
+    { id: 1, label: '50 Pts', value: 50, color: '#ef4444', probability: 0.24, visualAngle: 30 },
+    { id: 2, label: '10 Pts', value: 10, color: '#3b82f6', probability: 0.32, visualAngle: 90 },
+    { id: 3, label: '100 Pts', value: 100, color: '#eab308', probability: 0.12, visualAngle: 150 },
+    { id: 4, label: '20 Pts', value: 20, color: '#22c55e', probability: 0.20, visualAngle: 210 },
+    { id: 5, label: '500 Pts', value: 500, color: '#a855f7', probability: 0.04, visualAngle: 270 },
+    { id: 6, label: 'TRY AGAIN', value: 0, color: '#64748b', probability: 0.08, visualAngle: 330 },
 ]
 
 export default function LuckySpin({ userId, onClose }: LuckySpinProps) {
@@ -145,9 +137,10 @@ export default function LuckySpin({ userId, onClose }: LuckySpinProps) {
 
             const visualAngle = targetSegment.visualAngle
 
-            // Rotation needed: the segment's visual angle is how far it is from TOP
-            // Rotating by that amount brings it to TOP
-            const rotationToTop = visualAngle
+            // Rotation calculation:
+            // Since spin adds CLOCKWISE rotation, to bring a segment at angle A to Top (0),
+            // we must rotate by (360 - A).
+            const rotationToTop = (360 - visualAngle) % 360
 
             // Add random offset within segment (±15 degrees, safe zone to not cross boundary)
             const randomOffset = (Math.random() * 24) - 12

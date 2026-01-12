@@ -39,6 +39,8 @@ export default function ReferralSystem({ user, onClose }: ReferralSystemProps) {
     const [referrals, setReferrals] = useState<Referral[]>([])
     const [milestones, setMilestones] = useState<Milestone[]>([])
     const [totalEarnings, setTotalEarnings] = useState(0)
+    const [leaderboard, setLeaderboard] = useState<any[]>([])
+    const [stats, setStats] = useState({ total: 0, active: 0, completed: 0, weekly: 0 })
     const [isLoading, setIsLoading] = useState(true)
     const [showPoster, setShowPoster] = useState(false)
     const [lastShareTime, setLastShareTime] = useState(0)
@@ -49,10 +51,10 @@ export default function ReferralSystem({ user, onClose }: ReferralSystemProps) {
     // Show banner ad at bottom
     useBannerAd('bottom', true)
 
-    // Count ALL referrals for progress (including 'registered')
-    // Milestones are unlocked based on total referral count, not just active ones
-    const totalReferralCount = referrals.length
-    const activeCount = referrals.filter(r => r.status === 'active' || r.status === 'completed').length
+    // Use server stats for accurate counts (since referrals array is paginated)
+    const totalReferralCount = stats.total
+    const activeCount = stats.active
+    const weeklyCount = stats.weekly
     const nextMilestone = milestones.find(m => !m.isClaimed && m.count > totalReferralCount) || milestones[milestones.length - 1]
     const progress = nextMilestone ? Math.min((totalReferralCount / nextMilestone.count) * 100, 100) : 100
 
@@ -70,6 +72,13 @@ export default function ReferralSystem({ user, onClose }: ReferralSystemProps) {
                 setReferrals(response.referrals || [])
                 setMilestones(response.milestones || [])
                 setTotalEarnings(response.totalEarnings || 0)
+                setLeaderboard(response.leaderboard || [])
+                setStats({
+                    total: response.totalReferrals || 0,
+                    active: response.activeReferrals || 0,
+                    completed: response.completedReferrals || 0,
+                    weekly: response.myWeeklyCount || 0
+                })
             }
         } catch (error) {
             console.error('Error loading referrals:', error)
@@ -328,33 +337,31 @@ export default function ReferralSystem({ user, onClose }: ReferralSystemProps) {
                                 <CardTitle className="text-base">Leaderboard</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-1">
-                                {[
-                                    { rank: 1, name: 'David K.', count: 142, prize: '$50' },
-                                    { rank: 2, name: 'Sarah M.', count: 98, prize: '$30' },
-                                    { rank: 3, name: 'Michael B.', count: 76, prize: '$20' },
-                                    { rank: 4, name: 'Jenny L.', count: 45, prize: '5000 pts' },
-                                    { rank: 5, name: 'Tom H.', count: 41, prize: '2000 pts' },
-                                    { rank: 6, name: 'Alex P.', count: 32, prize: '1000 pts' },
-                                    { rank: 7, name: 'John D.', count: 28, prize: '500 pts' },
-                                    { rank: 8, name: 'Lisa R.', count: 24, prize: '500 pts' },
-                                ].map((u, i) => (
-                                    <div key={i} className={`flex items-center justify-between p-3 rounded-lg ${u.rank <= 3 ? 'bg-amber-50 dark:bg-amber-900/10 border border-amber-200/50' : 'bg-transparent border border-transparent'}`}>
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${u.rank === 1 ? 'bg-yellow-400 text-yellow-900 shadow-md' :
-                                                u.rank === 2 ? 'bg-gray-300 text-gray-800' :
-                                                    u.rank === 3 ? 'bg-orange-300 text-orange-900' :
-                                                        'bg-muted text-muted-foreground'
-                                                }`}>
-                                                {u.rank}
-                                            </div>
-                                            <div className="font-medium">{u.name}</div>
-                                        </div>
-                                        <div className="text-right">
-                                            <div className="font-bold text-sm">{u.count} invites</div>
-                                            <div className="text-xs text-green-600 font-medium">{u.prize}</div>
-                                        </div>
+                                {leaderboard.length === 0 ? (
+                                    <div className="text-center py-8 text-muted-foreground bg-muted/30 rounded-lg">
+                                        <p>No contest stats yet this week.</p>
+                                        <p className="text-sm">Be the first to invite!</p>
                                     </div>
-                                ))}
+                                ) : (
+                                    leaderboard.map((u, i) => (
+                                        <div key={i} className={`flex items-center justify-between p-3 rounded-lg ${u.rank <= 3 ? 'bg-amber-50 dark:bg-amber-900/10 border border-amber-200/50' : 'bg-transparent border border-transparent'}`}>
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${u.rank === 1 ? 'bg-yellow-400 text-yellow-900 shadow-md' :
+                                                    u.rank === 2 ? 'bg-gray-300 text-gray-800' :
+                                                        u.rank === 3 ? 'bg-orange-300 text-orange-900' :
+                                                            'bg-muted text-muted-foreground'
+                                                    }`}>
+                                                    {u.rank}
+                                                </div>
+                                                <div className="font-medium">{u.name}</div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="font-bold text-sm">{u.count} invites</div>
+                                                <div className="text-xs text-green-600 font-medium">{u.prize}</div>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
                                 <div className="border-t my-2 pt-2">
                                     <div className="flex items-center justify-between p-3 bg-purple-50 dark:bg-purple-900/10 rounded-lg border border-purple-200/50">
                                         <div className="flex items-center gap-3">
@@ -364,8 +371,8 @@ export default function ReferralSystem({ user, onClose }: ReferralSystemProps) {
                                             <div className="font-medium">You</div>
                                         </div>
                                         <div className="text-right">
-                                            <div className="font-bold text-sm text-purple-700 dark:text-purple-300">{activeCount} invites</div>
-                                            <div className="text-xs text-muted-foreground">Keep inviting!</div>
+                                            <div className="font-bold text-sm text-purple-700 dark:text-purple-300">{weeklyCount} invites</div>
+                                            <div className="text-xs text-muted-foreground">This week</div>
                                         </div>
                                     </div>
                                 </div>

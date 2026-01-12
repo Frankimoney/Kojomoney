@@ -8,7 +8,11 @@ export const metadata: Metadata = {
     keywords: ["KojoMoney", "Earn Money", "News", "Trivia", "Rewards", "Next.js", "React"],
     authors: [{ name: "KojoMoney Team" }],
     icons: {
-        icon: "/favicon.ico",
+        icon: [
+            { url: '/logo.svg', type: 'image/svg+xml' },
+            { url: '/app-icon.png', type: 'image/png' }
+        ],
+        apple: '/app-icon.png',
     },
     openGraph: {
         title: "KojoMoney",

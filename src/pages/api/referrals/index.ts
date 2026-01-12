@@ -122,7 +122,58 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
             isUnlocked: referrals.length >= milestone.count,
         }))
 
+        // Fetch Weekly Leaderboard (Real Data)
+        const now = new Date()
+        const startOfWeek = new Date(now)
+        startOfWeek.setDate(now.getDate() - now.getDay()) // Last Sunday
+        startOfWeek.setHours(0, 0, 0, 0)
+
+        let leaderboard: any[] = []
+        let myWeeklyCount = 0
+
+        try {
+            // Calculate my weekly count locally first (from full list)
+            myWeeklyCount = referrals.filter(r => new Date(r.date).getTime() >= startOfWeek.getTime()).length
+
+            // Query global referrals from this week for leaderboard
+            const weeklyRefSnapshot = await db!.collection('referrals')
+                .where('createdAt', '>=', startOfWeek.getTime())
+                .get()
+
+            const counts: Record<string, number> = {}
+            weeklyRefSnapshot.docs.forEach(doc => {
+                const d = doc.data()
+                if (d.referrerId) counts[d.referrerId] = (counts[d.referrerId] || 0) + 1
+            })
+
+            const sorted = Object.entries(counts)
+                .map(([id, count]) => ({ id, count }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 10)
+
+            leaderboard = await Promise.all(sorted.map(async (item, idx) => {
+                let name = 'User'
+                try {
+                    const uDoc = await db!.collection('users').doc(item.id).get()
+                    if (uDoc.exists) name = uDoc.data()!.username || uDoc.data()!.name || 'User'
+                } catch (e) { }
+
+                let prize = '500 pts'
+                const rank = idx + 1
+                if (rank === 1) prize = '$50'
+                else if (rank === 2) prize = '$30'
+                else if (rank === 3) prize = '$20'
+                else if (rank <= 6) prize = '1000 pts'
+
+                return { rank, name, count: item.count, prize }
+            }))
+        } catch (e) {
+            console.error('Leaderboard error:', e)
+        }
+
         return res.status(200).json({
+            leaderboard,
+            myWeeklyCount,
             referralCode,
             referralLink: `${process.env.NEXT_PUBLIC_APP_URL || 'https://kojomoney.com'}/signup?ref=${referralCode}`,
             totalReferrals: referrals.length,
