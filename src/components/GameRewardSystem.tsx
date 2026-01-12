@@ -45,6 +45,7 @@ interface GameProvider {
     features: string[]
     actionText: string
     isNew?: boolean
+    comingSoon?: boolean
 }
 
 export default function GameRewardSystem({ userId, onClose }: GameRewardSystemProps) {
@@ -73,7 +74,8 @@ export default function GameRewardSystem({ userId, onClose }: GameRewardSystemPr
             color: 'bg-emerald-500',
             icon: <Clock className="h-6 w-6 text-white" />,
             features: ['Earn per minute', 'Huge variety', 'Auto-credit'],
-            actionText: 'Start Playing',
+            actionText: 'Coming Soon',
+            comingSoon: true
         },
         {
             id: 'gamezop',
@@ -82,7 +84,8 @@ export default function GameRewardSystem({ userId, onClose }: GameRewardSystemPr
             color: 'bg-indigo-500',
             icon: <Gamepad2 className="h-6 w-6 text-white" />,
             features: ['Tournaments', 'Instant Wins', 'No Install'],
-            actionText: 'Play Games'
+            actionText: 'Coming Soon',
+            comingSoon: true
         },
         {
             id: 'qureka',
@@ -91,7 +94,8 @@ export default function GameRewardSystem({ userId, onClose }: GameRewardSystemPr
             color: 'bg-purple-500',
             icon: <Trophy className="h-6 w-6 text-white" />,
             features: ['Live Quizzes', 'Cricket Trivia', 'Instant Rewards'],
-            actionText: 'Start Quiz'
+            actionText: 'Coming Soon',
+            comingSoon: true
         }
     ]
 
@@ -250,6 +254,11 @@ export default function GameRewardSystem({ userId, onClose }: GameRewardSystemPr
                                                 NEW
                                             </Badge>
                                         )}
+                                        {provider.comingSoon && (
+                                            <Badge className="bg-white/90 text-gray-700 text-[10px] font-bold px-2 py-0.5 border-0">
+                                                COMING SOON
+                                            </Badge>
+                                        )}
                                     </div>
 
                                     {/* Content Section */}
@@ -273,8 +282,8 @@ export default function GameRewardSystem({ userId, onClose }: GameRewardSystemPr
 
                                         <Button
                                             onClick={() => handleLaunchGame(provider.id)}
-                                            disabled={isLoading === provider.id}
-                                            className={`w-full sm:w-auto self-start ${provider.color} border-0 hover:opacity-90 transition-opacity`}
+                                            disabled={isLoading === provider.id || provider.comingSoon}
+                                            className={`w-full sm:w-auto self-start ${provider.comingSoon ? 'bg-gray-400 cursor-not-allowed' : provider.color} border-0 hover:opacity-90 transition-opacity`}
                                         >
                                             {isLoading === provider.id ? (
                                                 <>
@@ -282,7 +291,7 @@ export default function GameRewardSystem({ userId, onClose }: GameRewardSystemPr
                                                 </>
                                             ) : (
                                                 <>
-                                                    <PlayCircle className="h-4 w-4 mr-2" />
+                                                    {!provider.comingSoon && <PlayCircle className="h-4 w-4 mr-2" />}
                                                     {provider.actionText}
                                                 </>
                                             )}
