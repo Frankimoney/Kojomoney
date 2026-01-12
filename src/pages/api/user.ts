@@ -109,7 +109,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             dailyStreak: validatedStreak, // Use validated streak
             lastActiveDate: userData.lastActiveDate,
             lastTriviaDate: userData.lastTriviaDate,
-            isEmailVerified: userData.isEmailVerified || false,
+            emailVerified: userData.emailVerified || false,
+            hasWithdrawn: userData.hasWithdrawn || false,
             createdAt: userData.createdAt,
             updatedAt: userData.updatedAt,
             profileImageUrl: userData.profileImageUrl,
