@@ -49,9 +49,12 @@ export default function ReferralSystem({ user, onClose }: ReferralSystemProps) {
     // Show banner ad at bottom
     useBannerAd('bottom', true)
 
+    // Count ALL referrals for progress (including 'registered')
+    // Milestones are unlocked based on total referral count, not just active ones
+    const totalReferralCount = referrals.length
     const activeCount = referrals.filter(r => r.status === 'active' || r.status === 'completed').length
-    const nextMilestone = milestones.find(m => !m.isClaimed && m.count > activeCount) || milestones[milestones.length - 1]
-    const progress = nextMilestone ? Math.min((activeCount / nextMilestone.count) * 100, 100) : 100
+    const nextMilestone = milestones.find(m => !m.isClaimed && m.count > totalReferralCount) || milestones[milestones.length - 1]
+    const progress = nextMilestone ? Math.min((totalReferralCount / nextMilestone.count) * 100, 100) : 100
 
     useEffect(() => {
         loadReferralData()
@@ -116,8 +119,10 @@ export default function ReferralSystem({ user, onClose }: ReferralSystemProps) {
         }
         setLastShareTime(now)
 
-        const text = `Join me on KojoMoney! Use my code ${user?.referralCode || 'KOJO'} for a welcome bonus.`
-        const url = `https://kojomoney.com/?ref=${user?.referralCode}`
+        const code = user?.referralCode || 'KOJO'
+        // Always use production domain for referral links
+        const url = `https://kojomoney.com/signup?ref=${code}`
+        const text = `🎉 Join me on KojoMoney and start earning rewards! Use my referral code ${code} for a welcome bonus.`
 
         if (platform === 'native' && typeof navigator.share !== 'undefined') {
             try {
@@ -237,7 +242,7 @@ export default function ReferralSystem({ user, onClose }: ReferralSystemProps) {
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between text-sm">
                                     <span className="font-semibold text-muted-foreground">Milestone Progress</span>
-                                    <span className="text-purple-600 dark:text-purple-400 font-bold">{activeCount} / {nextMilestone.count} Active</span>
+                                    <span className="text-purple-600 dark:text-purple-400 font-bold">{totalReferralCount} / {nextMilestone.count} Referrals</span>
                                 </div>
                                 <div className="h-3 bg-muted rounded-full overflow-hidden relative">
                                     <motion.div
@@ -247,7 +252,7 @@ export default function ReferralSystem({ user, onClose }: ReferralSystemProps) {
                                     />
                                 </div>
                                 <p className="text-xs text-muted-foreground text-center pt-1">
-                                    Reach {nextMilestone.count} active referrals to unlock {nextMilestone.reward.toLocaleString()} bonus points!
+                                    Reach {nextMilestone.count} referrals to unlock {nextMilestone.reward.toLocaleString()} bonus points!
                                 </p>
                             </div>
                         )}

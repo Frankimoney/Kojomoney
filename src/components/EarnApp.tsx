@@ -835,11 +835,11 @@ function EarnTab({ user, userPoints, setUserPoints, setActiveView }: EarnTabProp
                                         alert('Referral code not available yet.')
                                         return
                                     }
-                                    const origin = typeof window !== 'undefined' ? window.location.origin : ''
-                                    const link = `${origin}/?ref=${encodeURIComponent(user.referralCode)}`
+                                    // Always use production domain for referral links
+                                    const link = `https://kojomoney.com/signup?ref=${encodeURIComponent(user.referralCode)}`
                                     try {
                                         if (navigator.share) {
-                                            await navigator.share({ title: 'Join Kojomoney', text: 'Sign up and earn with my referral!', url: link })
+                                            await navigator.share({ title: 'Join Kojomoney', text: '🎉 Sign up and earn with my referral!', url: link })
                                         } else {
                                             await navigator.clipboard.writeText(link)
                                             alert('Referral link copied to clipboard!')
@@ -1838,18 +1838,17 @@ function ProfileTab({ user, setUser, resolvedTheme, setTheme, onLogout, onShowLe
 
     const fetchReferralStats = async () => {
         try {
-            const response = await apiCall(`/api/user?userId=${user?.id}`)
+            // Use the referrals API which has the actual referral data
+            const response = await apiCall(`/api/referrals?userId=${user?.id}`)
             if (response.ok) {
                 const data = await response.json()
-                const referralPoints = data.user.referralRewards?.reduce((sum: number, reward: any) => sum + reward.points, 0) || 0
-                const referralCount = data.user.referralRewards?.length || 0
-
                 setReferralStats({
-                    totalReferrals: referralCount,
-                    pointsEarned: referralPoints
+                    totalReferrals: data.totalReferrals || 0,
+                    pointsEarned: data.totalEarnings || 0
                 })
             }
         } catch (error) {
+            console.error('Error fetching referral stats:', error)
         }
     }
 
@@ -2013,7 +2012,8 @@ function ProfileTab({ user, setUser, resolvedTheme, setTheme, onLogout, onShowLe
                         </div>
                         <Button className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg" onClick={() => {
                             if (user?.referralCode) {
-                                const link = `${window.location.origin}/?ref=${user.referralCode}`
+                                // Always use production domain for referral links
+                                const link = `https://kojomoney.com/signup?ref=${user.referralCode}`
                                 navigator.share?.({ title: 'Join Kojomoney', url: link }).catch(() => navigator.clipboard.writeText(link))
                             }
                         }}>

@@ -122,25 +122,35 @@ export default function LuckySpin({ userId, onClose }: LuckySpinProps) {
 
             console.log('[Spin] Won', winningValue, 'pts - Target Segment:', targetSegment.label)
 
-            // === SIMPLIFIED ROTATION CALCULATION ===
+            // === ROTATION CALCULATION ===
             // 
-            // Each segment has an explicit visualAngle property that defines where
-            // its center is when the wheel rotation is 0 (pointer at TOP = 0°)
+            // Each segment has a visualAngle - where its center is when wheel rotation = 0
+            // The pointer is fixed at TOP (0°)
             // 
-            // To bring a segment to TOP (where pointer is):
-            // - The wheel rotates CLOCKWISE (positive rotation)
-            // - We rotate by (360 - visualAngle) to bring it to 0°
-            //
-            // Example: 50 Pts has visualAngle=300 (top-left area)
-            // To bring it to TOP: rotate 360-300 = 60° clockwise
+            // When the wheel rotates CLOCKWISE by X degrees:
+            // - A segment at visual position A moves to position (A + X) mod 360
+            // - So a segment at 300° (11 o'clock) after 60° rotation is at 360° = 0° (TOP)
+            // 
+            // To bring a segment at visualAngle to TOP (0°):
+            // - We need (visualAngle + rotation) % 360 = 0
+            // - So rotation = -visualAngle = (360 - visualAngle) % 360 ... 
+            //   BUT since positive rotation moves segments CLOCKWISE (away from top),
+            //   we actually need to rotate by visualAngle to bring it TO the top!
+            // 
+            // CORRECTION: Actually when wheel rotates +X, the POINTER effectively moves 
+            // counter-clockwise relative to the wheel. So if segment is at 180° (bottom),
+            // rotating wheel 180° brings that segment to where the pointer is.
+            // 
+            // So: rotationToTop = visualAngle (rotate BY the angl to bring it to 0)
 
             const visualAngle = targetSegment.visualAngle
 
-            // Calculate rotation needed to bring this segment to TOP (0°)
-            const rotationToTop = (360 - visualAngle) % 360
+            // Rotation needed: the segment's visual angle is how far it is from TOP
+            // Rotating by that amount brings it to TOP
+            const rotationToTop = visualAngle
 
-            // Add random offset within segment (±20 degrees, safe zone to not cross boundary)
-            const randomOffset = (Math.random() * 30) - 15
+            // Add random offset within segment (±15 degrees, safe zone to not cross boundary)
+            const randomOffset = (Math.random() * 24) - 12
 
             // Add multiple full spins for visual effect
             const currentRotation = rotation
@@ -154,7 +164,8 @@ export default function LuckySpin({ userId, onClose }: LuckySpinProps) {
                 visualAngle,
                 rotationToTop,
                 randomOffset,
-                targetRotation
+                targetRotation,
+                finalPosition: targetRotation % 360
             })
 
             // Animate
