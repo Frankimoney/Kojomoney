@@ -133,14 +133,33 @@ export default function ReferralSystem({ user, onClose }: ReferralSystemProps) {
         const url = `https://kojomoney.com/signup?ref=${code}`
         const text = `🎉 Join me on KojoMoney and start earning rewards! Use my referral code ${code} for a welcome bonus.`
 
-        if (platform === 'native' && typeof navigator.share !== 'undefined') {
-            try {
+        try {
+            // Check native platform
+            const isNative = typeof window !== 'undefined' && (
+                ((window as any)?.Capacitor?.isNativePlatform?.() === true) ||
+                (((window as any)?.Capacitor?.getPlatform?.() && (window as any).Capacitor.getPlatform() !== 'web'))
+            )
+
+            if (isNative) {
+                // Use Capacitor Share Plugin
+                const { Share } = await import('@capacitor/share')
+                await Share.share({
+                    title: 'Join KojoMoney',
+                    text: text,
+                    url: url,
+                    dialogTitle: 'Invite Friends',
+                })
+            } else if (typeof navigator.share !== 'undefined') {
+                // Web Share API
                 await navigator.share({ title: 'Join KojoMoney', text, url })
-            } catch (e) { }
-        } else {
-            // Fallback mock
-            console.log(`Sharing to ${platform}: ${text} ${url}`)
-            // In a real app, open respective URL schemes (whatsapp://, etc.)
+            } else {
+                // Fallback: Copy to clipboard
+                await navigator.clipboard.writeText(`${text} ${url}`)
+                // Simple feedback since toast might be outside context or variable naming differs
+                alert('Referral link copied to clipboard!')
+            }
+        } catch (error) {
+            console.error('Share failed:', error)
         }
     }
 

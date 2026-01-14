@@ -27,6 +27,7 @@ interface TrustBadgesProps {
 
 export default function TrustBadges({ user, onVerificationComplete }: TrustBadgesProps) {
     const { toast } = useToast()
+    const [optimisticUser, setOptimisticUser] = useState(user)
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [verificationType, setVerificationType] = useState<'email' | 'phone'>('email')
     const [step, setStep] = useState<'input' | 'code'>('input')
@@ -34,6 +35,23 @@ export default function TrustBadges({ user, onVerificationComplete }: TrustBadge
     const [inputValue, setInputValue] = useState('')
     const [verificationId, setVerificationId] = useState('')
     const [code, setCode] = useState('')
+
+    // Sync optimistic state with prop when prop updates
+    // We only update if the prop has "more" verification than local state, or if the user ID changes
+    if (user.id !== optimisticUser.id) {
+        setOptimisticUser(user)
+    } else {
+        // If server confirms verification, sync it
+        if (user.emailVerified && !optimisticUser.emailVerified) {
+            setOptimisticUser(prev => ({ ...prev, emailVerified: true }))
+        }
+        if (user.phoneVerified && !optimisticUser.phoneVerified) {
+            setOptimisticUser(prev => ({ ...prev, phoneVerified: true }))
+        }
+        if (user.hasWithdrawn && !optimisticUser.hasWithdrawn) {
+            setOptimisticUser(prev => ({ ...prev, hasWithdrawn: true }))
+        }
+    }
 
     const startVerification = (type: 'email' | 'phone') => {
         setVerificationType(type)
@@ -95,6 +113,14 @@ export default function TrustBadges({ user, onVerificationComplete }: TrustBadge
             if (data.success) {
                 toast({ title: 'Success', description: 'Verification successful!' })
                 setIsDialogOpen(false)
+
+                // Optimistic update
+                if (verificationType === 'email') {
+                    setOptimisticUser(prev => ({ ...prev, emailVerified: true }))
+                } else if (verificationType === 'phone') {
+                    setOptimisticUser(prev => ({ ...prev, phoneVerified: true }))
+                }
+
                 if (onVerificationComplete) onVerificationComplete()
             } else {
                 toast({ title: 'Error', description: data.error, variant: 'destructive' })
@@ -111,16 +137,16 @@ export default function TrustBadges({ user, onVerificationComplete }: TrustBadge
             id: 'email',
             label: 'Email Verified',
             icon: Mail,
-            earned: !!user.emailVerified,
+            earned: !!optimisticUser.emailVerified,
             description: 'Verify your email address to secure your account.',
-            action: () => !user.emailVerified && startVerification('email')
+            action: () => !optimisticUser.emailVerified && startVerification('email')
         },
 
         {
             id: 'cashout',
             label: 'First Cashout',
             icon: CreditCard,
-            earned: !!user.hasWithdrawn,
+            earned: !!optimisticUser.hasWithdrawn,
             description: 'Complete your first successful withdrawal.',
             action: () => { } // Automatically earned
         },
