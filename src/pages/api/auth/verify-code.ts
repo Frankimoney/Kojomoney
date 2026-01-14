@@ -13,7 +13,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 
     try {
-        const { verificationId, code } = req.body
+        const { verificationId, code, userId } = req.body
 
         if (!verificationId || !code) {
             return res.status(400).json({ error: 'Verification ID and code are required', success: false })
@@ -53,8 +53,10 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
         // User Status Update Logic
         let updatedUser: any = null
-        if (verification.userId) {
-            const userRef = db.collection('users').doc(verification.userId)
+        const targetUserId = verification.userId || userId
+
+        if (targetUserId) {
+            const userRef = db.collection('users').doc(targetUserId)
             const updates: any = { updatedAt: Date.now() }
 
             if (verification.type === 'verify_email' || verification.email) {
