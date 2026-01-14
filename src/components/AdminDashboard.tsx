@@ -16,7 +16,7 @@ import {
     RefreshCw, Search, Eye, Download, Ban, Gift, Wallet,
     ArrowUpRight, ArrowDownRight, Activity, AlertCircle, Mail,
     Calendar, Globe, Smartphone, BarChart3, Settings, Shield, AlertTriangle,
-    FileText, Link, ExternalLink, Check, X, Loader2, LogOut, Bell, Send, BookOpen
+    FileText, Link, ExternalLink, Check, X, Loader2, LogOut, Bell, Send, BookOpen, Trash2, UserX
 } from 'lucide-react'
 import BlogManager from './admin/blog/BlogManager'
 import TeamManager from './admin/team/TeamManager'
@@ -168,6 +168,8 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     const [pointsAmount, setPointsAmount] = useState('')
     const [pointsReason, setPointsReason] = useState('')
     const [processingPoints, setProcessingPoints] = useState(false)
+    const [deletionRequests, setDeletionRequests] = useState<any[]>([])
+    const [processingDeletion, setProcessingDeletion] = useState(false)
 
     // Broadcast notification state
     const [broadcastTitle, setBroadcastTitle] = useState('')
@@ -207,6 +209,8 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
             loadTransactions()
         } else if (activeTab === 'economy') {
             loadConfig()
+        } else if (activeTab === 'deletions') {
+            loadDeletionRequests()
         } else if (activeTab === 'overview') {
             loadConfig() // Load config for Quick Actions (Boosts)
         }
@@ -388,6 +392,41 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
             }
         } catch (err) {
             console.error('Failed to load transactions:', err)
+        }
+    }
+
+    const loadDeletionRequests = async () => {
+        try {
+            const response = await authApiCall('/api/admin/deletion-requests')
+            if (response.ok) {
+                const data = await response.json()
+                setDeletionRequests(data.requests || [])
+            }
+        } catch (err) {
+            console.error('Failed to load deletion requests:', err)
+        }
+    }
+
+    const handleProcessDeletion = async (requestId: string, action: 'approve' | 'reject') => {
+        if (!confirm(`Are you sure you want to ${action} this deletion request? ${action === 'approve' ? 'This will permanently delete the user account.' : ''}`)) return
+
+        setProcessingDeletion(true)
+        try {
+            const response = await authApiCall('/api/admin/process-deletion', {
+                method: 'POST',
+                body: JSON.stringify({ requestId, action })
+            })
+
+            if (response.ok) {
+                setSuccess(`Request ${action}d successfully`)
+                loadDeletionRequests()
+            } else {
+                setError(`Failed to ${action} request`)
+            }
+        } catch (err) {
+            setError(`Failed to ${action} request`)
+        } finally {
+            setProcessingDeletion(false)
         }
     }
 
@@ -717,6 +756,18 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                         <TabsTrigger value="team" className="flex items-center gap-2 flex-shrink-0">
                             <Shield className="h-4 w-4" />
                             <span className="hidden sm:inline">Team</span>
+                        </TabsTrigger>
+                    )}
+
+                    {permissions.canManageUsers && (
+                        <TabsTrigger value="deletions" className="flex items-center gap-2 flex-shrink-0">
+                            <UserX className="h-4 w-4" />
+                            <span className="hidden sm:inline">Deletions</span>
+                            {deletionRequests.filter(r => r.status === 'pending').length > 0 && (
+                                <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                                    {deletionRequests.filter(r => r.status === 'pending').length}
+                                </Badge>
+                            )}
                         </TabsTrigger>
                     )}
                 </TabsList>
@@ -1705,6 +1756,83 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                 {permissions.canManageTeam && (
                     <TabsContent value="team">
                         <TeamManager />
+                    </TabsContent>
+                )}
+
+                {permissions.canManageUsers && (
+                    <TabsContent value="deletions" className="space-y-6">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Account Deletion Requests</CardTitle>
+                                <CardDescription>Review and process user account deletion requests</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Date</TableHead>
+                                            <TableHead>User</TableHead>
+                                            <TableHead>Reason</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {deletionRequests.map((request) => (
+                                            <TableRow key={request.id}>
+                                                <TableCell>
+                                                    {new Date(request.createdAt).toLocaleDateString()}
+                                                    <br />
+                                                    <span className="text-xs text-muted-foreground">{new Date(request.createdAt).toLocaleTimeString()}</span>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="font-medium">{request.userName}</div>
+                                                    <div className="text-xs text-muted-foreground">{request.userEmail}</div>
+                                                </TableCell>
+                                                <TableCell className="max-w-xs truncate" title={request.reason}>
+                                                    {request.reason}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {getStatusBadge(request.status)}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {request.status === 'pending' && (
+                                                        <div className="flex justify-end gap-2">
+                                                            <Button
+                                                                variant="destructive"
+                                                                size="sm"
+                                                                disabled={processingDeletion}
+                                                                onClick={() => handleProcessDeletion(request.id, 'approve')}
+                                                            >
+                                                                Delete
+                                                            </Button>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                disabled={processingDeletion}
+                                                                onClick={() => handleProcessDeletion(request.id, 'reject')}
+                                                            >
+                                                                Reject
+                                                            </Button>
+                                                        </div>
+                                                    )}
+                                                    {request.status !== 'pending' && (
+                                                        <span className="text-xs text-muted-foreground">Processed</span>
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                        {deletionRequests.length === 0 && (
+                                            <TableRow>
+                                                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                                    No deletion requests found
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
                     </TabsContent>
                 )}
             </Tabs>

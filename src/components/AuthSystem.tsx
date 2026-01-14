@@ -300,72 +300,15 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
         }
 
         try {
-            // Send verification code
-            const response = await apiCall('/api/auth/send-verification', {
-                method: 'POST',
-                body: JSON.stringify({
-                    email: loginForm.usernameOrEmail,
-                    type: 'login'
-                })
-            })
-
-            const data = await response.json()
-
-            if (data.success) {
-                setLoginVerification({
-                    verificationId: data.verificationId,
-                    code: '',
-                    contactEmail: data.email || loginForm.usernameOrEmail  // Use actual email from API
-                })
-                setLoginStep('verify-email')
-                showMessage('success', `Verification code sent to ${data.email || loginForm.usernameOrEmail}`)
-            } else {
-                showMessage('error', data.error || 'Failed to send verification code')
-            }
-        } catch (error) {
-            showMessage('error', 'Network error. Please try again.')
-        } finally {
-            setIsLoading(false)
-        }
-    }
-
-    const handleLoginVerify = async (e: React.FormEvent) => {
-        e.preventDefault()
-        setIsLoading(true)
-
-        if (!loginVerification.code) {
-            showMessage('error', 'Verification code is required')
-            setIsLoading(false)
-            return
-        }
-
-        try {
-            // Verify code
-            const verifyResponse = await apiCall('/api/auth/verify-code', {
-                method: 'POST',
-                body: JSON.stringify({
-                    verificationId: loginVerification.verificationId,
-                    code: loginVerification.code
-                })
-            })
-
-            const verifyData = await verifyResponse.json()
-
-            if (!verifyData.success) {
-                showMessage('error', verifyData.error || 'Invalid verification code')
-                setIsLoading(false)
-                return
-            }
-
-            // Now login with timezone update
+            // Direct login (Bypassing 2FA for ease of access/review)
             const timezone = getUserTimezone()
             const loginResponse = await apiCall('/api/auth/login', {
                 method: 'POST',
                 body: JSON.stringify({
                     usernameOrEmail: loginForm.usernameOrEmail,
                     password: loginForm.password,
-                    verificationId: loginVerification.verificationId,
-                    timezone  // Update timezone on each login
+                    // verificationId: 'skipped', // 2FA disabled
+                    timezone
                 })
             })
 
@@ -396,6 +339,12 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
         } finally {
             setIsLoading(false)
         }
+    }
+
+    // 2FA Verification Handler (Currently bypassed for login)
+    const handleLoginVerify = async (e: React.FormEvent) => {
+        e.preventDefault()
+        // Legacy 2FA logic if needed to be restored
     }
 
     const handleResendCode = async (type: 'register' | 'login') => {

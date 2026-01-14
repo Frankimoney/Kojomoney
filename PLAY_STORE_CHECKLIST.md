@@ -107,7 +107,10 @@ Declare data collected:
 
 ### 3. App Access (if needed)
 If app has login:
-- [ ] Provide test account credentials
+- [ ] Provide test account credentials:
+  - **Username:** `google.reviewer@kojomoney.com`
+  - **Password:** `KojoMoney2026!`
+- [x] **CRITICAL:** Ensure account has **at least 10,000 points** ($1.00) so reviewers can test withdrawals
 - [ ] Or instructions to create account
 
 ---

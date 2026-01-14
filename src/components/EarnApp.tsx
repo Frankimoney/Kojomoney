@@ -11,7 +11,8 @@ import { Progress } from '@/components/ui/progress'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
-import { Home, Coins, Wallet, User, Play, BookOpen, Brain, Clock, TrendingUp, Gift, Settings, Share2, Bell, Moon, LogOut, Users, Trophy, Medal, ArrowLeft, FileText, Gamepad2, CheckCircle, Sparkles, UserCircle, Shield, ChevronRight, Landmark, Building, Bitcoin, Smartphone } from 'lucide-react'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+import { Home, Coins, Wallet, User, Play, BookOpen, Brain, Clock, TrendingUp, Gift, Settings, Share2, Bell, Moon, LogOut, Users, Trophy, Medal, ArrowLeft, FileText, Gamepad2, CheckCircle, Sparkles, UserCircle, Shield, ChevronRight, Landmark, Building, Bitcoin, Smartphone, Trash2 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import dynamic from 'next/dynamic'
 import { useTheme } from 'next-themes'
@@ -1787,6 +1788,9 @@ function ProfileTab({ user, setUser, resolvedTheme, setTheme, onLogout, onShowLe
         totalReferrals: 0,
         pointsEarned: 0
     })
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+    const [deletionReason, setDeletionReason] = useState('')
+    const [isDeleting, setIsDeleting] = useState(false)
 
     const handleToggleNotifications = async () => {
         const newValue = !notificationsEnabled
@@ -1859,6 +1863,33 @@ function ProfileTab({ user, setUser, resolvedTheme, setTheme, onLogout, onShowLe
     const getInitials = (name?: string) => {
         if (!name) return 'U'
         return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+    }
+
+    const handleRequestDeletion = async () => {
+        if (!user?.id) return
+        setIsDeleting(true)
+        try {
+            const response = await apiCall('/api/user/request-deletion', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: user.id,
+                    reason: deletionReason
+                })
+            })
+
+            if (response.ok) {
+                alert('Your account deletion request has been submitted. An admin will review it shortly.')
+                setShowDeleteConfirm(false)
+            } else {
+                const data = await response.json()
+                alert(data.error || 'Failed to submit request. Please try again.')
+            }
+        } catch (error) {
+            alert('An error occurred. Please check your connection.')
+        } finally {
+            setIsDeleting(false)
+        }
     }
 
     return (
@@ -2084,6 +2115,51 @@ function ProfileTab({ user, setUser, resolvedTheme, setTheme, onLogout, onShowLe
                 <LogOut className="h-5 w-5 mr-2" />
                 Sign Out
             </Button>
+
+            <div className="pt-4 pb-2 flex justify-center">
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 text-xs"
+                    onClick={() => setShowDeleteConfirm(true)}
+                >
+                    <Trash2 className="h-3 w-3 mr-2" />
+                    Request Account Deletion
+                </Button>
+            </div>
+
+            <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Account?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. Your account will be permanently deleted and all points will be lost.
+                            <br /><br />
+                            Please let us know why you are leaving (optional):
+                            <textarea
+                                className="w-full mt-2 border rounded-md p-2 text-sm bg-background"
+                                rows={3}
+                                placeholder="Reason for deletion..."
+                                value={deletionReason}
+                                onChange={(e) => setDeletionReason(e.target.value)}
+                            />
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={(e) => {
+                                e.preventDefault()
+                                handleRequestDeletion()
+                            }}
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                            disabled={isDeleting}
+                        >
+                            {isDeleting ? 'Submitting...' : 'Confirm Request'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }

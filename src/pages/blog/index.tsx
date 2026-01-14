@@ -1,9 +1,10 @@
-'use client'
 
 import Head from 'next/head'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/router'
 import { useState, useEffect } from 'react'
+import { GetStaticProps } from 'next'
 import { BlogPost } from '@/types/blog'
 import BlogLayout from '@/components/blog/BlogLayout'
 import CategoryScroller from '@/components/blog/CategoryScroller'
@@ -11,35 +12,53 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Calendar, Clock, User, ArrowRight, Search, X, Loader2 } from 'lucide-react'
+import { Clock, User, ArrowRight, Search, X, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { getCategoryById } from '@/lib/blog-categories'
 import { apiCall } from '@/lib/api-client'
+import { getBlogPosts, GetPostsResult } from '@/lib/blog-service'
 
-const POSTS_PER_PAGE = 9
+interface BlogIndexProps {
+    initialData: GetPostsResult
+    error?: string
+}
 
-export default function BlogIndex() {
+export default function BlogIndex({ initialData, error }: BlogIndexProps) {
     const router = useRouter()
-    const [posts, setPosts] = useState<BlogPost[]>([])
-    const [page, setPage] = useState(1)
-    const [hasMore, setHasMore] = useState(false)
-    const [categories, setCategories] = useState<string[]>([])
-    const [activeCategory, setActiveCategory] = useState<string | null>(null)
-    const [searchQuery, setSearchQuery] = useState<string | null>(null)
-    const [settings, setSettings] = useState<any>({})
-    const [loading, setLoading] = useState(true)
+
+    // Initialize state with SSG data
+    const [posts, setPosts] = useState<BlogPost[]>(initialData?.posts || [])
+    const [page, setPage] = useState(initialData?.page || 1)
+    const [hasMore, setHasMore] = useState(initialData?.hasMore || false)
+    const [categories, setCategories] = useState<string[]>(initialData?.categories || [])
+    const [activeCategory, setActiveCategory] = useState<string | null>(initialData?.activeCategory || null)
+    const [searchQuery, setSearchQuery] = useState<string | null>(initialData?.searchQuery || null)
+    const [settings, setSettings] = useState<any>(initialData?.settings || {})
+
+    // Only show loading for client-side transitions (not initial load)
+    const [loading, setLoading] = useState(false)
     const [searchInput, setSearchInput] = useState('')
     const [showSearch, setShowSearch] = useState(false)
 
-    // Fetch posts on mount and when filters change
+    // Handle client-side navigation/filtering updates
     useEffect(() => {
+        // Skip the first run as data is already provided via props (unless query params change mismatching props)
+        if (!router.isReady) return
+
+        const { page: qPage, category: qCategory, search: qSearch } = router.query
+
+        // If the query params match the initial data, we don't need to refetch
+        // (This logic can be refined, but simplest is to just fetch if params exist and differ)
+        const isDefault = !qPage && !qCategory && !qSearch
+        if (isDefault) return // Stick with initial SSG data
+
         const fetchPosts = async () => {
             setLoading(true)
             try {
                 const params = new URLSearchParams()
-                if (router.query.page) params.set('page', router.query.page as string)
-                if (router.query.category) params.set('category', router.query.category as string)
-                if (router.query.search) params.set('search', router.query.search as string)
+                if (qPage) params.set('page', qPage as string)
+                if (qCategory) params.set('category', qCategory as string)
+                if (qSearch) params.set('search', qSearch as string)
 
                 const response = await apiCall(`/api/blog/posts?${params.toString()}`)
                 const data = await response.json()
@@ -50,7 +69,7 @@ export default function BlogIndex() {
                 setCategories(data.categories || [])
                 setActiveCategory(data.activeCategory || null)
                 setSearchQuery(data.searchQuery || null)
-                setSettings(data.settings || {})
+                setSettings(data.settings || {}) // Keep setting updates just in case
 
                 if (data.searchQuery) {
                     setSearchInput(data.searchQuery)
@@ -58,15 +77,12 @@ export default function BlogIndex() {
                 }
             } catch (error) {
                 console.error('Error fetching posts:', error)
-                setPosts([])
             } finally {
                 setLoading(false)
             }
         }
 
-        if (router.isReady) {
-            fetchPosts()
-        }
+        fetchPosts()
     }, [router.isReady, router.query.page, router.query.category, router.query.search])
 
     const handleCategoryChange = (categoryId: string | null) => {
@@ -202,14 +218,13 @@ export default function BlogIndex() {
                                         <Card key={post.id} className="flex flex-col h-full hover:shadow-lg transition-shadow border-muted">
                                             {post.featuredImage && (
                                                 <div className="h-48 w-full bg-muted relative overflow-hidden rounded-t-lg">
-                                                    <img
+                                                    <Image
                                                         src={post.featuredImage.url}
-                                                        alt={post.featuredImage.alt}
+                                                        alt={post.featuredImage.alt || post.title}
+                                                        fill
+                                                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                                        className="object-cover transition-transform hover:scale-105 duration-500"
                                                         loading="lazy"
-                                                        decoding="async"
-                                                        width={400}
-                                                        height={192}
-                                                        className="w-full h-full object-cover transition-transform hover:scale-105 duration-500"
                                                     />
                                                 </div>
                                             )}
@@ -288,4 +303,34 @@ export default function BlogIndex() {
             </div>
         </BlogLayout>
     )
+}
+
+export const getStaticProps: GetStaticProps = async () => {
+    try {
+        const data = await getBlogPosts({ page: 1 })
+
+        return {
+            props: {
+                initialData: JSON.parse(JSON.stringify(data)) // Ensure serializability
+            },
+            revalidate: 60, // ISR: Revalidate every 60 seconds
+        }
+    } catch (error) {
+        console.error('SSG Error:', error)
+        return {
+            props: {
+                initialData: {
+                    posts: [],
+                    page: 1,
+                    hasMore: false,
+                    categories: [],
+                    activeCategory: null,
+                    searchQuery: null,
+                    settings: {}
+                },
+                error: 'Failed to fetch posts'
+            },
+            revalidate: 60
+        }
+    }
 }

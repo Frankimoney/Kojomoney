@@ -1,8 +1,9 @@
-'use client'
 
 import Head from 'next/head'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/router'
+import { GetStaticProps, GetStaticPaths } from 'next'
 import { BlogPost } from '@/types/blog'
 import BlogLayout from '@/components/blog/BlogLayout'
 import PostActionBar from '@/components/blog/PostActionBar'
@@ -10,83 +11,83 @@ import BlogBreadcrumbs, { buildPostBreadcrumbs } from '@/components/blog/BlogBre
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Calendar, Clock, User, Share2, Facebook, Twitter, Linkedin, ArrowRight, Star, Check, Zap, Loader2, HelpCircle } from 'lucide-react'
+import { Clock, User, Share2, Facebook, Twitter, Linkedin, ArrowRight, Star, Check, Zap, Loader2, HelpCircle } from 'lucide-react'
 import { format } from 'date-fns'
 import { useEffect, useState } from 'react'
 import BlogAnalytics from '@/components/blog/BlogAnalytics'
-import EEATSignals, { TrustSignalsBar, EnhancedAuthorBox, SourcesCitations, ArticleMetaFooter, EditorialDisclosure } from '@/components/blog/EEATSignals'
-import { apiCall } from '@/lib/api-client'
+import { TrustSignalsBar, EnhancedAuthorBox, SourcesCitations, ArticleMetaFooter, EditorialDisclosure } from '@/components/blog/EEATSignals'
+import { getBlogPostBySlug, getAllPostSlugs } from '@/lib/blog-service'
 
-export default function BlogPostPage() {
+interface BlogPostPageProps {
+    post: BlogPost | null
+    relatedPosts: BlogPost[]
+    settings: any
+    toc?: { id: string, text: string, level: number }[]
+    error?: string
+}
+
+export default function BlogPostPage({ post, relatedPosts, settings, toc: initialToc, error }: BlogPostPageProps) {
     const router = useRouter()
-    const { slug } = router.query
 
-    const [post, setPost] = useState<BlogPost | null>(null)
-    const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([])
-    const [settings, setSettings] = useState<any>({})
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
-    const [toc, setToc] = useState<{ id: string, text: string, level: number }[]>([])
+    // Use initial TOC from server if available, otherwise empty array
+    const [toc, setToc] = useState<{ id: string, text: string, level: number }[]>(initialToc || [])
 
-    // Fetch post data
-    useEffect(() => {
-        const fetchPost = async () => {
-            if (!slug) return
+    // Fallback handling
+    if (router.isFallback) {
+        return (
+            <BlogLayout settings={settings || {}}>
+                <div className="flex items-center justify-center min-h-[60vh]">
+                    <Loader2 className="h-8 w-8 animate-spin text-violet-600" />
+                    <span className="ml-3 text-muted-foreground">Loading article...</span>
+                </div>
+            </BlogLayout>
+        )
+    }
 
-            setLoading(true)
-            setError(null)
+    // Error state
+    if (error || !post) {
+        return (
+            <BlogLayout settings={settings || {}}>
+                <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+                    <h1 className="text-2xl font-bold mb-4">Article Not Found</h1>
+                    <p className="text-muted-foreground mb-6">{error || 'The article you are looking for does not exist.'}</p>
+                    <Link href="/blog">
+                        <Button>Back to Blog</Button>
+                    </Link>
+                </div>
+            </BlogLayout>
+        )
+    }
 
-            try {
-                const response = await apiCall(`/api/blog/${slug}`)
-                const data = await response.json()
-
-                // Handle redirects (deleted posts redirecting to similar)
-                if (data.redirect && data.to) {
-                    router.replace(data.to)
-                    return
-                }
-
-                if (data.error) {
-                    setError(data.error)
-                    return
-                }
-
-                setPost(data.post)
-                console.log('[BlogPost] Loaded:', data.post?.title, 'Featured Image:', data.post?.featuredImage)
-                setRelatedPosts(data.relatedPosts || [])
-                setSettings(data.settings || {})
-            } catch (err) {
-                console.error('Error fetching post:', err)
-                setError('Failed to load article')
-            } finally {
-                setLoading(false)
-            }
-        }
-
-        if (router.isReady) {
-            fetchPost()
-        }
-    }, [router.isReady, slug])
-
-    // Generate Table of Contents after content loads
+    // Client-side effect: Just adds IDs to the headers for navigation
+    // The TOC display itself is now stable from server data
     useEffect(() => {
         if (!post?.content || typeof window === 'undefined') return
 
-        // Small delay to ensure DOM is updated
+        // Small delay to ensure DOM is updated and hydrated
         const timer = setTimeout(() => {
             const headers = document.querySelectorAll('.blog-content h2, .blog-content h3')
-            const items = Array.from(headers).map((header, index) => {
-                const id = `heading-${index}`
-                header.id = id
-                return {
-                    id,
-                    text: header.textContent || '',
-                    level: parseInt(header.tagName[1])
-                }
-            })
-            setToc(items)
 
-            // Apply lazy loading to all content images
+            // If we didn't get TOC from server (legacy/dev), generate it now
+            if (!initialToc || initialToc.length === 0) {
+                const items = Array.from(headers).map((header, index) => {
+                    const id = `heading-${index}`
+                    header.id = id
+                    return {
+                        id,
+                        text: header.textContent || '',
+                        level: parseInt(header.tagName[1])
+                    }
+                })
+                setToc(items)
+            } else {
+                // Just assign IDs to match the server-generated TOC
+                headers.forEach((header, index) => {
+                    header.id = `heading-${index}`
+                })
+            }
+
+            // Apply lazy loading to all content images that aren't next/image
             const contentImages = document.querySelectorAll('.blog-content img')
             contentImages.forEach((img) => {
                 if (!img.hasAttribute('loading')) {
@@ -99,34 +100,7 @@ export default function BlogPostPage() {
         }, 100)
 
         return () => clearTimeout(timer)
-    }, [post?.content])
-
-    // Loading state
-    if (loading) {
-        return (
-            <BlogLayout settings={settings}>
-                <div className="flex items-center justify-center min-h-[60vh]">
-                    <Loader2 className="h-8 w-8 animate-spin text-violet-600" />
-                    <span className="ml-3 text-muted-foreground">Loading article...</span>
-                </div>
-            </BlogLayout>
-        )
-    }
-
-    // Error state
-    if (error || !post) {
-        return (
-            <BlogLayout settings={settings}>
-                <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-                    <h1 className="text-2xl font-bold mb-4">Article Not Found</h1>
-                    <p className="text-muted-foreground mb-6">{error || 'The article you are looking for does not exist.'}</p>
-                    <Link href="/blog">
-                        <Button>Back to Blog</Button>
-                    </Link>
-                </div>
-            </BlogLayout>
-        )
-    }
+    }, [post?.content, initialToc])
 
     // JSON-LD Schema
     const schema = {
@@ -275,7 +249,13 @@ export default function BlogPostPage() {
                         <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-slate-500 dark:text-slate-400">
                             <div className="flex items-center gap-2">
                                 {post.author?.avatar ? (
-                                    <img src={post.author.avatar} alt={post.author.name} className="w-10 h-10 rounded-full ring-2 ring-white dark:ring-slate-900 shadow-sm" />
+                                    <Image
+                                        src={post.author.avatar}
+                                        alt={post.author.name}
+                                        width={40}
+                                        height={40}
+                                        className="rounded-full ring-2 ring-white dark:ring-slate-900 shadow-sm"
+                                    />
                                 ) : (
                                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center text-white shadow-sm">
                                         <User className="h-5 w-5" />
@@ -311,13 +291,13 @@ export default function BlogPostPage() {
                         <div className="mb-12 relative group">
                             <div className="absolute -inset-1 bg-gradient-to-r from-violet-600 to-indigo-600 rounded-[2.5rem] opacity-20 blur-lg group-hover:opacity-30 transition duration-1000"></div>
                             <div className="relative rounded-[2rem] overflow-hidden shadow-2xl">
-                                <img
+                                <Image
                                     src={post.featuredImage.url}
-                                    alt={post.featuredImage.alt}
+                                    alt={post.featuredImage.alt || post.title}
                                     title={post.featuredImage.title}
-                                    loading="eager"
-                                    decoding="async"
+                                    priority
                                     fetchPriority="high"
+                                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 1200px"
                                     width={1200}
                                     height={600}
                                     className="w-full h-auto object-cover max-h-[600px] transform group-hover:scale-105 transition duration-700 ease-out"
@@ -335,11 +315,11 @@ export default function BlogPostPage() {
                     <div className="hidden lg:block lg:col-span-2">
                         <div className="sticky top-32 flex flex-col gap-4 items-center">
                             <div className="p-2 bg-white dark:bg-slate-900 rounded-full shadow-lg border border-slate-100 dark:border-slate-800 flex flex-col gap-2">
-                                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full hover:bg-blue-50 hover:text-blue-600"><Facebook className="h-5 w-5" /></Button>
-                                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full hover:bg-sky-50 hover:text-sky-500"><Twitter className="h-5 w-5" /></Button>
-                                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full hover:bg-blue-50 hover:text-blue-700"><Linkedin className="h-5 w-5" /></Button>
+                                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full hover:bg-blue-50 hover:text-blue-600" aria-label="Share on Facebook"><Facebook className="h-5 w-5" /></Button>
+                                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full hover:bg-sky-50 hover:text-sky-500" aria-label="Share on Twitter"><Twitter className="h-5 w-5" /></Button>
+                                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full hover:bg-blue-50 hover:text-blue-700" aria-label="Share on LinkedIn"><Linkedin className="h-5 w-5" /></Button>
                                 <div className="w-full h-px bg-slate-200 dark:bg-slate-700 my-1"></div>
-                                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full hover:bg-slate-50"><Share2 className="h-5 w-5" /></Button>
+                                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full hover:bg-slate-50" aria-label="More share options"><Share2 className="h-5 w-5" /></Button>
                             </div>
                         </div>
                     </div>
@@ -355,6 +335,7 @@ export default function BlogPostPage() {
                                         <li key={item.id} className={item.level === 3 ? 'pl-4' : ''}>
                                             <a
                                                 href={`#${item.id}`}
+                                                aria-label={`Jump to ${item.text}`}
                                                 onClick={(e) => {
                                                     e.preventDefault()
                                                     const element = document.getElementById(item.id)
@@ -370,7 +351,7 @@ export default function BlogPostPage() {
                                                         history.pushState(null, '', `#${item.id}`)
                                                     }
                                                 }}
-                                                className="text-muted-foreground hover:text-primary block py-1 cursor-pointer"
+                                                className="text-slate-600 dark:text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 block py-1 cursor-pointer"
                                             >
                                                 {item.text}
                                             </a>
@@ -388,11 +369,11 @@ export default function BlogPostPage() {
                         {/* AEO: Direct Answer */}
                         {post.directAnswer && (
                             <div className="mb-8 p-6 bg-violet-50 dark:bg-violet-900/20 border-l-4 border-violet-500 rounded-r-xl">
-                                <h3 className="text-sm font-bold uppercase tracking-wider text-violet-700 dark:text-violet-300 mb-2 flex items-center gap-2">
+                                <h2 className="text-sm font-bold uppercase tracking-wider text-violet-700 dark:text-violet-300 mb-2 flex items-center gap-2">
                                     <Zap className="h-4 w-4" />
                                     Quick Answer
-                                </h3>
-                                <p className="font-medium text-lg leading-relaxed text-slate-800 dark:text-slate-200">
+                                </h2>
+                                <p className="font-medium text-lg leading-relaxed text-slate-900 dark:text-slate-200">
                                     {post.directAnswer}
                                 </p>
                             </div>
@@ -401,10 +382,10 @@ export default function BlogPostPage() {
                         {/* AEO: Key Takeaways */}
                         {post.keyTakeaways && post.keyTakeaways.length > 0 && (
                             <div className="mb-10 bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-6 sm:p-8">
-                                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                                <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
                                     <Star className="h-5 w-5 text-amber-500 fill-current" />
                                     Key Takeaways
-                                </h3>
+                                </h2>
                                 <ul className="grid gap-3">
                                     {post.keyTakeaways.map((point, i) => (
                                         <li key={i} className="flex gap-3 text-base">
@@ -449,7 +430,7 @@ export default function BlogPostPage() {
                                     {post.faq.map((item, i) => (
                                         <div key={i} className="border-b pb-4 last:border-0">
                                             <h3 className="font-semibold text-lg mb-2">{item.question}</h3>
-                                            <div className="text-muted-foreground" dangerouslySetInnerHTML={{ __html: item.answer }} />
+                                            <div className="text-slate-600 dark:text-slate-400" dangerouslySetInnerHTML={{ __html: item.answer }} />
                                         </div>
                                     ))}
                                 </div>
@@ -459,10 +440,10 @@ export default function BlogPostPage() {
                         {/* GEO: Conversational Keywords / People Also Ask */}
                         {post.geoKeywords && post.geoKeywords.length > 0 && (
                             <div className="mt-8 mb-8 p-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
-                                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                                <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
                                     <HelpCircle className="h-5 w-5 text-violet-500 flex-shrink-0" />
                                     <span className="truncate">Common Questions & Topics</span>
-                                </h3>
+                                </h2>
                                 <div className="flex flex-wrap gap-2 w-full">
                                     {post.geoKeywords.map((keyword, i) => (
                                         <Badge key={i} variant="outline" className="px-3 py-1 text-sm bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 font-normal text-slate-600 dark:text-slate-400 break-words max-w-full">
@@ -488,12 +469,13 @@ export default function BlogPostPage() {
                         <div className="sticky top-32">
                             {toc.length > 0 && (
                                 <div className="pl-6 border-l border-slate-200 dark:border-slate-800">
-                                    <h4 className="font-bold mb-4 text-sm uppercase tracking-wider text-slate-400">On this page</h4>
+                                    <h2 className="font-bold mb-4 text-sm uppercase tracking-wider text-slate-500 dark:text-slate-400">On this page</h2>
                                     <ul className="space-y-3 text-sm">
                                         {toc.map(item => (
                                             <li key={item.id} className={item.level === 3 ? 'pl-4' : ''}>
                                                 <a
                                                     href={`#${item.id}`}
+                                                    aria-label={`Jump to ${item.text}`}
                                                     onClick={(e) => {
                                                         e.preventDefault()
                                                         const element = document.getElementById(item.id)
@@ -511,7 +493,7 @@ export default function BlogPostPage() {
                                                             history.pushState(null, '', `#${item.id}`)
                                                         }
                                                     }}
-                                                    className="text-slate-500 dark:text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors block py-0.5 leading-relaxed cursor-pointer"
+                                                    className="text-slate-600 dark:text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors block py-0.5 leading-relaxed cursor-pointer"
                                                 >
                                                     {item.text}
                                                 </a>
@@ -540,7 +522,7 @@ export default function BlogPostPage() {
                                         <p className="text-sm text-muted-foreground line-clamp-3">{related.excerpt}</p>
                                     </CardContent>
                                     <CardFooter>
-                                        <Link href={`/blog/${related.slug}`} className="text-sm text-primary font-bold flex items-center gap-1">
+                                        <Link href={`/blog/${related.slug}`} className="text-sm text-primary font-bold flex items-center gap-1" aria-label={`Read Article: ${related.title}`}>
                                             Read Article <ArrowRight className="h-4 w-4" />
                                         </Link>
                                     </CardFooter>
@@ -552,4 +534,60 @@ export default function BlogPostPage() {
             </article>
         </BlogLayout>
     )
+}
+
+export const getStaticPaths: GetStaticPaths = async () => {
+    try {
+        const slugs = await getAllPostSlugs()
+
+        return {
+            paths: slugs.map(slug => ({ params: { slug } })),
+            fallback: 'blocking', // Serve stale/wait for new pages if they exist but weren't built
+        }
+    } catch (error) {
+        console.error('getStaticPaths error:', error)
+        return {
+            paths: [],
+            fallback: 'blocking'
+        }
+    }
+}
+
+export const getStaticProps: GetStaticProps = async ({ params }) => {
+    try {
+        const slug = params?.slug as string
+        const { post, relatedPosts, settings, toc, redirect, permanent } = await getBlogPostBySlug(slug)
+
+        if (redirect) {
+            return {
+                redirect: {
+                    destination: `/blog/${redirect}`,
+                    permanent: permanent ?? false,
+                },
+            }
+        }
+
+        if (!post) {
+            return {
+                notFound: true,
+                revalidate: 60
+            }
+        }
+
+        return {
+            props: {
+                post: JSON.parse(JSON.stringify(post)), // Ensure serializability
+                relatedPosts: JSON.parse(JSON.stringify(relatedPosts)),
+                settings: JSON.parse(JSON.stringify(settings)),
+                toc: JSON.parse(JSON.stringify(toc || [])),
+            },
+            revalidate: 60, // ISR: Revalidate every 60 seconds
+        }
+    } catch (error) {
+        console.error('blog post SSG error:', error)
+        return {
+            notFound: true,
+            revalidate: 60
+        }
+    }
 }

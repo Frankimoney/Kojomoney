@@ -123,7 +123,8 @@ export default function PostActionBar({
                     <Button
                         onClick={handleSave}
                         variant="ghost"
-                        className={`h-12 sm:h-14 px-4 sm:px-6 gap-2 ${isSaved ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500'}`}
+                        aria-label={isSaved ? "Remove from saved posts" : "Save post for later"}
+                        className={`h-12 sm:h-14 px-4 sm:px-6 gap-2 ${isSaved ? 'text-amber-600 dark:text-amber-400' : 'text-slate-600'}`}
                     >
                         {isSaved ? (
                             <BookmarkCheck className="h-5 w-5 fill-current" />
@@ -136,7 +137,7 @@ export default function PostActionBar({
             </div>
 
             {/* Bonus hint */}
-            <p className="text-center text-xs text-slate-500 dark:text-slate-400 mt-3">
+            <p className="text-center text-xs text-slate-600 dark:text-slate-400 mt-3">
                 💡 <span className="font-medium">Pro tip:</span> Share this post with friends to earn <span className="text-emerald-600 dark:text-emerald-400 font-semibold">bonus points</span>!
             </p>
         </div>
