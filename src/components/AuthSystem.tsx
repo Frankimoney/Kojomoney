@@ -795,7 +795,7 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
                                         </div>
 
                                         <Button type="submit" className="w-full" disabled={isLoading}>
-                                            {isLoading ? 'Sending Code...' : 'Continue to Verification'}
+                                            {isLoading ? 'Signing In...' : 'Sign In'}
                                         </Button>
 
                                         <div className="text-center">

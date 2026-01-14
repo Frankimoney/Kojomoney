@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Target, Share2, Bookmark, BookmarkCheck, ExternalLink, Gift, Copy, Check } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
@@ -88,13 +88,11 @@ export default function PostActionBar({
         }
     }
 
-    // Check if post is already saved on mount - client side only
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const saved = JSON.parse(localStorage.getItem('savedPosts') || '[]')
-            setIsSaved(saved.includes(postSlug))
-        }
-    }, [postSlug])
+    // Check if post is already saved on mount
+    useState(() => {
+        const saved = JSON.parse(localStorage.getItem('savedPosts') || '[]')
+        setIsSaved(saved.includes(postSlug))
+    })
 
     return (
         <div className={`bg-gradient-to-r from-violet-50 via-white to-emerald-50 dark:from-violet-950/30 dark:via-slate-900 dark:to-emerald-950/30 rounded-2xl border border-slate-200/50 dark:border-slate-700/50 p-4 sm:p-6 ${className}`}>
