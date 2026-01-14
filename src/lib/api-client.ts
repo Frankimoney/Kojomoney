@@ -89,7 +89,8 @@ export async function apiCall(
  * Get or create a persistent Device ID
  */
 function getDeviceId(): string {
-  if (typeof window === 'undefined') return 'server-side'
+  // Check both window AND localStorage - during SSG, window may exist but localStorage won't
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return 'server-side'
 
   const STORAGE_KEY = 'kojomoney_device_id'
   let deviceId = localStorage.getItem(STORAGE_KEY)
