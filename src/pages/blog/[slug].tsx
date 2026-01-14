@@ -85,6 +85,17 @@ export default function BlogPostPage() {
                 }
             })
             setToc(items)
+
+            // Apply lazy loading to all content images
+            const contentImages = document.querySelectorAll('.blog-content img')
+            contentImages.forEach((img) => {
+                if (!img.hasAttribute('loading')) {
+                    img.setAttribute('loading', 'lazy')
+                }
+                if (!img.hasAttribute('decoding')) {
+                    img.setAttribute('decoding', 'async')
+                }
+            })
         }, 100)
 
         return () => clearTimeout(timer)
@@ -304,6 +315,11 @@ export default function BlogPostPage() {
                                     src={post.featuredImage.url}
                                     alt={post.featuredImage.alt}
                                     title={post.featuredImage.title}
+                                    loading="eager"
+                                    decoding="async"
+                                    fetchPriority="high"
+                                    width={1200}
+                                    height={600}
                                     className="w-full h-auto object-cover max-h-[600px] transform group-hover:scale-105 transition duration-700 ease-out"
                                 />
                             </div>
@@ -329,7 +345,7 @@ export default function BlogPostPage() {
                     </div>
 
                     {/* Main Content */}
-                    <div className="lg:col-span-7">
+                    <div className="lg:col-span-7 overflow-x-hidden">
                         {/* Mobile TOC / Summary */}
                         {toc.length > 0 && (
                             <div className="lg:hidden mb-8 p-6 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
@@ -415,7 +431,8 @@ export default function BlogPostPage() {
                                 [&_blockquote]:border-l-4 [&_blockquote]:border-violet-500 [&_blockquote]:pl-6 [&_blockquote]:italic [&_blockquote]:text-slate-600 [&_blockquote]:dark:text-slate-400 [&_blockquote]:my-8 [&_blockquote]:bg-slate-50 [&_blockquote]:dark:bg-slate-800/50 [&_blockquote]:py-4 [&_blockquote]:pr-4 [&_blockquote]:rounded-r-xl
                                 [&_code]:bg-slate-100 [&_code]:dark:bg-slate-800 [&_code]:px-2 [&_code]:py-1 [&_code]:rounded-md [&_code]:text-sm [&_code]:font-mono [&_code]:text-violet-700 [&_code]:dark:text-violet-300
                                 [&_a]:text-violet-600 [&_a]:dark:text-violet-400 [&_a]:underline [&_a]:decoration-violet-300 [&_a]:hover:decoration-violet-500 [&_a]:underline-offset-2
-                                [&_hr]:my-10 [&_hr]:border-slate-200 [&_hr]:dark:border-slate-700"
+                                [&_hr]:my-10 [&_hr]:border-slate-200 [&_hr]:dark:border-slate-700
+                                [&_img]:loading-lazy"
                             dangerouslySetInnerHTML={{ __html: post.content }}
                         />
 
@@ -441,14 +458,14 @@ export default function BlogPostPage() {
 
                         {/* GEO: Conversational Keywords / People Also Ask */}
                         {post.geoKeywords && post.geoKeywords.length > 0 && (
-                            <div className="mt-8 mb-8 p-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                            <div className="mt-8 mb-8 p-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
                                 <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                                    <HelpCircle className="h-5 w-5 text-violet-500" />
-                                    Common Questions & Topics
+                                    <HelpCircle className="h-5 w-5 text-violet-500 flex-shrink-0" />
+                                    <span className="truncate">Common Questions & Topics</span>
                                 </h3>
-                                <div className="flex flex-wrap gap-2">
+                                <div className="flex flex-wrap gap-2 w-full">
                                     {post.geoKeywords.map((keyword, i) => (
-                                        <Badge key={i} variant="outline" className="px-3 py-1 text-sm bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 font-normal text-slate-600 dark:text-slate-400">
+                                        <Badge key={i} variant="outline" className="px-3 py-1 text-sm bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 font-normal text-slate-600 dark:text-slate-400 break-words max-w-full">
                                             {keyword}
                                         </Badge>
                                     ))}

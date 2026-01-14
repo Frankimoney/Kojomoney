@@ -126,6 +126,44 @@
 
     body {
         @apply bg-background text-foreground;
+        /* Font optimization */
+        text-rendering: optimizeSpeed;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Reduce layout thrashing */
+    img,
+    video,
+    iframe {
+        max-width: 100%;
+        height: auto;
+    }
+
+    /* GPU acceleration for transforms/animations */
+    .transform,
+    .transition,
+    .animate-spin,
+    .animate-pulse,
+    .animate-bounce {
+        will-change: transform;
+        transform: translateZ(0);
+        backface-visibility: hidden;
+    }
+
+    /* Optimize hover transitions */
+    a,
+    button,
+    [role="button"] {
+        touch-action: manipulation;
+    }
+
+    /* Reduce paint on scroll */
+    .overflow-auto,
+    .overflow-scroll,
+    .overflow-x-auto,
+    .overflow-y-auto {
+        contain: paint;
     }
 }
 
@@ -187,5 +225,41 @@
     /* Deep Link Chips */
     a.deep-link-chip {
         @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium text-sm transition-colors no-underline;
+    }
+
+    /* Blog content image optimizations */
+    .blog-content img {
+        content-visibility: auto;
+        /* Reduce CLS with aspect ratio hints */
+        aspect-ratio: 16 / 9;
+        width: 100%;
+        height: auto;
+        object-fit: cover;
+        /* Skeleton placeholder for loading */
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 200% 100%;
+    }
+
+    /* Override aspect ratio if width is set */
+    .blog-content img[width] {
+        aspect-ratio: auto;
+    }
+
+    .dark .blog-content img {
+        background: linear-gradient(90deg, #2d2d2d 25%, #3d3d3d 50%, #2d2d2d 75%);
+        background-size: 200% 100%;
+    }
+
+    /* Content visibility for large sections - improves render performance */
+    .blog-content>* {
+        content-visibility: auto;
+        contain-intrinsic-size: 0 500px;
+    }
+
+    /* Optimize card hover for blog listing */
+    .blog-content img,
+    [class*="Card"] img {
+        transition: transform 0.3s ease-out;
+        will-change: transform;
     }
 }

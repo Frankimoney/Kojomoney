@@ -212,14 +212,14 @@ export default function BlogPreview() {
 
                 {/* GEO: Conversational Keywords */}
                 {post.geoKeywords && post.geoKeywords.length > 0 && (
-                    <div className="mt-8 mb-8 p-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                    <div className="mt-8 mb-8 p-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
                         <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                            <HelpCircle className="h-5 w-5 text-violet-500" />
-                            Common Questions & Topics
+                            <HelpCircle className="h-5 w-5 text-violet-500 flex-shrink-0" />
+                            <span className="truncate">Common Questions & Topics</span>
                         </h3>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-2 w-full">
                             {post.geoKeywords.map((keyword, i) => (
-                                <Badge key={i} variant="outline" className="px-3 py-1 text-sm bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 font-normal text-slate-600 dark:text-slate-400">
+                                <Badge key={i} variant="outline" className="px-3 py-1 text-sm bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 font-normal text-slate-600 dark:text-slate-400 break-words max-w-full">
                                     {keyword}
                                 </Badge>
                             ))}

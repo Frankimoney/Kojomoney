@@ -205,6 +205,10 @@ export default function BlogIndex() {
                                                     <img
                                                         src={post.featuredImage.url}
                                                         alt={post.featuredImage.alt}
+                                                        loading="lazy"
+                                                        decoding="async"
+                                                        width={400}
+                                                        height={192}
                                                         className="w-full h-full object-cover transition-transform hover:scale-105 duration-500"
                                                     />
                                                 </div>
