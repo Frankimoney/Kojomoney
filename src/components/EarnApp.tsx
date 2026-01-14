@@ -1902,7 +1902,16 @@ function ProfileTab({ user, setUser, resolvedTheme, setTheme, onLogout, onShowLe
             {/* User Level & Trust Section */}
             <div className="grid grid-cols-1 gap-4">
                 <UserLevelDisplay points={user.totalPoints || 0} />
-                <TrustBadges user={user} onVerificationComplete={syncUserFromServer} />
+                <TrustBadges user={user} onVerificationComplete={(updatedUser: any) => {
+                    if (updatedUser) {
+                        const newUser = { ...user, ...updatedUser }
+                        setUser(newUser as User)
+                        if (typeof window !== 'undefined') {
+                            localStorage.setItem('kojomoneyUser', JSON.stringify(newUser))
+                        }
+                    }
+                    syncUserFromServer()
+                }} />
             </div>
 
             {/* Menu Sections */}

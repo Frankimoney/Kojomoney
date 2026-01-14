@@ -92,15 +92,11 @@ function PrivacyPolicy() {
                     <span>This policy applies globally to all KojoMoney users worldwide</span>
                 </div>
                 <div className="mt-3 p-3 bg-muted rounded-lg text-sm">
-                    <p className="font-semibold">Developer Information:</p>
+                    <p className="font-semibold">App Information:</p>
                     <p className="text-muted-foreground mt-1">
-                        Developer: [Your Name or Company Name]<br />
-                        Location: [Your Country/Region]<br />
-                        Email: admin@kojomoney.com<br />
+                        App Name: KojoMoney<br />
+                        Contact: admin@kojomoney.com<br />
                         Package: com.kojomoney.app
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-2 italic">
-                        You can register as an individual or organization developer.
                     </p>
                 </div>
             </div>
@@ -288,11 +284,10 @@ function TermsOfService() {
                     <span>These terms apply to all users worldwide</span>
                 </div>
                 <div className="mt-3 p-3 bg-muted rounded-lg text-sm">
-                    <p className="font-semibold">Developer Information:</p>
+                    <p className="font-semibold">App Information:</p>
                     <p className="text-muted-foreground mt-1">
-                        Developer: [Your Name or Company Name]<br />
-                        Location: [Your Country/Region]<br />
-                        Email: admin@kojomoney.com<br />
+                        App Name: KojoMoney<br />
+                        Contact: admin@kojomoney.com<br />
                         Package: com.kojomoney.app
                     </p>
                 </div>

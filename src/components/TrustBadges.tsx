@@ -22,7 +22,7 @@ interface TrustBadgesProps {
         hasWithdrawn?: boolean
         createdAt?: any
     }
-    onVerificationComplete?: () => void
+    onVerificationComplete?: (user?: any) => void
 }
 
 export default function TrustBadges({ user, onVerificationComplete }: TrustBadgesProps) {
@@ -121,7 +121,7 @@ export default function TrustBadges({ user, onVerificationComplete }: TrustBadge
                     setOptimisticUser(prev => ({ ...prev, phoneVerified: true }))
                 }
 
-                if (onVerificationComplete) onVerificationComplete()
+                if (onVerificationComplete) onVerificationComplete(data.user)
             } else {
                 toast({ title: 'Error', description: data.error, variant: 'destructive' })
             }
