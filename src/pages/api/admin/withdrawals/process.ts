@@ -180,6 +180,22 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
                 createdAt: now,
             })
 
+            // Update user's hasWithdrawn flag for the "First Cashout" trust badge
+            try {
+                const userRef = db.collection('users').doc(withdrawal.userId)
+                const userDoc = await userRef.get()
+                if (userDoc.exists && !userDoc.data()?.hasWithdrawn) {
+                    await userRef.update({
+                        hasWithdrawn: true,
+                        firstWithdrawalAt: now,
+                        updatedAt: now,
+                    })
+                    console.log(`[Withdrawal] Set hasWithdrawn=true for user ${withdrawal.userId}`)
+                }
+            } catch (userUpdateErr) {
+                console.error('Failed to update user hasWithdrawn flag:', userUpdateErr)
+            }
+
             // Send email notification to user
             try {
                 const userEmail = withdrawal.userEmail || (await db.collection('users').doc(withdrawal.userId).get()).data()?.email
