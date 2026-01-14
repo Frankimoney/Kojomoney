@@ -53,7 +53,20 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
         // User Status Update Logic
         let updatedUser: any = null
-        const targetUserId = verification.userId || userId
+        let targetUserId = verification.userId || userId
+
+        // Fallback: If no ID found, try to fallback to email/phone lookup
+        if (!targetUserId) {
+            if (verification.email) {
+                console.log('[VERIFY-CODE] Looking up user by email:', verification.email)
+                const q = await db.collection('users').where('email', '==', verification.email).limit(1).get()
+                if (!q.empty) targetUserId = q.docs[0].id
+            } else if (verification.phone) {
+                console.log('[VERIFY-CODE] Looking up user by phone:', verification.phone)
+                const q = await db.collection('users').where('phone', '==', verification.phone).limit(1).get()
+                if (!q.empty) targetUserId = q.docs[0].id
+            }
+        }
 
         if (targetUserId) {
             const userRef = db.collection('users').doc(targetUserId)
