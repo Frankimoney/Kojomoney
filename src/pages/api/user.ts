@@ -5,6 +5,11 @@ import { allowCors } from '@/lib/cors'
 export const dynamic = 'force-dynamic'
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
+    // Prevent caching
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+    res.setHeader('Pragma', 'no-cache')
+    res.setHeader('Expires', '0')
+
     if (req.method !== 'GET') {
         return res.status(405).json({ error: 'Method not allowed' })
     }

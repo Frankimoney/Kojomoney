@@ -1909,8 +1909,9 @@ function ProfileTab({ user, setUser, resolvedTheme, setTheme, onLogout, onShowLe
                         if (typeof window !== 'undefined') {
                             localStorage.setItem('kojomoneyUser', JSON.stringify(newUser))
                         }
+                    } else {
+                        syncUserFromServer()
                     }
-                    syncUserFromServer()
                 }} />
             </div>
 
@@ -2152,7 +2153,7 @@ export default function EarnApp() {
 
             if (!id) return
 
-            const res = await apiCall(`/api/user?userId=${encodeURIComponent(id)}`)
+            const res = await apiCall(`/api/user?userId=${encodeURIComponent(id)}&_t=${Date.now()}`)
             const data = await res.json()
             if (data?.user) {
                 setUser(data.user)
