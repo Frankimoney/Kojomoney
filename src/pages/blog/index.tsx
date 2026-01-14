@@ -309,14 +309,17 @@ export const getStaticProps: GetStaticProps = async () => {
     try {
         const data = await getBlogPosts({ page: 1 })
 
+        const isStatic = process.env.BUILD_MODE === 'static';
+
         return {
             props: {
                 initialData: JSON.parse(JSON.stringify(data)) // Ensure serializability
             },
-            revalidate: 60, // ISR: Revalidate every 60 seconds
+            ...(isStatic ? {} : { revalidate: 60 }), // ISR: Revalidate only if not static export
         }
     } catch (error) {
         console.error('SSG Error:', error)
+        const isStatic = process.env.BUILD_MODE === 'static';
         return {
             props: {
                 initialData: {
@@ -330,7 +333,8 @@ export const getStaticProps: GetStaticProps = async () => {
                 },
                 error: 'Failed to fetch posts'
             },
-            revalidate: 60
+            ...(isStatic ? {} : { revalidate: 60 })
         }
     }
 }
+

@@ -1484,8 +1484,8 @@ function WalletTab({ user, userPoints, syncUserFromServer }: WalletTabProps) {
                             <input
                                 type="number"
                                 className="w-full mt-1 px-3 py-2 border rounded-md"
-                                placeholder="Min: 1,000"
-                                min="1000"
+                                placeholder={`Min: ${withdrawalLimits.minPoints.toLocaleString()}`}
+                                min={withdrawalLimits.minPoints}
                                 step="100"
                                 value={withdrawalForm.amount}
                                 onChange={(e) => setWithdrawalForm(prev => ({ ...prev, amount: e.target.value }))}

@@ -539,16 +539,17 @@ export default function BlogPostPage({ post, relatedPosts, settings, toc: initia
 export const getStaticPaths: GetStaticPaths = async () => {
     try {
         const slugs = await getAllPostSlugs()
+        const isStatic = process.env.BUILD_MODE === 'static';
 
         return {
             paths: slugs.map(slug => ({ params: { slug } })),
-            fallback: 'blocking', // Serve stale/wait for new pages if they exist but weren't built
+            fallback: isStatic ? false : 'blocking', // Static export requires fallback: false
         }
     } catch (error) {
         console.error('getStaticPaths error:', error)
         return {
             paths: [],
-            fallback: 'blocking'
+            fallback: false // Safe default
         }
     }
 }
@@ -567,10 +568,12 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
             }
         }
 
+        const isStatic = process.env.BUILD_MODE === 'static';
+
         if (!post) {
             return {
                 notFound: true,
-                revalidate: 60
+                ...(isStatic ? {} : { revalidate: 60 })
             }
         }
 
@@ -581,13 +584,14 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
                 settings: JSON.parse(JSON.stringify(settings)),
                 toc: JSON.parse(JSON.stringify(toc || [])),
             },
-            revalidate: 60, // ISR: Revalidate every 60 seconds
+            ...(isStatic ? {} : { revalidate: 60 }), // ISR: Revalidate only if not static export
         }
     } catch (error) {
         console.error('blog post SSG error:', error)
+        const isStatic = process.env.BUILD_MODE === 'static';
         return {
             notFound: true,
-            revalidate: 60
+            ...(isStatic ? {} : { revalidate: 60 })
         }
     }
 }
