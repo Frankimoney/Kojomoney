@@ -2075,7 +2075,8 @@ function ProfileTab({ user, setUser, resolvedTheme, setTheme, onLogout, onShowLe
                             { label: 'Blog & Guides', action: 'blog', icon: BookOpen },
                             { label: 'Privacy Policy', action: 'privacy', icon: Shield },
                             { label: 'Terms of Service', action: 'terms', icon: FileText },
-                            { label: 'Cookie Policy', action: 'cookies', icon: FileText }
+                            { label: 'Cookie Policy', action: 'cookies', icon: FileText },
+                            { label: 'Account Deletion', action: 'account-deletion', icon: Trash2 }
                         ].map((item, i) => (
                             <button
                                 key={i}
@@ -2088,6 +2089,15 @@ function ProfileTab({ user, setUser, resolvedTheme, setTheme, onLogout, onShowLe
                                             }).catch(() => window.open('https://kojomoney.com/blog/', '_blank'))
                                         } else {
                                             window.location.href = '/blog/'
+                                        }
+                                    } else if (item.action === 'account-deletion') {
+                                        const isNative = typeof window !== 'undefined' && (window as any)?.Capacitor?.isNativePlatform?.()
+                                        if (isNative) {
+                                            import('@capacitor/browser').then(({ Browser }) => {
+                                                Browser.open({ url: 'https://kojomoney.com/account-deletion' })
+                                            }).catch(() => window.open('https://kojomoney.com/account-deletion', '_blank'))
+                                        } else {
+                                            window.location.href = '/account-deletion'
                                         }
                                     }
                                     else onShowLegal(item.action as any)

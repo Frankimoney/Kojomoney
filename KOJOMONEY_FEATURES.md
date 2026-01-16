@@ -1,4 +1,4 @@
-# KojoMoney - Comprehensive Feature Documentation
+ # KojoMoney - Comprehensive Feature Documentation
 
 ## 1. Project Overview
 **KojoMoney** is a comprehensive rewards and earnings platform designed to allow users to earn points through various activities such as playing games, completing surveys, watching ads, and referring friends. These points can be redeemed for real-world rewards like cash via bank transfer or mobile airtime.
