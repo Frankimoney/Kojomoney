@@ -56,6 +56,15 @@
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
 
+        <!-- CRITICAL: Disable Firebase auto-init to prevent crash on Transsion ROMs (Tecno/Infinix) -->
+        <!-- FCM will be manually initialized after user login -->
+        <meta-data
+            android:name="firebase_messaging_auto_init_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="firebase_analytics_collection_enabled"
+            android:value="false" />
+
         <!-- Firebase Cloud Messaging Default Notification Channel (Required for Android 8+) -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
