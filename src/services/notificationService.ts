@@ -32,23 +32,46 @@ class NotificationService {
     }
 
     private async checkPermissions() {
+        // Double-check native platform - prevents SSR and web issues
         if (!Capacitor.isNativePlatform()) {
+            console.log('[NotificationService] Skipping permission check - not native platform');
             return;
         }
 
         try {
-            const { receive } = await FirebaseMessaging.checkPermissions();
+            // Wrap in additional try-catch for Tecno/Infinix ROM compatibility
+            // These devices may return null for permission states
+            let permissionResult;
+            try {
+                permissionResult = await FirebaseMessaging.checkPermissions();
+            } catch (permCheckError) {
+                console.warn('[NotificationService] Permission check failed (may be ROM issue):', permCheckError);
+                // Try to proceed with registration anyway - worst case it will fail gracefully
+                await this.register();
+                return;
+            }
 
-            if (receive !== 'granted') {
-                const result = await FirebaseMessaging.requestPermissions();
-                if (result.receive === 'granted') {
-                    await this.register();
+            // Null-safe permission check
+            const receive = permissionResult?.receive;
+
+            if (!receive || receive !== 'granted') {
+                try {
+                    const result = await FirebaseMessaging.requestPermissions();
+                    // Null-safe result check
+                    if (result?.receive === 'granted') {
+                        await this.register();
+                    } else {
+                        console.log('[NotificationService] Permission not granted:', result?.receive);
+                    }
+                } catch (requestError) {
+                    console.warn('[NotificationService] Permission request failed:', requestError);
                 }
             } else {
                 await this.register();
             }
         } catch (error) {
-            console.error('Error checking/requesting permissions:', error);
+            console.error('[NotificationService] Error in permission flow:', error);
+            // Don't throw - fail gracefully
         }
     }
 

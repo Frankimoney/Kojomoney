@@ -41,10 +41,10 @@ export function NotificationCenter() {
 
     // Initialize service and sync on mount
     useEffect(() => {
-        NotificationService.init();
-
-        // Sync from server if we have a userId
+        // Only initialize notification service if user is logged in
+        // This delays permission checks until after login (fixes Tecno/Infinix crashes)
         if (userId) {
+            NotificationService.init();
             syncFromServer(userId)
         }
 

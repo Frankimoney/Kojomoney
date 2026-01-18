@@ -117,6 +117,16 @@ function PrivacyPolicy() {
                         </ul>
                     </div>
                     <div>
+                        <h4 className="font-semibold mb-2">Payment Information</h4>
+                        <p className="text-muted-foreground mb-2">We collect the following payment information solely for processing withdrawals:</p>
+                        <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
+                            <li><strong>What we collect:</strong> Bank account details (account number, bank name), PayPal email address, mobile money numbers, or other payment method details you provide</li>
+                            <li><strong>Why we collect it:</strong> Exclusively for processing your withdrawal requests and transferring your earned rewards</li>
+                            <li><strong>How long we retain it:</strong> Payment information is retained for 7 years after your last transaction for legal and tax compliance purposes, or until you delete your account (whichever comes first for non-essential data)</li>
+                            <li><strong>We do NOT:</strong> Sell your payment information to third parties, use it for advertising purposes, or share it except with payment processors necessary to complete your withdrawals</li>
+                        </ul>
+                    </div>
+                    <div>
                         <h4 className="font-semibold mb-2">Usage Information</h4>
                         <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
                             <li>Device information (device type, operating system)</li>
@@ -124,6 +134,10 @@ function PrivacyPolicy() {
                             <li>App usage data (features used, time spent)</li>
                             <li>Advertising identifiers (for personalized ads)</li>
                         </ul>
+                    </div>
+                    <div>
+                        <h4 className="font-semibold mb-2">AI Chatbot & Automated Support</h4>
+                        <p className="text-muted-foreground">Our app includes an AI-powered chatbot for customer support. Messages you send to the chatbot may be processed by artificial intelligence to provide automated responses and support. These messages are used solely to assist you and improve our support services. We do not use chatbot conversations for advertising or sell this data to third parties.</p>
                     </div>
                 </CardContent>
             </Card>

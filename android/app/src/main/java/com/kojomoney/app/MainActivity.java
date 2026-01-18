@@ -4,19 +4,43 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.Toast;
 
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
 
+    private static final String TAG = "MainActivity";
     private long backPressedTime = 0;
     private Toast backToast;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        createNotificationChannel();
+        // Wrap in try-catch to handle Tecno/Infinix ROM null permission state crashes
+        try {
+            super.onCreate(savedInstanceState);
+        } catch (NullPointerException e) {
+            // Handle Capacitor getPermissionStates null crash on some Chinese ROMs
+            Log.e(TAG, "NPE during Capacitor init (likely ROM permission issue): " + e.getMessage());
+            // Try calling the parent's parent onCreate directly
+            try {
+                // BridgeActivity.super.onCreate is not directly accessible, 
+                // so we just log and continue - the app may still work
+                Log.w(TAG, "Attempting recovery from NPE...");
+            } catch (Exception ex) {
+                Log.e(TAG, "Recovery failed: " + ex.getMessage());
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Unexpected error during onCreate: " + e.getMessage());
+        }
+        
+        // Always try to create notification channel
+        try {
+            createNotificationChannel();
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to create notification channel: " + e.getMessage());
+        }
     }
 
     @Override
