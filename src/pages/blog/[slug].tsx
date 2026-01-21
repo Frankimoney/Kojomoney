@@ -18,6 +18,9 @@ import BlogAnalytics from '@/components/blog/BlogAnalytics'
 import { TrustSignalsBar, EnhancedAuthorBox, SourcesCitations, ArticleMetaFooter, EditorialDisclosure } from '@/components/blog/EEATSignals'
 import { getBlogPostBySlug, getAllPostSlugs } from '@/lib/blog-service'
 
+// Production API URL for dynamic fetching
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://kojomoney-api.onrender.com'
+
 interface BlogPostPageProps {
     post: BlogPost | null
     relatedPosts: BlogPost[]
@@ -26,14 +29,63 @@ interface BlogPostPageProps {
     error?: string
 }
 
-export default function BlogPostPage({ post, relatedPosts, settings, toc: initialToc, error }: BlogPostPageProps) {
+export default function BlogPostPage({ post: initialPost, relatedPosts: initialRelatedPosts, settings: initialSettings, toc: initialToc, error: initialError }: BlogPostPageProps) {
     const router = useRouter()
 
-    // Use initial TOC from server if available, otherwise empty array
+    // State for dynamic loading (when static props are not available)
+    const [post, setPost] = useState<BlogPost | null>(initialPost)
+    const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>(initialRelatedPosts || [])
+    const [settings, setSettings] = useState(initialSettings || {})
     const [toc, setToc] = useState<{ id: string, text: string, level: number }[]>(initialToc || [])
+    const [error, setError] = useState<string | undefined>(initialError)
+    const [isLoading, setIsLoading] = useState(!initialPost && !initialError)
 
-    // Fallback handling
-    if (router.isFallback) {
+    // Dynamic fetch for posts not pre-built (client-side)
+    useEffect(() => {
+        // Only fetch if we don't have static props and have a slug
+        if (!initialPost && !initialError && router.query.slug && typeof router.query.slug === 'string') {
+            const fetchPost = async () => {
+                setIsLoading(true)
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/blog/${router.query.slug}`)
+
+                    if (!response.ok) {
+                        if (response.status === 404) {
+                            setError('The article you are looking for does not exist.')
+                        } else {
+                            setError('Failed to load the article. Please try again.')
+                        }
+                        setIsLoading(false)
+                        return
+                    }
+
+                    const data = await response.json()
+
+                    // Handle redirects
+                    if (data.redirect) {
+                        router.replace(data.to)
+                        return
+                    }
+
+                    setPost(data.post)
+                    setRelatedPosts(data.relatedPosts || [])
+                    setSettings(data.settings || {})
+                    setToc(data.toc || [])
+                    setError(undefined)
+                } catch (err) {
+                    console.error('Error fetching blog post:', err)
+                    setError('Failed to load the article. Please check your connection.')
+                } finally {
+                    setIsLoading(false)
+                }
+            }
+
+            fetchPost()
+        }
+    }, [initialPost, initialError, router.query.slug, router])
+
+    // Loading state (for dynamic fetching)
+    if (isLoading || router.isFallback) {
         return (
             <BlogLayout settings={settings || {}}>
                 <div className="flex items-center justify-center min-h-[60vh]">

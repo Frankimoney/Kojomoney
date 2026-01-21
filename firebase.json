@@ -64,8 +64,8 @@
         "destination": "/blog/preview/[id]/index.html"
       },
       {
-        "source": "/blog/**",
-        "destination": "/blog/[slug]/index.html"
+        "source": "/blog/:slug",
+        "destination": "/blog/earn-with-kojomoney-online-rewards/index.html"
       },
       {
         "source": "**",
