@@ -288,14 +288,28 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse, config: any
             })
         }
 
-        // Get story info for quiz validation
+        // Get story info for context
         const storyDoc = await db.collection('news_stories').doc(storyId).get()
         const storyData = storyDoc.exists ? storyDoc.data() : null
 
-        // Simple quiz validation (if story has quiz data)
-        const isCorrect = storyData?.correctAnswer !== undefined
-            ? quizAnswer === storyData.correctAnswer
-            : true // Default to correct if no quiz
+        // Get quiz data from news_quizzes collection (this is where quizzes are actually stored)
+        const quizDoc = await db.collection('news_quizzes').doc(storyId).get()
+        const quizData = quizDoc.exists ? quizDoc.data() : null
+
+        // Validate quiz answer against the stored correctIndex
+        let isCorrect = false
+        if (quizData?.correctIndex !== undefined) {
+            // Quiz exists - validate the answer
+            isCorrect = quizAnswer === quizData.correctIndex
+        } else if (storyData?.correctAnswer !== undefined) {
+            // Fallback to story's correctAnswer if it exists
+            isCorrect = quizAnswer === storyData.correctAnswer
+        } else {
+            // No quiz data found - this shouldn't happen normally
+            // Default to incorrect to prevent abuse
+            console.warn(`[News] No quiz data found for storyId: ${storyId}`)
+            isCorrect = false
+        }
 
         // Award points only to registered users
         let awarded = false
