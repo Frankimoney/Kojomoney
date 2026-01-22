@@ -16,15 +16,24 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     try {
         const { userId, token, platform } = req.body
 
+        console.log('[Push Register] Incoming request:', {
+            userId: userId?.substring(0, 8) + '...',
+            tokenPrefix: token?.substring(0, 20) + '...',
+            platform
+        })
+
         if (!userId || !token) {
+            console.log('[Push Register] Missing params:', { hasUserId: !!userId, hasToken: !!token })
             return res.status(400).json({ error: 'Missing userId or token' })
         }
 
         if (!db) {
+            console.error('[Push Register] Database not available')
             return res.status(500).json({ error: 'Database not available' })
         }
 
         const deviceId = `${userId}_${platform || 'unknown'}`
+        console.log('[Push Register] Device ID:', deviceId)
 
         // Store/update the token for this user+device
         await db.collection('push_tokens').doc(deviceId).set({
@@ -35,6 +44,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             updatedAt: Date.now(),
             active: true
         }, { merge: true })
+
+        console.log('[Push Register] Token saved successfully for:', deviceId)
 
         // Also update user document with latest token
         await db.collection('users').doc(userId).update({
