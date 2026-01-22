@@ -36,6 +36,7 @@ import AuthSystem from './AuthSystem'
 import { NotificationCenter } from '@/components/notifications/NotificationCenter'
 import { FloatingNotificationContainer, FloatingNotifications } from '@/components/notifications/FloatingNotification'
 import { useEngagementNotifications } from '@/hooks/useEngagementNotifications'
+import NotificationService from '@/services/notificationService'
 // Capacitor plugins - only available on mobile, lazy loaded
 // import { PushNotifications } from '@capacitor/push-notifications'
 // import { FirebaseAnalytics } from '@capacitor-firebase/analytics'
@@ -2202,6 +2203,13 @@ export default function EarnApp() {
                     const parsedUser = JSON.parse(savedUser)
                     setUser(parsedUser)
                     setUserPoints(parsedUser.totalPoints)
+
+                    // CRITICAL: Initialize push notification service after user is loaded
+                    // This registers the FCM token with the backend for push notification delivery
+                    // Delayed init is required for Transsion/Infinix ROM compatibility
+                    NotificationService.init().catch(e => {
+                        console.warn('[EarnApp] NotificationService init failed:', e)
+                    })
                 } catch (error) {
                     console.error('Failed to parse user data:', error)
                 }
