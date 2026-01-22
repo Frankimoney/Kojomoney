@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { UserPlus, LogIn, Gift, Shield, CheckCircle2, AlertCircle, Eye, EyeOff, RefreshCw } from 'lucide-react'
 import { apiCall } from '@/lib/api-client'
 import { getUserTimezone } from '@/lib/timezone'
+import NotificationService from '@/services/notificationService'
 
 interface AuthSystemProps {
     onAuthSuccess: (user: any) => void
@@ -268,6 +269,11 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
 
                 // Store user session
                 localStorage.setItem('kojomoneyUser', JSON.stringify(registerData.user))
+
+                // Initialize push notification service after registration
+                NotificationService.init().catch(e => {
+                    console.warn('[AuthSystem] NotificationService init failed:', e)
+                })
                 try {
                     const anonId = localStorage.getItem('kojomoneyAnonId')
                     if (anonId) {
@@ -320,6 +326,11 @@ const AuthSystem = ({ onAuthSuccess }: AuthSystemProps) => {
 
                 // Store user session
                 localStorage.setItem('kojomoneyUser', JSON.stringify(loginData.user))
+
+                // Initialize push notification service after login
+                NotificationService.init().catch(e => {
+                    console.warn('[AuthSystem] NotificationService init failed:', e)
+                })
                 try {
                     const anonId = localStorage.getItem('kojomoneyAnonId')
                     if (anonId) {
