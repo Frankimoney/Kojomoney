@@ -63,12 +63,43 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         let completionQuery = db.collection('offer_completions')
 
         if (payload.trackingId) {
-            // Use our tracking ID directly
+            // Check if completion exists
             const completionDoc = await completionQuery.doc(payload.trackingId).get()
 
             if (!completionDoc.exists) {
-                console.error('Completion not found:', payload.trackingId)
-                return res.status(404).json({ error: 'Completion not found' })
+                // For Offerwalls like Kiwiwall/Timewall, we might not have a pending record
+                // if the user started it via an iframe cleanly without a specific "start" click tracking on our side.
+                // In this case, we create the record on the fly.
+                const AUTO_CREATE_PROVIDERS: OfferProvider[] = ['Kiwiwall', 'Timewall', 'AdGem', 'Wannads', 'Adgate', 'Monlix', 'OfferToro']
+
+                if (AUTO_CREATE_PROVIDERS.includes(provider)) {
+                    console.log(`Creating new completion record for ${provider} offer ${payload.offerId}`)
+
+                    // Create new completion record
+                    const newCompletion = {
+                        id: payload.trackingId,
+                        offerId: payload.offerId || 'external_offer',
+                        userId: payload.userId,
+                        provider: provider,
+                        externalTransactionId: payload.transactionId,
+                        payout: payload.payout,
+                        status: 'pending', // Will be updated to credited/reversed below
+                        startedAt: Date.now(),
+                        metadata: {
+                            createdFromCallback: true,
+                            ...rawPayload
+                        }
+                    }
+
+                    await completionQuery.doc(payload.trackingId).set(newCompletion)
+
+                    // Proceed with processing using the new data
+                    await processCallback(payload.trackingId, newCompletion, payload)
+                    return res.status(200).json({ success: true, message: '1' })
+                } else {
+                    console.error('Completion not found:', payload.trackingId)
+                    return res.status(404).json({ error: 'Completion not found' })
+                }
             }
 
             await processCallback(completionDoc.id, completionDoc.data()!, payload)
