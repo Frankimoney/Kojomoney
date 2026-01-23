@@ -182,7 +182,7 @@ async function processCallbackLogic(completionId: string, existingData: any, pay
                 metadata: {
                     provider: payload.provider,
                     externalTransactionId: payload.transactionId,
-                    offerTitle: existingData.metadata?.offerTitle,
+                    offerTitle: existingData.metadata?.offerTitle || existingData.metadata?.offer_name || 'Unknown Offer',
                 },
                 createdAt: Date.now(),
             });
