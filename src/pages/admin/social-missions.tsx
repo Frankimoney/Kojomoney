@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Plus, Trash2, Edit, ExternalLink, Loader2, MessageCircle, Video, Receipt } from 'lucide-react'
+import { Plus, Trash2, Edit, ExternalLink, Loader2, MessageCircle, Video, Receipt, Share2 } from 'lucide-react'
 import { apiCall } from '@/lib/api-client'
 import { getAdminToken } from '@/components/AdminLogin'
 import AdminLayout from '@/components/admin/AdminLayout'
@@ -19,12 +19,13 @@ import Head from 'next/head'
 interface SocialMission {
     id?: string
     title: string
-    socialType: 'telegram' | 'tiktok' | 'payment_proof'
+    socialType: 'telegram' | 'tiktok' | 'twitter' | 'instagram' | 'payment_proof'
     channelName: string
     socialUrl: string
     payout: number
     description: string
     active: boolean
+    notifyUsers?: boolean
 }
 
 const DEFAULT_MISSION: SocialMission = {
@@ -35,11 +36,14 @@ const DEFAULT_MISSION: SocialMission = {
     payout: 100,
     description: '',
     active: true,
+    notifyUsers: false
 }
 
 const SOCIAL_ICONS = {
     telegram: <MessageCircle className="h-4 w-4" />,
     tiktok: <Video className="h-4 w-4" />,
+    twitter: <Share2 className="h-4 w-4" />,
+    instagram: <Video className="h-4 w-4" />,
     payment_proof: <Receipt className="h-4 w-4" />,
 }
 
@@ -244,6 +248,8 @@ export default function AdminSocialMissionsPage() {
                                 <SelectContent>
                                     <SelectItem value="telegram">Telegram Follow</SelectItem>
                                     <SelectItem value="tiktok">TikTok Follow</SelectItem>
+                                    <SelectItem value="twitter">Twitter/X Follow</SelectItem>
+                                    <SelectItem value="instagram">Instagram Follow</SelectItem>
                                     <SelectItem value="payment_proof">Post Payment Proof</SelectItem>
                                 </SelectContent>
                             </Select>
@@ -300,6 +306,19 @@ export default function AdminSocialMissionsPage() {
                                 type="number"
                                 value={formData.payout}
                                 onChange={(e) => setFormData({ ...formData, payout: parseInt(e.target.value) || 0 })}
+                            />
+                        </div>
+
+                        <div className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                            <div className="space-y-0.5">
+                                <Label>Notify Users</Label>
+                                <div className="text-[0.8rem] text-muted-foreground">
+                                    Send push notification to all users
+                                </div>
+                            </div>
+                            <Switch
+                                checked={!!formData.notifyUsers}
+                                onCheckedChange={(checked) => setFormData({ ...formData, notifyUsers: checked })}
                             />
                         </div>
 

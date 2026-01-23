@@ -28,6 +28,7 @@ import {
     RefreshCw,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import AdService from '@/services/adService'
 
 interface MiniGamesSystemProps {
     userId?: string
@@ -179,20 +180,38 @@ export default function MiniGamesSystem({ userId, onClose }: MiniGamesSystemProp
             if (event.data?.type === 'gameComplete' && sessionToken) {
                 const currentPlayTime = sessionStart ? Math.floor((Date.now() - sessionStart) / 1000) : 0
 
-                // If game finished before minimum time, show waiting message
-                if (currentPlayTime < minDuration) {
-                    setGameFinished(true)
-                    // Don't complete yet - let the timer continue
-                } else {
-                    // Time requirement met, complete immediately
-                    await completeSession(event.data.duration || currentPlayTime)
-                }
+                // Trigger ad flow immediately
+                handleGameEnd(event.data.duration || currentPlayTime)
             }
         }
 
         window.addEventListener('message', handleMessage)
         return () => window.removeEventListener('message', handleMessage)
-    }, [sessionToken, playTime, sessionStart, minDuration])
+    }, [sessionToken, sessionStart])
+
+    // Wrapper to handle Ad + Completion
+    const handleGameEnd = async (duration: number) => {
+        // Pause timer
+        if (timerRef.current) {
+            clearInterval(timerRef.current)
+            timerRef.current = null
+        }
+
+        let adWatched = false
+        // Show Ad
+        try {
+            // If duration is extremely short (accidental click), maybe don't show ad?
+            // But user asked to remove wait. Let's assume > 10s is valid intent.
+            if (duration > 10) {
+                adWatched = await AdService.showInterstitial()
+            }
+        } catch (e) {
+            console.error('Ad failed:', e)
+        }
+
+        // Complete session with actual ad watched status
+        await completeSession(duration, adWatched)
+    }
 
     const startGame = async (game: MiniGame) => {
         if (!userId) {
@@ -213,6 +232,9 @@ export default function MiniGamesSystem({ userId, onClose }: MiniGamesSystemProp
                 setSessionToken(data.sessionToken)
                 setSessionStart(Date.now())
                 setPlayTime(0)
+
+                // Preload ad for when they finish
+                AdService.preloadInterstitial()
             } else {
                 setError(data.error || 'Failed to start game')
                 if (data.cooldownRemaining) {
@@ -225,7 +247,7 @@ export default function MiniGamesSystem({ userId, onClose }: MiniGamesSystemProp
         }
     }
 
-    const completeSession = async (duration: number) => {
+    const completeSession = async (duration: number, adWatched: boolean = false) => {
         // Prevent multiple simultaneous completion calls
         if (!sessionToken || isCompletingRef.current) {
             console.log('[MiniGames] Skipping duplicate complete call')
@@ -237,7 +259,7 @@ export default function MiniGamesSystem({ userId, onClose }: MiniGamesSystemProp
         try {
             const response = await apiCall('/api/mini-games/complete', {
                 method: 'POST',
-                body: JSON.stringify({ sessionToken, duration }),
+                body: JSON.stringify({ sessionToken, duration, adWatched }),
             })
 
             const data = await response.json()
@@ -333,8 +355,9 @@ export default function MiniGamesSystem({ userId, onClose }: MiniGamesSystemProp
     }
 
     const handleExitGame = () => {
-        if (playTime >= (config?.minDurationSeconds || 30)) {
-            completeSession(playTime)
+        // If played for reasonable time (> 15s), show ad and reward
+        if (playTime >= 15) {
+            handleGameEnd(playTime)
         } else {
             setShowExitConfirm(true)
         }

@@ -40,13 +40,15 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
         // Fetch all active social missions
         const missionsSnapshot = await db!.collection('social_missions')
             .where('active', '==', true)
-            .orderBy('createdAt', 'desc')
             .get()
 
-        const missions = missionsSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }))
+        // Sort in-memory to avoid needing a composite Firestore index
+        const missions = missionsSnapshot.docs
+            .map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }))
+            .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0))
 
         // If userId provided, fetch their submission statuses
         let userSubmissions: Record<string, string> = {}
@@ -85,6 +87,7 @@ async function handleCreate(req: NextApiRequest, res: NextApiResponse) {
             socialUrl,
             payout,
             description,
+            notifyUsers,     // Optional: send push notification to all users
         } = req.body
 
         if (!title || !socialType || !socialUrl || !payout) {
@@ -93,9 +96,9 @@ async function handleCreate(req: NextApiRequest, res: NextApiResponse) {
             })
         }
 
-        if (!['telegram', 'tiktok', 'payment_proof'].includes(socialType)) {
+        if (!['telegram', 'tiktok', 'twitter', 'instagram', 'payment_proof'].includes(socialType)) {
             return res.status(400).json({
-                error: 'socialType must be telegram, tiktok, or payment_proof'
+                error: 'socialType must be telegram, tiktok, twitter, instagram, or payment_proof'
             })
         }
 
@@ -113,9 +116,27 @@ async function handleCreate(req: NextApiRequest, res: NextApiResponse) {
 
         const docRef = await db!.collection('social_missions').add(mission)
 
+        // Send push notification to all users if requested
+        if (notifyUsers) {
+            try {
+                const { sendPushToAll } = await import('@/pages/api/notifications/send')
+                const platformName = socialType.charAt(0).toUpperCase() + socialType.slice(1)
+                await sendPushToAll(
+                    `🎯 New Mission: ${title}`,
+                    `Earn ${payout} points! Follow our ${platformName} now.`,
+                    { type: 'new_social_mission', missionId: docRef.id }
+                )
+                console.log('[social-missions] Notification sent for new mission:', title)
+            } catch (notifyError) {
+                console.error('[social-missions] Failed to send notification:', notifyError)
+                // Don't fail the request if notification fails
+            }
+        }
+
         return res.status(201).json({
             success: true,
-            mission: { id: docRef.id, ...mission }
+            mission: { id: docRef.id, ...mission },
+            notificationSent: !!notifyUsers
         })
     } catch (error) {
         console.error('Error creating social mission:', error)

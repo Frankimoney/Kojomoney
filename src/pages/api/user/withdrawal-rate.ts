@@ -69,7 +69,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
         // Calculate rate
         const normalizedCountry = userCountry.toUpperCase()
-        const multiplier = countryMultipliers[normalizedCountry] || countryMultipliers['GLOBAL'] || 0.2
+        const multiplier = countryMultipliers[normalizedCountry] || countryMultipliers['GLOBAL'] || 1.0
         const effectiveMargin = globalMargin || 1.0
         const basePointsPerDollar = config.pointsPerDollar || POINTS_CONFIG.pointsPerDollar || 10000
 

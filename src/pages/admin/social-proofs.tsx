@@ -57,12 +57,20 @@ export default function AdminSocialProofsPage() {
     const [processing, setProcessing] = useState<string | null>(null)
     const [filter, setFilter] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending')
     const [showCreateMission, setShowCreateMission] = useState(false)
-    const [newMission, setNewMission] = useState({
+    const [newMission, setNewMission] = useState<{
+        title: string
+        socialType: 'telegram' | 'tiktok' | 'twitter' | 'instagram'
+        channelName: string
+        socialUrl: string
+        payout: number
+        notifyUsers: boolean
+    }>({
         title: '',
-        socialType: 'telegram' as const,
+        socialType: 'telegram',
         channelName: '',
         socialUrl: '',
-        payout: 500
+        payout: 500,
+        notifyUsers: false
     })
     const [creating, setCreating] = useState(false)
 
@@ -122,7 +130,7 @@ export default function AdminSocialProofsPage() {
 
             if (res.ok) {
                 setShowCreateMission(false)
-                setNewMission({ title: '', socialType: 'telegram', channelName: '', socialUrl: '', payout: 500 })
+                setNewMission({ title: '', socialType: 'telegram', channelName: '', socialUrl: '', payout: 500, notifyUsers: false })
                 loadData()
             }
         } catch (err) {
@@ -477,6 +485,20 @@ export default function AdminSocialProofsPage() {
                                 value={newMission.payout}
                                 onChange={e => setNewMission(prev => ({ ...prev, payout: parseInt(e.target.value) || 0 }))}
                             />
+                        </div>
+
+                        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                            <input
+                                type="checkbox"
+                                id="notifyUsers"
+                                checked={newMission.notifyUsers}
+                                onChange={e => setNewMission(prev => ({ ...prev, notifyUsers: e.target.checked }))}
+                                className="h-4 w-4 rounded border-gray-300"
+                            />
+                            <Label htmlFor="notifyUsers" className="cursor-pointer flex-1">
+                                <span className="font-medium">Notify all users</span>
+                                <p className="text-xs text-muted-foreground">Send a push notification about this new mission</p>
+                            </Label>
                         </div>
 
                         <Button

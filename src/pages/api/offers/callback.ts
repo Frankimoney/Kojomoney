@@ -127,6 +127,10 @@ async function processCallback(
             const currentPoints = userDoc.data()?.points || 0
             const totalEarnings = userDoc.data()?.totalEarnings || 0
 
+            // Determine source based on provider type
+            const SURVEY_PROVIDERS = ['CPX', 'TheoremReach', 'BitLabs', 'Pollfish']
+            const source = SURVEY_PROVIDERS.includes(payload.provider) ? 'survey' : 'offerwall'
+
             await userRef.update({
                 points: currentPoints + payout,
                 totalEarnings: totalEarnings + payout,
@@ -138,7 +142,7 @@ async function processCallback(
                 userId,
                 type: 'credit',
                 amount: payout,
-                source: 'offerwall',
+                source: source,
                 sourceId: completionId,
                 status: 'completed',
                 metadata: {

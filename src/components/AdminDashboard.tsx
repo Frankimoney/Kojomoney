@@ -16,7 +16,7 @@ import {
     RefreshCw, Search, Eye, Download, Ban, Gift, Wallet,
     ArrowUpRight, ArrowDownRight, Activity, AlertCircle, Mail,
     Calendar, Globe, Smartphone, BarChart3, Settings, Shield, AlertTriangle,
-    FileText, Link, ExternalLink, Check, X, Loader2, LogOut, Bell, Send, BookOpen, Trash2, UserX
+    FileText, Link, ExternalLink, Check, X, Loader2, LogOut, Bell, Send, BookOpen, Trash2, UserX, Trophy
 } from 'lucide-react'
 import BlogManager from './admin/blog/BlogManager'
 import TeamManager from './admin/team/TeamManager'
@@ -47,6 +47,19 @@ interface DashboardStats {
     totalPoints24h?: number
     earningsBySource?: Record<string, number>
     earningsUSD24h?: {
+        ads: string
+        news: string
+        trivia: string
+        games: string
+        offerwalls: string
+        surveys: string
+        referrals: string
+        spins: string
+        missions: string
+        other: string
+        total: string
+    }
+    earningsUSD30d?: {
         ads: string
         news: string
         trivia: string
@@ -988,6 +1001,65 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                             </CardContent>
                         </Card>
                     )}
+
+                    {/* Earnings Breakdown (30 Days) */}
+                    {permissions.canSeeFinancials && (
+                        <Card className="mt-6">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Calendar className="h-5 w-5" />
+                                    Earnings Breakdown (30 Days)
+                                </CardTitle>
+                                <p className="text-sm text-muted-foreground">
+                                    Points distributed to users in the last 30 days
+                                </p>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                        <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">📺 Ads</div>
+                                        <div className="text-lg font-bold">${stats?.earningsUSD30d?.ads || '0.00'}</div>
+                                    </div>
+                                    <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                                        <div className="text-xs text-green-600 dark:text-green-400 font-medium">📰 News</div>
+                                        <div className="text-lg font-bold">${stats?.earningsUSD30d?.news || '0.00'}</div>
+                                    </div>
+                                    <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                                        <div className="text-xs text-purple-600 dark:text-purple-400 font-medium">🧠 Trivia</div>
+                                        <div className="text-lg font-bold">${stats?.earningsUSD30d?.trivia || '0.00'}</div>
+                                    </div>
+                                    <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+                                        <div className="text-xs text-orange-600 dark:text-orange-400 font-medium">🎮 Games</div>
+                                        <div className="text-lg font-bold">${stats?.earningsUSD30d?.games || '0.00'}</div>
+                                    </div>
+                                    <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                                        <div className="text-xs text-yellow-600 dark:text-yellow-400 font-medium">🎰 Spins</div>
+                                        <div className="text-lg font-bold">${stats?.earningsUSD30d?.spins || '0.00'}</div>
+                                    </div>
+                                    <div className="p-3 bg-pink-50 dark:bg-pink-900/20 rounded-lg border border-pink-200 dark:border-pink-800">
+                                        <div className="text-xs text-pink-600 dark:text-pink-400 font-medium">📋 Offerwalls</div>
+                                        <div className="text-lg font-bold">${stats?.earningsUSD30d?.offerwalls || '0.00'}</div>
+                                    </div>
+                                    <div className="p-3 bg-cyan-50 dark:bg-cyan-900/20 rounded-lg border border-cyan-200 dark:border-cyan-800">
+                                        <div className="text-xs text-cyan-600 dark:text-cyan-400 font-medium">📝 Surveys</div>
+                                        <div className="text-lg font-bold">${stats?.earningsUSD30d?.surveys || '0.00'}</div>
+                                    </div>
+                                    <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
+                                        <div className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">👥 Referrals</div>
+                                        <div className="text-lg font-bold">${stats?.earningsUSD30d?.referrals || '0.00'}</div>
+                                    </div>
+                                    <div className="p-3 bg-teal-50 dark:bg-teal-900/20 rounded-lg border border-teal-200 dark:border-teal-800">
+                                        <div className="text-xs text-teal-600 dark:text-teal-400 font-medium">🎯 Missions</div>
+                                        <div className="text-lg font-bold">${stats?.earningsUSD30d?.missions || '0.00'}</div>
+                                    </div>
+                                    <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-lg border-2 border-slate-400 dark:border-slate-600">
+                                        <div className="text-xs text-slate-600 dark:text-slate-400 font-medium">💰 TOTAL</div>
+                                        <div className="text-xl font-black">${stats?.earningsUSD30d?.total || '0.00'}</div>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
                 </TabsContent>
 
                 {/* WITHDRAWALS TAB */}
@@ -1739,6 +1811,76 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                                             <div className="space-y-1">
                                                 <Label className="text-xs">Offer Max</Label>
                                                 <Input type="number" className="h-8 text-sm" value={config.earningRates?.offerwallMax ?? 0} onChange={(e) => updateConfigRate('offerwallMax', e.target.value)} />
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+
+                                {/* Tournament Settings */}
+                                <Card className="col-span-1 sm:col-span-2 border-l-4 border-l-yellow-500 bg-yellow-50/10">
+                                    <CardHeader className="p-4 pb-2">
+                                        <CardTitle className="flex items-center gap-2 text-sm text-yellow-600">
+                                            <Trophy className="h-4 w-4" />
+                                            Tournament Prizes
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="p-4 pt-2">
+                                        <div className="space-y-4">
+                                            <div className="flex items-center justify-between">
+                                                <div className="space-y-0.5">
+                                                    <Label className="text-sm font-medium">Total Prize Pool</Label>
+                                                    <p className="text-xs text-muted-foreground">Total points distributed weekly</p>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <Input
+                                                        type="number"
+                                                        className="h-9 w-32 font-mono"
+                                                        value={config.tournament?.prizePool ?? 100000}
+                                                        onChange={(e) => {
+                                                            const val = parseInt(e.target.value) || 0
+                                                            setConfig({
+                                                                ...config,
+                                                                tournament: {
+                                                                    ...config.tournament!,
+                                                                    prizePool: val
+                                                                }
+                                                            })
+                                                        }}
+                                                    />
+                                                    <span className="text-xs font-medium text-muted-foreground">pts</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Rank Rewards</Label>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    {config.tournament?.rewards.slice(0, 5).map((reward, index) => (
+                                                        <div key={index} className="flex items-center gap-2 text-sm">
+                                                            <span className="w-20 text-xs text-muted-foreground">{reward.label}:</span>
+                                                            <Input
+                                                                type="number"
+                                                                className="h-7 flex-1"
+                                                                value={reward.points}
+                                                                onChange={(e) => {
+                                                                    const val = parseInt(e.target.value) || 0
+                                                                    const newRewards = [...(config.tournament?.rewards || [])]
+                                                                    newRewards[index] = { ...reward, points: val, nairaValue: val }
+                                                                    setConfig({
+                                                                        ...config,
+                                                                        tournament: {
+                                                                            ...config.tournament!,
+                                                                            rewards: newRewards
+                                                                        }
+                                                                    })
+                                                                }}
+                                                            />
+                                                            <span className="text-xs text-muted-foreground">pts</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                <p className="text-[10px] text-muted-foreground mt-2 italic">
+                                                    Edit top 5 ranks here. Lower ranks are managed automatically or via direct config edit.
+                                                </p>
                                             </div>
                                         </div>
                                     </CardContent>

@@ -2,7 +2,7 @@
 
 import { apiCall } from '@/lib/api-client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 import { Card, CardFooter, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
 import { DAILY_LIMITS } from '@/lib/points-config'
 import { Button } from '@/components/ui/button'
@@ -479,47 +479,80 @@ const NewsReadingSystem = ({ userId }: NewsReadingSystemProps) => {
                 </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 md:gap-4 xl:gap-5">
-                {stories.map((story) => (
-                    <Card key={story.id} className="group cursor-pointer hover:shadow-sm transition-shadow">
-                        {story.imageUrl ? (
-                            <div className="relative aspect-[16/9]">
-                                <img
-                                    src={story.imageUrl}
-                                    alt={story.title}
-                                    className="absolute inset-0 w-full h-full object-cover rounded-t-md brightness-110 saturate-110 group-hover:brightness-125"
-                                    loading="lazy"
-                                />
-                            </div>
-                        ) : (
-                            <div className="aspect-[16/9] bg-muted animate-pulse rounded-t-md" />
+                {stories.map((story, index) => (
+                    <Fragment key={story.id}>
+                        <Card className="group cursor-pointer hover:shadow-sm transition-shadow">
+                            {story.imageUrl ? (
+                                <div className="relative aspect-[16/9]">
+                                    <img
+                                        src={story.imageUrl}
+                                        alt={story.title}
+                                        className="absolute inset-0 w-full h-full object-cover rounded-t-md brightness-110 saturate-110 group-hover:brightness-125"
+                                        loading="lazy"
+                                    />
+                                </div>
+                            ) : (
+                                <div className="aspect-[16/9] bg-muted animate-pulse rounded-t-md" />
+                            )}
+                            <CardHeader className="pb-2">
+                                <div className="flex items-start justify-between">
+                                    <div className="space-y-1">
+                                        <CardTitle className="text-sm md:text-base font-semibold line-clamp-2">{story.title}</CardTitle>
+                                        <CardDescription className="text-xs md:text-sm line-clamp-2">{story.summary.slice(0, 80)}{story.summary.length > 80 ? '...' : ''}</CardDescription>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Badge variant="secondary" className="text-[11px] px-2 py-0.5">{story.points} pts</Badge>
+                                        {readIds.has(story.id) && (
+                                            <Badge variant="outline" className="text-[11px] px-2 py-0.5">Points claimed</Badge>
+                                        )}
+                                    </div>
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-2 text-xs md:text-sm text-muted-foreground">
+                                        {story.category && <Badge variant="outline">{story.category}</Badge>}
+                                        <span>•</span>
+                                        <span>{new Date(story.publishedAt).toLocaleDateString()}</span>
+                                    </div>
+                                    <Button size="sm" className="h-8 px-3" onClick={() => startReading(story)}>
+                                        Read & Earn
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Native Ad Injection */}
+                        {(index + 1) % 4 === 0 && (
+                            <Card className="group cursor-pointer hover:shadow-sm transition-shadow border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
+                                <div className="relative aspect-[16/9] bg-amber-100 dark:bg-amber-900/40 rounded-t-md flex items-center justify-center">
+                                    <div className="text-center">
+                                        <span className="text-4xl block mb-2">⭐</span>
+                                        <Badge className="bg-amber-500 hover:bg-amber-600 text-white border-0">Sponsored</Badge>
+                                    </div>
+                                </div>
+                                <CardHeader className="pb-2">
+                                    <div className="space-y-1">
+                                        <CardTitle className="text-sm md:text-base font-semibold text-amber-900 dark:text-amber-100">
+                                            Bonus Opportunity
+                                        </CardTitle>
+                                        <CardDescription className="text-xs md:text-sm text-amber-800 dark:text-amber-200 line-clamp-2">
+                                            Check out this special offer to earn up to 500 bonus points instantly!
+                                        </CardDescription>
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <Button
+                                        size="sm"
+                                        className="w-full bg-amber-500 hover:bg-amber-600 text-white border-0"
+                                        onClick={() => AdService.showInterstitial()}
+                                    >
+                                        View Offer
+                                    </Button>
+                                </CardContent>
+                            </Card>
                         )}
-                        <CardHeader className="pb-2">
-                            <div className="flex items-start justify-between">
-                                <div className="space-y-1">
-                                    <CardTitle className="text-sm md:text-base font-semibold line-clamp-2">{story.title}</CardTitle>
-                                    <CardDescription className="text-xs md:text-sm line-clamp-2">{story.summary.slice(0, 80)}{story.summary.length > 80 ? '...' : ''}</CardDescription>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Badge variant="secondary" className="text-[11px] px-2 py-0.5">{story.points} pts</Badge>
-                                    {readIds.has(story.id) && (
-                                        <Badge variant="outline" className="text-[11px] px-2 py-0.5">Points claimed</Badge>
-                                    )}
-                                </div>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center space-x-2 text-xs md:text-sm text-muted-foreground">
-                                    {story.category && <Badge variant="outline">{story.category}</Badge>}
-                                    <span>•</span>
-                                    <span>{new Date(story.publishedAt).toLocaleDateString()}</span>
-                                </div>
-                                <Button size="sm" className="h-8 px-3" onClick={() => startReading(story)}>
-                                    Read & Earn
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    </Fragment>
                 ))}
             </div>
         </div>

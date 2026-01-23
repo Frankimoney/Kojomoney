@@ -8,6 +8,16 @@ export interface EconomyConfig {
     globalMargin: number
     pointsPerDollar: number
     dailyEarningCap: number
+    tournament: {
+        prizePool: number
+        rewards: {
+            rank: number
+            points: number
+            nairaValue: number
+            tier: string
+            label: string
+        }[]
+    }
     lastUpdated?: number
 }
 
@@ -22,16 +32,31 @@ export async function getEconomyConfig(): Promise<EconomyConfig> {
             'CA': 1.0,
             'AU': 1.0,
             'DE': 1.0,
-            'NG': 0.2, // Tier 3
-            'GH': 0.2,
-            'KE': 0.2,
-            'IN': 0.25,
-            'ZA': 0.3,
-            'GLOBAL': 0.2 // Rest of World (default)
+            'NG': 1.0, // Early Stage: Fixed Global Rate
+            'GH': 1.0,
+            'KE': 1.0,
+            'IN': 1.0,
+            'ZA': 1.0,
+            'GLOBAL': 1.0 // Early Stage: Fixed Global Rate
         },
         globalMargin: 1.0, // Safety margin (0.9 = 10% margin for protection)
         pointsPerDollar: POINTS_CONFIG.pointsPerDollar, // Default: 10000 pts = $1
-        dailyEarningCap: DAILY_EARNING_CAP // Default: 2500 pts = $0.25/day
+        dailyEarningCap: DAILY_EARNING_CAP, // Default: 2500 pts = $0.25/day
+        tournament: {
+            prizePool: 100000,
+            rewards: [
+                { rank: 1, points: 25000, nairaValue: 25000, tier: 'Champion', label: '1st Place' },
+                { rank: 2, points: 15000, nairaValue: 15000, tier: 'Champion', label: '2nd Place' },
+                { rank: 3, points: 10000, nairaValue: 10000, tier: 'Champion', label: '3rd Place' },
+                { rank: 4, points: 5000, nairaValue: 5000, tier: 'Gold', label: '4th Place' },
+                { rank: 5, points: 5000, nairaValue: 5000, tier: 'Gold', label: '5th Place' },
+                { rank: 6, points: 5000, nairaValue: 5000, tier: 'Gold', label: '6th Place' },
+                { rank: 7, points: 5000, nairaValue: 5000, tier: 'Gold', label: '7th Place' },
+                { rank: 8, points: 5000, nairaValue: 5000, tier: 'Gold', label: '8th Place' },
+                { rank: 9, points: 5000, nairaValue: 5000, tier: 'Silver', label: '9th Place' },
+                { rank: 10, points: 5000, nairaValue: 5000, tier: 'Silver', label: '10th Place' },
+            ]
+        }
     }
 
     if (db) {
@@ -46,6 +71,7 @@ export async function getEconomyConfig(): Promise<EconomyConfig> {
                     if (data.globalMargin !== undefined) config.globalMargin = data.globalMargin
                     if (data.pointsPerDollar !== undefined) config.pointsPerDollar = data.pointsPerDollar
                     if (data.dailyEarningCap !== undefined) config.dailyEarningCap = data.dailyEarningCap
+                    if (data.tournament) config.tournament = { ...config.tournament, ...data.tournament }
                     if (data.lastUpdated) config.lastUpdated = data.lastUpdated
                 }
             }
@@ -61,7 +87,7 @@ export async function getEconomyConfig(): Promise<EconomyConfig> {
  */
 export function pointsToUSD(points: number, config: EconomyConfig, userCountry?: string): number {
     const countryMultiplier = userCountry
-        ? (config.countryMultipliers[userCountry.toUpperCase()] || config.countryMultipliers['GLOBAL'] || 0.2)
+        ? (config.countryMultipliers[userCountry.toUpperCase()] || config.countryMultipliers['GLOBAL'] || 1.0)
         : 1.0
 
     const baseUSD = points / config.pointsPerDollar

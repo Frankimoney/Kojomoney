@@ -44,7 +44,7 @@ async function handler(
         })
     }
 
-    const { sessionToken, duration } = req.body
+    const { sessionToken, duration, adWatched } = req.body
 
     // Validate required fields
     if (!sessionToken || typeof sessionToken !== 'string') {
@@ -58,7 +58,8 @@ async function handler(
     try {
         const result = await completeMiniGameSession(
             sessionToken,
-            typeof duration === 'number' ? duration : undefined
+            typeof duration === 'number' ? duration : undefined,
+            adWatched === true
         )
 
         if (!result.success && result.error !== 'Daily cap reached') {

@@ -24,6 +24,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     try {
         const now = Date.now()
         const oneDayAgo = now - 24 * 60 * 60 * 1000
+        const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000
 
         // 1. Fetch Configuration for dynamic points rate from CORRECT location
         let pointsPerDollar = POINTS_CONFIG.pointsPerDollar // Default: 10000
@@ -145,7 +146,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         }
 
         // Calculate total points distributed by source
-        const earningsBySource: Record<string, number> = {
+        // Initialize breakdown objects
+        const initialBreakdown = {
             ad_watch: 0,
             news_read: 0,
             trivia_complete: 0,
@@ -158,43 +160,85 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             other: 0
         }
 
+        const earningsBySource: Record<string, number> = { ...initialBreakdown }
+        const earningsBySource30d: Record<string, number> = { ...initialBreakdown }
+
         try {
-            // Optimized Query: Only fetch transactions from the last 24h
+            // Optimized Query: Fetch transactions from the last 30 days
+            console.log(`[STATS] Querying transactions since ${new Date(thirtyDaysAgo).toISOString()}`)
             const transactionsSnapshot = await db.collection('transactions')
-                .where('createdAt', '>', oneDayAgo)
+                .where('createdAt', '>', thirtyDaysAgo)
                 .get()
+
+            console.log(`[STATS] Found ${transactionsSnapshot.size} transactions in last 30d`)
+
+            // Debug: Track source counts
+            const sourceCounts: Record<string, number> = {}
 
             transactionsSnapshot.forEach(doc => {
                 const data = doc.data()
-                if (data.type === 'credit') {
-                    totalPointsDistributed += data.amount || 0
+                // Process both credits (earnings) and debits (admin deductions)
+                if (data.type === 'credit' || data.type === 'mini_game_reward' || data.type === 'debit') {
+                    // For debits, treat as negative amount to reduce the total
+                    const rawAmount = data.amount || 0
+                    const isDebit = data.type === 'debit'
+                    const amount = isDebit ? -rawAmount : rawAmount
 
-                    const source = data.source || 'other'
+                    if (data.createdAt > oneDayAgo) {
+                        totalPointsDistributed += amount
+                    }
 
-                    // Normalize source names
-                    if (source.includes('ad') || source === 'ad_reward') {
-                        earningsBySource.ad_watch += data.amount || 0
-                    } else if (source.includes('news') || source === 'news_reward') {
-                        earningsBySource.news_read += data.amount || 0
-                    } else if (source.includes('trivia')) {
-                        earningsBySource.trivia_complete += data.amount || 0
-                    } else if (source.includes('game') || source === 'mini_game') {
-                        earningsBySource.game_reward += data.amount || 0
-                    } else if (source.includes('offer') || source === 'offer_complete') {
-                        earningsBySource.offerwall += data.amount || 0
-                    } else if (source.includes('survey')) {
-                        earningsBySource.survey += data.amount || 0
-                    } else if (source.includes('referral')) {
-                        earningsBySource.referral += data.amount || 0
-                    } else if (source.includes('spin') || source === 'daily_spin') {
-                        earningsBySource.daily_spin += data.amount || 0
-                    } else if (source.includes('mission')) {
-                        earningsBySource.mission += data.amount || 0
-                    } else {
-                        earningsBySource.other += data.amount || 0
+                    let source = data.source || (data.type === 'mini_game_reward' ? 'game_reward' : 'other')
+
+                    // FIX: Check provider for surveys if source is generic 'offerwall'
+                    if (source === 'offerwall' && data.metadata?.provider) {
+                        const SURVEY_PROVIDERS = ['CPX', 'TheoremReach', 'BitLabs', 'Pollfish']
+                        if (SURVEY_PROVIDERS.includes(data.metadata.provider)) {
+                            source = 'survey'
+                        }
+                    }
+
+                    // Debug: count sources
+                    sourceCounts[source] = (sourceCounts[source] || 0) + 1
+
+                    // Helper to add to specific breakdown
+                    const addToBreakdown = (breakdown: Record<string, number>) => {
+                        // Normalize source names (use specific prefixes to avoid false matches)
+                        if (source.startsWith('ad_') || source === 'ad_reward' || source === 'ad_watch') {
+                            breakdown.ad_watch += amount
+                        } else if (source.includes('news') || source === 'news_reward') {
+                            breakdown.news_read += amount
+                        } else if (source.includes('trivia')) {
+                            breakdown.trivia_complete += amount
+                        } else if (source.includes('game') || source === 'mini_game') {
+                            breakdown.game_reward += amount
+                        } else if (source.includes('offer') || source === 'offer_complete') {
+                            breakdown.offerwall += amount
+                        } else if (source.includes('survey')) {
+                            breakdown.survey += amount
+                        } else if (source.includes('referral')) {
+                            breakdown.referral += amount
+                        } else if (source.includes('spin') || source === 'daily_spin') {
+                            breakdown.daily_spin += amount
+                        } else if (source.includes('mission')) {
+                            breakdown.mission += amount
+                        } else {
+                            breakdown.other += amount
+                        }
+                    }
+
+                    // Add to 30d stats
+                    addToBreakdown(earningsBySource30d)
+
+                    // Add to 24h stats if recent
+                    if (data.createdAt > oneDayAgo) {
+                        addToBreakdown(earningsBySource)
                     }
                 }
             })
+
+            console.log(`[STATS] Source breakdown:`, sourceCounts)
+            console.log(`[STATS] Earnings by source:`, earningsBySource)
 
             // Calculate estimated revenue
             // Ads: We earn ~$0.002-0.005 per view, users get ~$0.005 (using pointsPerDollar)
@@ -208,7 +252,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         }
 
         // Calculate total points given out in 24h
+        // Calculate total points given out in 24h and 30d
         const totalPoints24h = Object.values(earningsBySource).reduce((a, b) => a + b, 0)
+        const totalPoints30d = Object.values(earningsBySource30d).reduce((a, b) => a + b, 0)
 
         // Helper to formatting currency
         const toUSD = (points: number) => (points / pointsPerDollar).toFixed(2)
@@ -253,6 +299,20 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
                 missions: toUSD(earningsBySource.mission),
                 other: toUSD(earningsBySource.other),
                 total: toUSD(totalPoints24h)
+            },
+            // Monthly Earnings (30d)
+            earningsUSD30d: {
+                ads: toUSD(earningsBySource30d.ad_watch),
+                news: toUSD(earningsBySource30d.news_read),
+                trivia: toUSD(earningsBySource30d.trivia_complete),
+                games: toUSD(earningsBySource30d.game_reward),
+                offerwalls: toUSD(earningsBySource30d.offerwall),
+                surveys: toUSD(earningsBySource30d.survey),
+                referrals: toUSD(earningsBySource30d.referral),
+                spins: toUSD(earningsBySource30d.daily_spin),
+                missions: toUSD(earningsBySource30d.mission),
+                other: toUSD(earningsBySource30d.other),
+                total: toUSD(totalPoints30d)
             }
         })
     } catch (error) {

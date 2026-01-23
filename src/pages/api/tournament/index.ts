@@ -8,6 +8,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { db } from '@/lib/firebase-admin'
 import { allowCors } from '@/lib/cors'
+import { getEconomyConfig } from '@/lib/server-config'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,18 +16,19 @@ export const dynamic = 'force-dynamic'
 const TOURNAMENT_CONFIG = {
     name: 'Weekly Cup',
     duration: 7, // days
-    prizePool: 500000, // Total prize pool in points (₦500k equivalent)
+    prizePool: 100000, // Total prize pool in points (Reduced for early stage - $10 USD total)
     rewards: [
-        { rank: 1, points: 100000, nairaValue: 100000, tier: 'Champion', label: '1st Place' },
-        { rank: 2, points: 50000, nairaValue: 50000, tier: 'Champion', label: '2nd Place' },
-        { rank: 3, points: 30000, nairaValue: 30000, tier: 'Champion', label: '3rd Place' },
-        { rank: 4, points: 20000, nairaValue: 20000, tier: 'Gold', label: '4th Place' },
-        { rank: 5, points: 20000, nairaValue: 20000, tier: 'Gold', label: '5th Place' },
-        { rank: 6, points: 15000, nairaValue: 15000, tier: 'Gold', label: '6th Place' },
-        { rank: 7, points: 15000, nairaValue: 15000, tier: 'Gold', label: '7th Place' },
-        { rank: 8, points: 10000, nairaValue: 10000, tier: 'Gold', label: '8th Place' },
-        { rank: 9, points: 10000, nairaValue: 10000, tier: 'Silver', label: '9th Place' },
-        { rank: 10, points: 10000, nairaValue: 10000, tier: 'Silver', label: '10th Place' },
+        { rank: 1, points: 25000, nairaValue: 25000, tier: 'Champion', label: '1st Place' },
+        { rank: 2, points: 15000, nairaValue: 15000, tier: 'Champion', label: '2nd Place' },
+        { rank: 3, points: 10000, nairaValue: 10000, tier: 'Champion', label: '3rd Place' },
+        { rank: 4, points: 5000, nairaValue: 5000, tier: 'Gold', label: '4th Place' },
+        { rank: 5, points: 5000, nairaValue: 5000, tier: 'Gold', label: '5th Place' },
+        { rank: 6, points: 5000, nairaValue: 5000, tier: 'Gold', label: '6th Place' },
+        { rank: 7, points: 5000, nairaValue: 5000, tier: 'Gold', label: '7th Place' },
+        { rank: 8, points: 5000, nairaValue: 5000, tier: 'Gold', label: '8th Place' },
+        { rank: 9, points: 5000, nairaValue: 5000, tier: 'Silver', label: '9th Place' },
+        { rank: 10, points: 5000, nairaValue: 5000, tier: 'Silver', label: '10th Place' },
+        // Ranks 11-50: 500 points consolation
     ],
     // Points earned towards tournament ranking per activity
     pointsPerActivity: {
@@ -97,6 +99,8 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
         const { userId } = req.query
         const weekKey = getCurrentWeekKey()
         const weekDates = getWeekDates()
+        const config = await getEconomyConfig()
+        const tournamentConfig = config.tournament || TOURNAMENT_CONFIG
 
         // Get tournament entries for this week
         const entriesSnapshot = await db!.collection('tournament_entries')
@@ -173,8 +177,8 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
             totalParticipants: leaderboard.length,
             myEntry,
             myRank,
-            rewards: TOURNAMENT_CONFIG.rewards,
-            prizePool: TOURNAMENT_CONFIG.prizePool,
+            rewards: tournamentConfig.rewards,
+            prizePool: tournamentConfig.prizePool,
             pointsPerActivity: TOURNAMENT_CONFIG.pointsPerActivity,
             tiers: TOURNAMENT_CONFIG.tiers,
             pendingReward: await checkPendingReward(userId as string, weekKey)
@@ -227,6 +231,8 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
 
         const weekKey = getCurrentWeekKey()
         const now = Date.now()
+        const config = await getEconomyConfig()
+        const tournamentConfig = config.tournament || TOURNAMENT_CONFIG
 
         if (action === 'join') {
             // Check if already joined
@@ -349,7 +355,7 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
             allEntries.sort((a, b) => b.points - a.points)
 
             const rank = allEntries.findIndex(e => e.userId === userId) + 1
-            const reward = TOURNAMENT_CONFIG.rewards.find(r => r.rank === rank)
+            const reward = tournamentConfig.rewards.find(r => r.rank === rank)
 
             if (!reward) {
                 return res.status(200).json({

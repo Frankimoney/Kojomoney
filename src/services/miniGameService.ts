@@ -282,7 +282,8 @@ export async function startMiniGameSession(
  */
 export async function completeMiniGameSession(
     sessionToken: string,
-    clientDuration?: number
+    clientDuration?: number,
+    adWatched: boolean = false
 ): Promise<CompleteSessionResult> {
     const config = getMiniGameConfig()
 
@@ -324,7 +325,11 @@ export async function completeMiniGameSession(
             : durationSeconds
 
         // Check minimum duration
-        if (trustedDuration < config.minDurationSeconds) {
+        // Check minimum duration
+        // If ad watched, we reduce threshold significantly (e.g. 10s) to allow instant rewards
+        const requiredDuration = adWatched ? 10 : config.minDurationSeconds
+
+        if (trustedDuration < requiredDuration) {
             await sessionDoc.ref.update({
                 status: 'invalid',
                 completedAt: now,
@@ -334,7 +339,9 @@ export async function completeMiniGameSession(
             return {
                 success: false,
                 pointsAwarded: 0,
-                error: `Play for at least ${config.minDurationSeconds} seconds to earn points`,
+                error: adWatched
+                    ? `Please play for at least 10 seconds`
+                    : `Play for at least ${config.minDurationSeconds} seconds to earn points`,
             }
         }
 
@@ -378,8 +385,9 @@ export async function completeMiniGameSession(
             // Log transaction
             await db.collection('transactions').add({
                 userId: session.userId,
-                type: 'mini_game_reward',
+                type: 'credit',
                 amount: pointsToAward,
+                source: 'mini_game_reward',
                 description: `Practice game reward - ${MINI_GAMES.find(g => g.id === session.gameId)?.name || session.gameId}`,
                 gameId: session.gameId,
                 sessionId: session.id,

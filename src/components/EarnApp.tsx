@@ -546,6 +546,9 @@ function EarnTab({ user, userPoints, setUserPoints, setActiveView }: EarnTabProp
     const [adCooldown, setAdCooldown] = useState(0)
     const [view, setView] = useState<'list' | 'offerwall' | 'africa-offerwalls' | 'surveys' | 'missions' | 'referrals' | 'challenges' | 'tournament' | 'games'>('list')
 
+    // Show banner ad at bottom
+    useBannerAd('bottom', true)
+
 
     // Africa Offerwalls (Wannads, Adgate, Monlix) - PRIMARY offerwall option
     if (view === 'offerwall' || view === 'africa-offerwalls') {
@@ -1792,6 +1795,9 @@ function ProfileTab({ user, setUser, resolvedTheme, setTheme, onLogout, onShowLe
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const [deletionReason, setDeletionReason] = useState('')
     const [isDeleting, setIsDeleting] = useState(false)
+
+    // Show banner ad at bottom
+    useBannerAd('bottom', true)
 
     const handleToggleNotifications = async () => {
         const newValue = !notificationsEnabled
