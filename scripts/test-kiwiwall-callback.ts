@@ -23,7 +23,7 @@ try {
 }
 
 // Mock Data
-const userId = 'TEST_USER_ID';
+const userId = '47035a77d4cd02a8be63080167a2bd34';
 const amount = '100'; // Points
 const transId = `TEST_TRANS_${Date.now()}`;
 const subId = userId;
