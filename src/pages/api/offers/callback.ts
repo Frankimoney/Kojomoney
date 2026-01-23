@@ -421,7 +421,7 @@ async function validateCallback(provider: OfferProvider, rawPayload: any): Promi
             const amount = rawPayload.amount || rawPayload.payout || rawPayload.points
             const signature = rawPayload.signature || rawPayload.sig
 
-            const secret = process.env.KIWIWALL_SECRET
+            const secret = process.env.KIWIWALL_SECRET_KEY || process.env.KIWIWALL_SECRET
             if (!secret) {
                 console.warn('[Security] KIWIWALL_SECRET not set, skipping validation')
                 return isDev // Only allow skip in dev
