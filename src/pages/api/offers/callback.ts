@@ -38,8 +38,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     try {
-        // Parse callback based on request method (some providers use GET)
-        const rawPayload = req.method === 'GET' ? req.query : req.body
+        // Parse callback: merge query params and body to handle all cases
+        // (Some providers send POST but put data in query string)
+        const rawPayload = { ...req.query, ...req.body }
 
         // Determine provider from the endpoint or payload
         const provider = (rawPayload.provider || rawPayload.network || 'Other') as OfferProvider
