@@ -106,6 +106,11 @@ async function handleRequest(req: NextRequest) {
 
                     await completionQuery.doc(payload.trackingId).set(newCompletion);
                     await processCallbackLogic(payload.trackingId, newCompletion, payload);
+
+                    // Kiwiwall explicitly requires the response body to be just "1"
+                    if (provider === 'Kiwiwall') {
+                        return new NextResponse('1', { status: 200, headers: { 'Content-Type': 'text/plain' } });
+                    }
                     return NextResponse.json({ success: true, message: '1' }, { status: 200 });
                 } else {
                     console.error('Completion not found:', payload.trackingId);
@@ -135,6 +140,9 @@ async function handleRequest(req: NextRequest) {
             return NextResponse.json({ error: 'Missing tracking information' }, { status: 400 });
         }
 
+        if (provider === 'Kiwiwall') {
+            return new NextResponse('1', { status: 200, headers: { 'Content-Type': 'text/plain' } });
+        }
         return NextResponse.json({ success: true, message: '1' }, { status: 200 });
 
     } catch (error) {
