@@ -365,10 +365,16 @@ export default function MissionSystem({ userId, onClose }: MissionSystemProps) {
                                 >
                                     <CardContent className="p-4">
                                         <div className="flex justify-between items-start mb-2">
-                                            <div className="flex items-center gap-2">
-                                                <div className="p-2 bg-muted rounded-full">
-                                                    {getIcon(mission.type)}
-                                                </div>
+                                            <div className="flex items-center gap-3">
+                                                {mission.logoUrl ? (
+                                                    <div className="h-12 w-12 rounded-lg bg-white/50 dark:bg-black/20 overflow-hidden shrink-0 border border-black/5 dark:border-white/5">
+                                                        <img src={mission.logoUrl} alt="" className="h-full w-full object-cover" />
+                                                    </div>
+                                                ) : (
+                                                    <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                                                        {getIcon(mission.type)}
+                                                    </div>
+                                                )}
                                                 <div>
                                                     <h3 className="font-semibold text-base flex items-center gap-1">
                                                         {mission.title}

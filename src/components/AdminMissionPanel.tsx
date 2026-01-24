@@ -90,6 +90,7 @@ export default function AdminMissionPanel() {
     const [activeTab, setActiveTab] = useState('missions')
     const [missions, setMissions] = useState<Mission[]>([])
     const [offers, setOffers] = useState<Offer[]>([])
+    const [socialMissions, setSocialMissions] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isSaving, setIsSaving] = useState(false)
     const [showAddDialog, setShowAddDialog] = useState(false)
@@ -123,9 +124,10 @@ export default function AdminMissionPanel() {
     const loadData = async () => {
         setIsLoading(true)
         try {
-            const [missionsRes, offersRes] = await Promise.all([
+            const [missionsRes, offersRes, socialRes] = await Promise.all([
                 authApiCall('/api/missions?userId=admin'),
                 authApiCall('/api/offers?userId=admin'),
+                authApiCall('/api/social-missions'),
             ])
 
             if (missionsRes.ok) {
@@ -135,6 +137,10 @@ export default function AdminMissionPanel() {
             if (offersRes.ok) {
                 const data = await offersRes.json()
                 setOffers(data.offers || [])
+            }
+            if (socialRes.ok) {
+                const data = await socialRes.json()
+                setSocialMissions(data.missions || [])
             }
         } catch (err) {
             console.error('Failed to load data:', err)
@@ -415,12 +421,12 @@ export default function AdminMissionPanel() {
                         <div className="grid md:grid-cols-2 gap-4">
                             <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => window.location.href = '/admin/social-missions'}>
                                 <CardContent className="p-4">
-                                    <h4 className="font-semibold mb-2">✨ Create Missions</h4>
+                                    <h4 className="font-semibold mb-2">✨ Create / Manage All</h4>
                                     <p className="text-sm text-muted-foreground mb-3">
-                                        Add Telegram, TikTok follow missions or Payment Proof missions with points rewards.
+                                        Go to full Social Mission Manager page to add new missions.
                                     </p>
                                     <Button size="sm">
-                                        <Plus className="h-4 w-4 mr-2" /> Create Mission
+                                        <ExternalLink className="h-4 w-4 mr-2" /> Open Manager
                                     </Button>
                                 </CardContent>
                             </Card>
@@ -435,6 +441,44 @@ export default function AdminMissionPanel() {
                                     </Button>
                                 </CardContent>
                             </Card>
+                        </div>
+
+                        <div className="space-y-4 pt-4">
+                            <h3 className="font-semibold text-lg">Active Social Missions</h3>
+                            {socialMissions.length === 0 ? (
+                                <div className="text-center p-8 border rounded-xl bg-muted/20">
+                                    <p className="text-muted-foreground">No active social missions found.</p>
+                                </div>
+                            ) : (
+                                <div className="grid gap-3">
+                                    {socialMissions.map((mission) => (
+                                        <Card key={mission.id}>
+                                            <CardContent className="p-4 flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`p-2 rounded-lg ${mission.socialType === 'telegram' ? 'bg-blue-100 text-blue-600' :
+                                                            mission.socialType === 'tiktok' ? 'bg-pink-100 text-pink-600' :
+                                                                'bg-green-100 text-green-600'
+                                                        }`}>
+                                                        <Share2 className="h-5 w-5" />
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-semibold">{mission.title}</h4>
+                                                        <div className="flex gap-2 mt-1">
+                                                            <Badge variant="secondary" className="text-xs">{mission.socialType}</Badge>
+                                                            <Badge variant="outline" className="text-xs text-green-600">{mission.payout} pts</Badge>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`text-xs px-2 py-1 rounded-full ${mission.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                        {mission.active ? 'Active' : 'Inactive'}
+                                                    </span>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </TabsContent>
 
@@ -461,10 +505,16 @@ export default function AdminMissionPanel() {
                                     <Card key={mission.id} className={`${!mission.active ? 'opacity-60' : ''}`}>
                                         <CardContent className="p-4">
                                             <div className="flex justify-between items-start mb-2">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="p-2 bg-muted rounded-full">
-                                                        {getTypeIcon(mission.type)}
-                                                    </div>
+                                                <div className="flex items-center gap-3">
+                                                    {mission.logoUrl ? (
+                                                        <div className="h-12 w-12 rounded-lg bg-muted overflow-hidden shrink-0 border">
+                                                            <img src={mission.logoUrl} alt="" className="h-full w-full object-cover" />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                                                            {getTypeIcon(mission.type)}
+                                                        </div>
+                                                    )}
                                                     <div>
                                                         <h3 className="font-semibold">{mission.title}</h3>
                                                         <div className="flex gap-1">
@@ -562,6 +612,16 @@ export default function AdminMissionPanel() {
                                 </div>
 
                                 <div className="space-y-2">
+                                    <Label>Logo/Image URL</Label>
+                                    <Input
+                                        placeholder="https://example.com/offer-logo.png"
+                                        value={offerFormData.logoUrl || ''}
+                                        onChange={(e) => setOfferFormData({ ...offerFormData, logoUrl: e.target.value })}
+                                    />
+                                    <p className="text-xs text-muted-foreground">Optional: Custom image for the offer card</p>
+                                </div>
+
+                                <div className="space-y-2">
                                     <Label>Description</Label>
                                     <Textarea
                                         placeholder="Describe what users need to do to earn points..."
@@ -618,12 +678,19 @@ export default function AdminMissionPanel() {
                                 <Card key={offer.id} className={`${!offer.active ? 'opacity-60' : ''}`}>
                                     <CardContent className="p-4">
                                         <div className="flex justify-between items-start mb-2">
-                                            <div>
-                                                <h3 className="font-semibold">{offer.title}</h3>
-                                                <div className="flex gap-1 mt-1">
-                                                    <Badge variant={offer.active ? 'default' : 'secondary'} className="text-xs">
-                                                        {offer.active ? 'Active' : 'Inactive'}
-                                                    </Badge>
+                                            <div className="flex gap-3">
+                                                {offer.logoUrl && (
+                                                    <div className="h-10 w-10 rounded-md bg-muted overflow-hidden shrink-0">
+                                                        <img src={offer.logoUrl} alt="" className="h-full w-full object-cover" />
+                                                    </div>
+                                                )}
+                                                <div>
+                                                    <h3 className="font-semibold">{offer.title}</h3>
+                                                    <div className="flex gap-1 mt-1">
+                                                        <Badge variant={offer.active ? 'default' : 'secondary'} className="text-xs">
+                                                            {offer.active ? 'Active' : 'Inactive'}
+                                                        </Badge>
+                                                    </div>
                                                 </div>
                                             </div>
                                             <span className="font-bold text-green-600">+{offer.payout}</span>

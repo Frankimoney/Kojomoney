@@ -37,16 +37,43 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
 
         // Fetch ALL missions from Firestore
         const snapshot = await db!.collection('missions').get()
-
         let missions: Mission[] = []
-
-        // No seeding - admin must manually add missions
         snapshot.forEach(doc => {
             const data = doc.data()
-            // Admin sees ALL missions, users only see active ones
             if (isAdmin || data.active === true) {
                 missions.push({ id: doc.id, ...data } as Mission)
             }
+        })
+
+        // ALSO Fetch manual Offerwall Items from 'offers' collection (provider=Internal)
+        const offersSnapshot = await db!.collection('offers')
+            .where('provider', '==', 'Internal')
+            .where('active', '==', true)
+            .get()
+
+        offersSnapshot.forEach(doc => {
+            const data = doc.data()
+            // Map Offer to Mission format
+            const offerAsMission: Mission = {
+                id: doc.id,
+                title: data.title,
+                description: data.description,
+                payout: data.payout,
+                type: 'custom', // Use 'custom' type for generic offers
+                difficulty: data.difficulty || 'Easy',
+                affiliateUrl: data.url, // Map offer URL to affiliate URL
+                steps: [
+                    { id: 's1', instruction: 'Click the link to visit the offer', order: 1 },
+                    { id: 's2', instruction: 'Complete the required action', order: 2 }
+                ],
+                proofRequired: false,
+                active: data.active,
+                createdAt: data.createdAt,
+                updatedAt: data.updatedAt,
+                logoUrl: data.logoUrl, // Pass through logo
+                // brandName: data.provider // Optional
+            }
+            missions.push(offerAsMission)
         })
 
         // Apply type filter (client-side)
@@ -54,7 +81,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
             missions = missions.filter(m => m.type === type)
         }
 
-        // If userId provided, fetch user's progress for each mission
+        // If userId provided, fetch user's progress... (rest remains same)
         let missionProgress: Record<string, MissionProgress> = {}
 
         if (userIdStr) {
@@ -73,25 +100,22 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
         const missionsWithProgress = await Promise.all(missions.map(async (mission) => {
             const progress = missionProgress[mission.id]
 
-            // Special handling for referral missions - sync with actual referral data
+            // Special handling for referral missions... (rest remains same)
             if (mission.type === 'referral' && userIdStr) {
                 const referralsSnapshot = await db!.collection('referrals')
                     .where('referrerId', '==', userIdStr)
                     .get()
 
                 const referralCount = referralsSnapshot.size
-
-                // Auto-complete steps based on actual referral count
-                const completedSteps: string[] = ['s1'] // Always mark "share link" as done
+                const completedSteps: string[] = ['s1']
                 if (referralCount >= 1) completedSteps.push('s2')
                 if (referralCount >= 2) completedSteps.push('s3')
                 if (referralCount >= 3) completedSteps.push('s4')
 
-                // Determine status
                 let status: 'available' | 'in_progress' | 'completed' = 'available'
                 if (referralCount >= 3) {
                     status = 'completed'
-                    // Auto-credit points if not already credited
+                    // Auto-credit points...
                     if (!progress || progress.status !== 'completed') {
                         const existingProgress = await db!.collection('mission_progress')
                             .where('userId', '==', userIdStr)
@@ -101,7 +125,6 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
                             .get()
 
                         if (existingProgress.empty) {
-                            // Credit points for completing referral mission
                             await db!.collection('mission_progress').add({
                                 userId: userIdStr,
                                 missionId: mission.id,
@@ -110,8 +133,6 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
                                 startedAt: Date.now(),
                                 completedAt: Date.now(),
                             })
-
-                            // Add points to user
                             const userRef = db!.collection('users').doc(userIdStr)
                             const { FieldValue } = await import('firebase-admin/firestore')
                             await userRef.update({
@@ -129,7 +150,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
                     userProgress: progress || null,
                     status,
                     completedSteps,
-                    referralCount, // Expose for UI
+                    referralCount,
                 }
             }
 

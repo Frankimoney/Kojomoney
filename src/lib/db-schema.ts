@@ -120,6 +120,11 @@ export interface Mission {
     type: 'social' | 'install' | 'review' | 'referral' | 'custom'
     difficulty: 'Easy' | 'Medium' | 'Hard'
     affiliateUrl?: string // The affiliate/referral link
+    // Product info fields
+    logoUrl?: string
+    brandName?: string
+    productCategory?: string
+    originalUrl?: string
     expiresAt?: number
     steps: MissionStep[]
     proofRequired: boolean
