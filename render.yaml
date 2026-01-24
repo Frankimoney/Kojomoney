@@ -2,10 +2,10 @@
 services:
   - type: web
     name: kojomoney
-    env: node
+    env: docker
     plan: free
-    buildCommand: npm install && npm run build
-    startCommand: node .next/standalone/server.js
+    dockerFilePath: Dockerfile
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
