@@ -74,6 +74,9 @@ async function handleRequest(req: NextRequest) {
         const isValid = await validateCallback(provider, rawPayload);
         if (!isValid) {
             console.error('Invalid callback signature:', provider);
+            if (provider === 'Kiwiwall') {
+                return new NextResponse('0', { status: 200, headers: { 'Content-Type': 'text/plain' } });
+            }
             return NextResponse.json({ error: 'Invalid signature' }, { status: 403 });
         }
 
@@ -147,6 +150,11 @@ async function handleRequest(req: NextRequest) {
 
     } catch (error) {
         console.error('Error processing callback:', error);
+        // Kiwiwall expects '0' on failure
+        const provider = req.nextUrl.searchParams.get('provider') || 'Other';
+        if (provider === 'Kiwiwall') {
+            return new NextResponse('0', { status: 200, headers: { 'Content-Type': 'text/plain' } });
+        }
         return NextResponse.json({ error: 'Failed to process callback' }, { status: 500 });
     }
 }
