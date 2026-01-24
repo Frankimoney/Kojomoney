@@ -83,18 +83,24 @@ export default function MissionSystem({ userId, onClose }: MissionSystemProps) {
             })
         }
 
+        const finalUrl = pendingAffiliateUrl
+            .replace('{userId}', userId)
+            .replace('{sub_id}', userId)
+            .replace('{sub_id_1}', userId) // Supports Kiwiwall format
+            .replace('{uid}', userId);
+
         // Open the affiliate link
         if (typeof window !== 'undefined') {
             // Check if native app
             if ((window as any).Capacitor?.isNativePlatform?.()) {
                 try {
                     const { Browser } = await import('@capacitor/browser')
-                    await Browser.open({ url: pendingAffiliateUrl })
+                    await Browser.open({ url: finalUrl })
                 } catch (e) {
-                    window.open(pendingAffiliateUrl, '_blank')
+                    window.open(finalUrl, '_blank')
                 }
             } else {
-                window.open(pendingAffiliateUrl, '_blank')
+                window.open(finalUrl, '_blank')
             }
         }
 
