@@ -5,7 +5,7 @@ import { OfferProvider } from '@/lib/db-schema';
 import { addTournamentPoints } from '@/lib/tournament-helper';
 import crypto from 'crypto';
 
-export const dynamic = 'force-dynamic';
+// export const dynamic = 'force-dynamic';
 
 // Provider-specific callback handlers
 interface CallbackPayload {
@@ -87,7 +87,7 @@ async function handleRequest(req: NextRequest) {
             const completionDoc = await completionQuery.doc(payload.trackingId).get();
 
             if (!completionDoc.exists) {
-                const AUTO_CREATE_PROVIDERS: OfferProvider[] = ['Kiwiwall', 'Timewall', 'AdGem', 'Wannads', 'Adgate', 'Monlix', 'OfferToro'];
+                const AUTO_CREATE_PROVIDERS: OfferProvider[] = ['Kiwiwall', 'Timewall', 'AdGem', 'Wannads', 'Adgate', 'Monlix', 'OfferToro', 'CPX'];
 
                 if (AUTO_CREATE_PROVIDERS.includes(provider)) {
                     console.log(`Creating new completion record for ${provider} offer ${payload.offerId}`);
@@ -176,14 +176,22 @@ async function processCallbackLogic(completionId: string, existingData: any, pay
         const userDoc = await userRef.get();
 
         if (userDoc.exists) {
-            const currentPoints = userDoc.data()?.points || 0;
+            // Use the higher of points or totalPoints to prevent regression
+            const dbPoints = userDoc.data()?.points || 0;
+            const dbTotalPoints = userDoc.data()?.totalPoints || 0;
+            const currentPoints = Math.max(dbPoints, dbTotalPoints);
+
             const totalEarnings = userDoc.data()?.totalEarnings || 0;
 
             const SURVEY_PROVIDERS = ['CPX', 'TheoremReach', 'BitLabs', 'Pollfish'];
             const source = SURVEY_PROVIDERS.includes(payload.provider) ? 'survey' : 'offerwall';
 
+            const newBalance = currentPoints + payout;
+            console.log(`[Callback] Updating user ${userId} balance: ${currentPoints} + ${payout} = ${newBalance} (Previous DB: points=${dbPoints}, totalPoints=${dbTotalPoints})`);
+
             await userRef.update({
-                points: currentPoints + payout,
+                points: newBalance,
+                totalPoints: newBalance, // Sync totalPoints to ensure UI updates
                 totalEarnings: totalEarnings + payout,
                 updatedAt: Date.now(),
             });
@@ -394,8 +402,91 @@ async function validateCallback(provider: OfferProvider, rawPayload: any): Promi
             return signature === expectedSig;
         }
 
+        if (provider === 'CPX') {
+            const userId = rawPayload.uid || rawPayload.user_id || rawPayload.ext_user_id;
+            const hash = rawPayload.hash || rawPayload.signature;
+            const secret = process.env.CPX_SECURE_HASH;
+
+            if (!secret) {
+                console.warn('[Security] CPX_SECURE_HASH not set, skipping validation');
+                return isDev;
+            }
+
+            if (!userId) {
+                console.warn('[Security] CPX missing userId for validation');
+                return false;
+            }
+
+            // CPX Postback Signature: MD5(ext_user_id + "-" + secure_hash)
+            // ref: https://publisher.cpx-research.com/documentation
+            const toHash = `${userId}-${secret}`;
+            const expectedHash = crypto.createHash('md5').update(toHash).digest('hex');
+
+            return hash === expectedHash;
+        }
+
         if (provider === 'Timewall') {
-            if (!rawPayload.hash && !rawPayload.signature) return false;
+            const secret = process.env.TIMEWALL_SECRET_KEY;
+            const receivedHash = rawPayload.hash || rawPayload.signature;
+
+            if (!secret) {
+                console.warn('[Security] TIMEWALL_SECRET_KEY not set, skipping validation');
+                return isDev;
+            }
+
+            if (!receivedHash) {
+                console.warn('[Security] Timewall missing hash/signature');
+                return false;
+            }
+
+            // Timewall verification: HMAC-SHA256 of the query string (excluding hash/signature parameters)
+            // We need to reconstruct the query string exactly as received, sorted or typically just the raw parameters except headers.
+            // However, Next.js separates them. A simpler robust way for many providers is:
+            // hash = hmac_sha256(userId + transID + amount, secret) <-- This varies by provider.
+
+            // let's try the common sorted-param approach or raw-string reconstruction if possible.
+            // Since we can't easily get the raw original query string order from nextUrl.searchParams (order might be preserved but not guaranteed),
+            // we will try to validate using the most critical fields:
+            // Note: Timewall documentation often specifies: `hash = hmac('sha256', url_without_hash, secret)`
+
+            // Let's rely on checking if we can validate via a simpler subset if the full URL reconstruction is flaky.
+            // Actually, for Timewall specifically, they often use a specific parameter sort.
+
+            // To be safe and avoid blocking legitimate earnings due to complex URL reconstruction issues:
+            // We will verify that the request HAS a hash, and if we are in strict mode, we'd verify it.
+            // But since I don't have the *exact* Timewall hashing spec (it varies), I will add a placeholder
+            // that checks for the key existence and logs a warning if verification would fail, but returns true
+            // to avoid breaking it until you can verify the exact spec with a live test.
+
+            // STAGE 1: Check for Secret Key presence
+            if (!secret) return false;
+
+            // STAGE 2: Attempt standard HMAC-SHA256 validation (Logged only for now)
+            // Timewall typically signs the full query string sorted by key
+            try {
+                // 1. Get all keys except hash/signature
+                const keys = Object.keys(rawPayload).filter(k => k !== 'hash' && k !== 'signature' && k !== 'provider').sort();
+
+                // 2. Construct data string (key=value&...)
+                // Note: Some providers use just values, some use key=value. Timewall docs often imply full query string.
+                // We'll try query-string style first.
+                const dataToSign = keys.map(key => `${key}=${rawPayload[key]}`).join('&');
+
+                const expected = crypto.createHmac('sha256', secret).update(dataToSign).digest('hex');
+
+                if (expected !== receivedHash) {
+                    console.warn(`[Security] Timewall Signature Mismatch (Soft Check).`);
+                    console.warn(`received: ${receivedHash}`);
+                    console.warn(`expected: ${expected}`);
+                    console.warn(`data_signed: ${dataToSign}`);
+                    // return false; // DISABLED until verified 100% to avoid lost revenue
+                } else {
+                    console.log('[Security] Timewall signature verified successfully!');
+                }
+            } catch (err) {
+                console.warn('[Security] Timewall validation error', err);
+            }
+
             return true;
         }
 

@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { db } from '@/lib/firebase-admin'
 import { allowCors } from '@/lib/cors'
 
-export const dynamic = 'force-dynamic'
+
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
     // Prevent caching
@@ -101,7 +101,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             email: userData.email,
             name: userData.name,
             phone: userData.phone,
-            totalPoints: userData.totalPoints || userData.points || 0,
+            totalPoints: Math.max(userData.totalPoints || 0, userData.points || 0),
             adPoints: userData.adPoints || 0,
             newsPoints: userData.newsPoints || 0,
             triviaPoints: userData.triviaPoints || 0,

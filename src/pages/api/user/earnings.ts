@@ -108,39 +108,28 @@ async function handler(
 
                 // Add to summary
                 summary.total += amount
-                switch (data.type) {
-                    case 'ad_reward':
-                    case 'ad_watch':
-                        summary.ads += amount
-                        break
-                    case 'news_reward':
-                    case 'news_read':
-                        summary.news += amount
-                        break
-                    case 'trivia_reward':
-                    case 'trivia_complete':
-                        summary.trivia += amount
-                        break
-                    case 'game_reward':
-                        summary.games += amount
-                        break
-                    case 'mini_game_reward':
-                        summary.miniGames += amount
-                        break
-                    case 'offerwall':
-                    case 'offer_complete':
-                        summary.offerwalls += amount
-                        break
-                    case 'survey':
-                    case 'survey_complete':
-                        summary.surveys += amount
-                        break
-                    case 'referral':
-                    case 'referral_bonus':
-                        summary.referrals += amount
-                        break
-                    default:
-                        summary.other += amount
+
+                // Determine category based on type OR source (since callbacks use type='credit', source='offerwall')
+                const category = (data.source || data.type || '').toLowerCase()
+
+                if (['ad_reward', 'ad_watch', 'ad'].some(k => category.includes(k))) {
+                    summary.ads += amount
+                } else if (['news_reward', 'news_read', 'news'].some(k => category.includes(k))) {
+                    summary.news += amount
+                } else if (['trivia_reward', 'trivia_complete', 'trivia'].some(k => category.includes(k))) {
+                    summary.trivia += amount
+                } else if (['game_reward', 'game'].some(k => category.includes(k)) && !category.includes('mini')) {
+                    summary.games += amount
+                } else if (['mini_game', 'mini_game_reward'].some(k => category.includes(k))) {
+                    summary.miniGames += amount
+                } else if (['offerwall', 'offer_complete', 'offer'].some(k => category.includes(k))) {
+                    summary.offerwalls += amount
+                } else if (['survey', 'survey_complete'].some(k => category.includes(k))) {
+                    summary.surveys += amount
+                } else if (['referral', 'referral_bonus'].some(k => category.includes(k))) {
+                    summary.referrals += amount
+                } else {
+                    summary.other += amount
                 }
             }
         })

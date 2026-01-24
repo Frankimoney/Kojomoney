@@ -2257,7 +2257,7 @@ export default function EarnApp() {
             const data = await res.json()
             if (data?.user) {
                 setUser(data.user)
-                setUserPoints(Number(data.user.totalPoints || 0))
+                setUserPoints(Math.max(Number(data.user.totalPoints || 0), Number(data.user.points || 0)))
                 localStorage.setItem('kojomoneyUser', JSON.stringify(data.user))
             }
         } catch (e) { }
@@ -2276,9 +2276,15 @@ export default function EarnApp() {
         window.addEventListener('kojo:points:earned', handler)
         window.addEventListener('open-spin', () => setShowLuckySpin(true))
 
+        // Poll for updates every 5 seconds (handle external callbacks like Kiwiwall/CPX)
+        const pollTimer = setInterval(() => {
+            syncUserFromServer()
+        }, 5000)
+
         return () => {
             window.removeEventListener('kojo:user:update', handler)
             window.removeEventListener('kojo:points:earned', handler)
+            clearInterval(pollTimer)
         }
     }, [])
 
