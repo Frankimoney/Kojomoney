@@ -454,8 +454,12 @@ export default function OfferwallSystem({ userId, onClose }: OfferwallSystemProp
                                             <CardContent className="p-0">
                                                 <div className="p-4">
                                                     <div className="flex gap-4">
-                                                        <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 flex items-center justify-center shrink-0">
-                                                            {getCategoryIcon(task.category)}
+                                                        <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 flex items-center justify-center shrink-0 overflow-hidden">
+                                                            {task.logoUrl ? (
+                                                                <img src={task.logoUrl} alt={task.title} className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                getCategoryIcon(task.category)
+                                                            )}
                                                         </div>
                                                         <div className="flex-1 min-w-0">
                                                             <div className="flex items-start justify-between gap-2 mb-1">
