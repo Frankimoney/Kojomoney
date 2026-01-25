@@ -1,0 +1,479 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Label } from '@/components/ui/label'
+import { Clock, BookOpen, CheckCircle, XCircle, ArrowRight } from 'lucide-react'
+import { useSession, signIn, signOut } from 'next-auth/react'
+import { useToast } from '@/hooks/use-toast'
+
+interface NewsStory {
+    id: string
+    title: string
+    summary: string
+    imageUrl?: string
+    category?: string
+    points: number
+    publishedAt: string
+    isExternal?: boolean
+    externalUrl?: string
+    source?: string
+    quizQuestion?: string
+    quizOptions?: string[]
+    correctAnswer?: number
+}
+
+interface NewsReadingState {
+    currentStory: NewsStory | null
+    isReading: boolean
+    showQuiz: boolean
+    timeRemaining: number
+    selectedAnswer: number | null
+    quizSubmitted: boolean
+    isCorrect: boolean | null
+    pointsEarned: number
+    fullContent?: string
+    fullContentLoading?: boolean
+    showFullContent?: boolean
+    if(!id) {
+    id = `${Math.random().toString(36).slice(2)}_${Date.now()}`
+    localStorage.setItem('kojomoneyAnonId', id)
+}
+setAnonId(id || '')
+        }
+    }, [])
+
+useEffect(() => {
+    let timer: NodeJS.Timeout
+    if (readingState.isReading && readingState.timeRemaining > 0) {
+        timer = setTimeout(() => {
+            setReadingState(prev => ({
+                ...prev,
+                timeRemaining: prev.timeRemaining - 1
+            }))
+        }, 1000)
+    } else if (readingState.isReading && readingState.timeRemaining === 0) {
+        setReadingState(prev => ({
+            ...prev,
+            isReading: false,
+            showQuiz: true
+        }))
+    }
+    return () => clearTimeout(timer)
+}, [readingState.isReading, readingState.timeRemaining])
+
+const fetchNewsStories = async () => {
+    try {
+        let response = await fetch('/api/news?reads=1')
+        let data = await response.json()
+
+        if (data?.error || !Array.isArray(data?.stories) || data.stories.length === 0) {
+            try {
+                response = await fetch('/api/news?source=rss&limit=10')
+                data = await response.json()
+            } catch (e) { }
+        }
+
+        if (data?.error || !Array.isArray(data?.stories) || data.stories.length === 0) {
+            try {
+                response = await fetch('/api/news?url=https://guardian.ng/feed/&limit=10')
+                data = await response.json()
+            } catch (e) { }
+        }
+
+        setStories(Array.isArray(data?.stories) ? data.stories : [])
+        if (Array.isArray(data?.reads)) setReadIds(new Set<string>(data.reads))
+    } catch (error) {
+        console.error('Error fetching stories:', error)
+    } finally {
+        setLoading(false)
+    }
+}
+
+const startReading = (story: NewsStory) => {
+    setReadingState({
+        currentStory: story,
+        isReading: true,
+        showQuiz: false,
+        timeRemaining: READ_SECONDS,
+        selectedAnswer: null,
+        quizSubmitted: false,
+        isCorrect: null,
+        pointsEarned: 0,
+        fullContent: undefined,
+        fullContentLoading: false,
+        showFullContent: false
+    })
+
+    // Pre-generate quiz while the user is reading
+    const url = `/api/quiz?storyId=${encodeURIComponent(story.id)}`
+    fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ externalUrl: story.externalUrl, title: story.title, summary: story.summary })
+    })
+        .then(async (res) => {
+            const data = await res.json().catch(() => ({}))
+            const quiz = data?.quiz || data
+            if (!quiz?.question || !Array.isArray(quiz?.options)) return
+            setReadingState((prev) => ({
+                ...prev,
+                currentStory: {
+                    ...prev.currentStory!,
+                    quizQuestion: quiz.question,
+                    quizOptions: quiz.options,
+                    correctAnswer: typeof quiz.correctIndex === 'number' ? quiz.correctIndex : prev.currentStory?.correctAnswer
+                }
+            }))
+        })
+        .catch(() => { })
+}
+
+const submitQuiz = async () => {
+    if (readingState.selectedAnswer === null || !readingState.currentStory) return
+
+    try {
+        const response = await fetch('/api/news', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                storyId: readingState.currentStory.id,
+                quizAnswer: readingState.selectedAnswer,
+                anonId
+            })
+        })
+        const result = await response.json()
+        setReadingState(prev => ({
+            ...prev,
+            quizSubmitted: true,
+            isCorrect: !!result.isCorrect,
+            pointsEarned: typeof result.pointsEarned === 'number' ? result.pointsEarned : (result.isCorrect ? readingState.currentStory!.points : 0),
+            quizExplanation: result.quizExplanation || null,
+            hasReadBefore: !!result.hasReadBefore,
+            needsLogin: !!result.needsLogin,
+            awarded: !!result.awarded
+        }))
+
+        // Sync updated user to localStorage and notify parent when points awarded
+        if (result.awarded) {
+            try {
+                const userId = (typeof window !== 'undefined' && window.localStorage.getItem('kojomoneyUser'))
+                    ? (JSON.parse(window.localStorage.getItem('kojomoneyUser') || '{}')?.id || null)
+                    : null
+                const effectiveId = userId || `anon:${anonId}`
+                const ures = await fetch(`/api/user?userId=${encodeURIComponent(effectiveId)}`)
+                const udata = await ures.json()
+                if (udata?.user) {
+                    window.localStorage.setItem('kojomoneyUser', JSON.stringify(udata.user))
+                    // Dispatch multiple events to ensure wallet updates
+                    window.dispatchEvent(new Event('kojo:user:update'))
+                    window.dispatchEvent(new CustomEvent('kojo:points:earned', {
+                        detail: {
+                            source: 'reading',
+                            points: result.pointsEarned,
+                            storyId: readingState.currentStory.id
+                        }
+                    }))
+                }
+            } catch (_) { }
+        }
+    } catch (error) {
+        console.error('Error submitting quiz:', error)
+        setReadingState(prev => ({
+            ...prev,
+            quizSubmitted: true,
+            isCorrect: false,
+            pointsEarned: 0
+        }))
+    }
+}
+
+const resetReading = () => {
+    setReadingState({
+        currentStory: null,
+        isReading: false,
+        showQuiz: false,
+        timeRemaining: READ_SECONDS,
+        selectedAnswer: null,
+        quizSubmitted: false,
+        isCorrect: null,
+        pointsEarned: 0,
+        fullContent: undefined,
+        fullContentLoading: false,
+        showFullContent: false
+    })
+}
+
+if (loading) {
+    return (
+        <Card>
+            <CardContent className="p-6">
+                <div className="animate-pulse space-y-4">
+                    <div className="h-4 bg-muted rounded w-3/4"></div>
+                    <div className="h-4 bg-muted rounded w-1/2"></div>
+                    <div className="h-4 bg-muted rounded w-2/3"></div>
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
+
+if (readingState.currentStory) {
+    return (
+        <Card className="max-w-2xl mx-auto">
+            <CardHeader>
+                <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center space-x-2">
+                        <BookOpen className="h-5 w-5" />
+                        <span>Reading Story</span>
+                    </CardTitle>
+                    <Badge variant="secondary">{readingState.currentStory.points} points</Badge>
+                </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                {/* Reading Phase */}
+                {readingState.isReading && (
+                    <div className="space-y-4">
+                        <div className="flex items-center space-x-2 text-muted-foreground">
+                            <Clock className="h-4 w-4" />
+                            <span>Please read carefully: {readingState.timeRemaining}s</span>
+                        </div>
+                        <Progress value={((READ_SECONDS - readingState.timeRemaining) / READ_SECONDS) * 100} className="h-2" />
+                        {readingState.currentStory?.imageUrl && (
+                            <div className="relative aspect-[16/9]">
+                                <img
+                                    src={readingState.currentStory.imageUrl}
+                                    alt={readingState.currentStory.title}
+                                    className="absolute inset-0 w-full h-full object-cover rounded-md"
+                                    loading="lazy"
+                                />
+                            </div>
+                        )}
+                        <div className="prose max-w-none">
+                            <h3 className="text-xl font-semibold mb-3">{readingState.currentStory.title}</h3>
+                            <p className="text-muted-foreground mb-4">{readingState.currentStory.summary}</p>
+                            <div className="bg-muted p-4 rounded-lg space-y-3">
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={async () => {
+                                            if (!readingState.currentStory) return
+                                            setReadingState(prev => ({ ...prev, fullContentLoading: true, showFullContent: true }))
+                                            try {
+                                                const res = await fetch(`/api/quiz?storyId=${encodeURIComponent(readingState.currentStory.id)}&content=1`)
+                                                const data = await res.json()
+                                                setReadingState(prev => ({ ...prev, fullContent: data?.text, fullContentLoading: false }))
+                                            } catch (e) {
+                                                setReadingState(prev => ({ ...prev, fullContentLoading: false }))
+                                            }
+                                        }}
+                                    >
+                                        Read Full Article Here
+                                    </Button>
+                                </div>
+                                {readingState.showFullContent && (
+                                    <div className="mt-2">
+                                        {readingState.fullContentLoading ? (
+                                            <div className="h-24 bg-accent animate-pulse rounded" />
+                                        ) : (
+                                            <p className="whitespace-pre-line text-sm text-muted-foreground">
+                                                {readingState.fullContent || 'Content not available.'}
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Quiz Phase */}
+                {readingState.showQuiz && !readingState.quizSubmitted && (
+                    <div className="space-y-4">
+                        <div className="bg-blue-50 p-4 rounded-lg">
+                            <h4 className="font-semibold mb-2">Quick Quiz</h4>
+                            <p className="text-sm text-muted-foreground">Answer correctly to earn {readingState.currentStory.points} points!</p>
+                        </div>
+                        <div className="space-y-3">
+                            <p className="font-medium">
+                                {readingState.currentStory.quizQuestion || defaultQuizQuestion}
+                            </p>
+                            <RadioGroup
+                                value={readingState.selectedAnswer?.toString()}
+                                onValueChange={(value) => setReadingState(prev => ({ ...prev, selectedAnswer: parseInt(value) }))}
+                            >
+                                {(readingState.currentStory.quizOptions || defaultQuizOptions).map((option, index) => (
+                                    <div key={index} className="flex items-center space-x-2">
+                                        <RadioGroupItem value={index.toString()} id={`option-${index}`} />
+                                        <Label htmlFor={`option-${index}`}>{option}</Label>
+                                    </div>
+                                ))}
+                            </RadioGroup>
+                        </div>
+                        <Button
+                            onClick={submitQuiz}
+                            disabled={readingState.selectedAnswer === null}
+                            className="w-full"
+                        >
+                            Submit Answer
+                        </Button>
+                    </div>
+                )}
+
+                {/* Result Phase */}
+                {readingState.quizSubmitted && (
+                    <div className="space-y-4">
+                        <div className={`p-4 rounded-lg ${readingState.isCorrect ? 'bg-green-50' : 'bg-red-50'}`}>
+                            <div className="flex items-center space-x-2">
+                                {readingState.isCorrect ? (
+                                    <CheckCircle className="h-5 w-5 text-green-600" />
+                                ) : (
+                                    <XCircle className="h-5 w-5 text-red-600" />
+                                )}
+                                <span className={`font-semibold ${readingState.isCorrect ? 'text-green-800' : 'text-red-800'}`}>
+                                    {readingState.isCorrect ? 'Correct!' : 'Incorrect'}
+                                </span>
+                            </div>
+                            <p className="mt-2">
+                                {readingState.isCorrect ? (
+                                    readingState.awarded ? `You earned ${readingState.currentStory?.points || readingState.pointsEarned} points!` : (
+                                        readingState.needsLogin ? `Correct! Sign in to claim ${readingState.currentStory?.points || 0} points.` : (
+                                            readingState.hasReadBefore ? 'Correct! Points already claimed for this story.' : `You earned ${readingState.currentStory?.points || readingState.pointsEarned} points!`
+                                        )
+                                    )
+                                ) : (
+                                    'Better luck next time! Make sure to read the stories carefully.'
+                                )}
+                            </p>
+                        </div>
+                        {readingState.quizExplanation && (
+                            <div className="bg-muted p-3 rounded">
+                                <p className="text-sm text-muted-foreground">{readingState.quizExplanation}</p>
+                            </div>
+                        )}
+                        <div className="bg-muted p-4 rounded-lg space-y-3">
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={async () => {
+                                        if (!readingState.currentStory) return
+                                        setReadingState(prev => ({ ...prev, fullContentLoading: true, showFullContent: true }))
+                                        try {
+                                            const res = await fetch(`/api/quiz?storyId=${encodeURIComponent(readingState.currentStory.id)}&content=1`)
+                                            const data = await res.json()
+                                            setReadingState(prev => ({ ...prev, fullContent: data?.text, fullContentLoading: false }))
+                                        } catch (e) {
+                                            setReadingState(prev => ({ ...prev, fullContentLoading: false }))
+                                        }
+                                    }}
+                                >
+                                    Read Full Article Here
+                                </Button>
+                            </div>
+                            {readingState.showFullContent && (
+                                <div className="mt-2">
+                                    {readingState.fullContentLoading ? (
+                                        <div className="h-24 bg-accent animate-pulse rounded" />
+                                    ) : (
+                                        <p className="whitespace-pre-line text-sm text-muted-foreground">
+                                            {readingState.fullContent || 'Content not available.'}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                        <Button onClick={resetReading} className="w-full">
+                            <ArrowRight className="h-4 w-4 mr-2" />
+                            Read Another Story
+                        </Button>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    )
+}
+
+return (
+    <div className="space-y-4">
+        <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">Today's Stories</h3>
+            <div className="flex items-center gap-2">
+                <Badge variant="outline">{stories.length} available</Badge>
+                {session ? (
+                    <Button size="sm" variant="outline" onClick={() => signOut()}>Sign out</Button>
+                ) : (
+                    <Button size="sm" variant="outline" onClick={async () => {
+                        const email = prompt('Enter your email to sign in') || ''
+                        if (email) {
+                            const res = await signIn('credentials', { email, redirect: false })
+                            if (res && (res as any).ok) {
+                                try {
+                                    await fetch('/api/users/merge-anon', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ anonId })
+                                    })
+                                    // Refresh reads to update badges
+                                    fetchNewsStories()
+                                } catch (_) { }
+                            }
+                        }
+                    }}>Sign in</Button>
+                )}
+            </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4">
+            {stories.map((story) => (
+                <Card key={story.id} className="group cursor-pointer hover:shadow-sm transition-shadow">
+                    {story.imageUrl ? (
+                        <div className="relative aspect-[16/9]">
+                            <img
+                                src={story.imageUrl}
+                                alt={story.title}
+                                className="absolute inset-0 w-full h-full object-cover rounded-t-md brightness-110 saturate-110 group-hover:brightness-125"
+                                loading="lazy"
+                            />
+                        </div>
+                    ) : (
+                        <div className="aspect-[16/9] bg-muted animate-pulse rounded-t-md" />
+                    )}
+                    <CardHeader className="pb-2">
+                        <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                                <CardTitle className="text-sm md:text-base font-semibold">{story.title}</CardTitle>
+                                <CardDescription className="text-xs md:text-sm">{story.summary}</CardDescription>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Badge variant="secondary" className="text-[11px] px-2 py-0.5">{story.points} pts</Badge>
+                                {session && readIds.has(story.id) && (
+                                    <Badge variant="outline" className="text-[11px] px-2 py-0.5">Points claimed</Badge>
+                                )}
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2 text-xs md:text-sm text-muted-foreground">
+                                {story.category && <Badge variant="outline">{story.category}</Badge>}
+                                <span>•</span>
+                                <span>{new Date(story.publishedAt).toLocaleDateString()}</span>
+                            </div>
+                            <Button size="sm" className="h-8 px-3" onClick={() => startReading(story)}>
+                                Read & Earn
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            ))}
+        </div>
+    </div>
+)
+}
+
+export default NewsReadingSystem

@@ -1,0 +1,48 @@
+require_relative '../../node_modules/@capacitor/ios/scripts/pods_helpers'
+
+platform :ios, '14.0'
+use_frameworks!
+
+# workaround to avoid Xcode caching of Pods that requires
+# Product -> Clean Build Folder after new Cordova plugins installed
+# Requires CocoaPods 1.6 or newer
+install! 'cocoapods', :disable_input_output_paths => true
+
+def capacitor_pods
+  pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'
+  pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'
+  pod 'CapacitorCommunityAdmob', :path => '../../node_modules/@capacitor-community/admob'
+  pod 'CapacitorFirebaseAnalytics', :path => '../../node_modules/@capacitor-firebase/analytics'
+  pod 'CapacitorFirebaseCrashlytics', :path => '../../node_modules/@capacitor-firebase/crashlytics'
+  pod 'CapacitorFirebaseMessaging', :path => '../../node_modules/@capacitor-firebase/messaging'
+  pod 'CapacitorApp', :path => '../../node_modules/@capacitor/app'
+  pod 'CapacitorBrowser', :path => '../../node_modules/@capacitor/browser'
+  pod 'CapacitorCamera', :path => '../../node_modules/@capacitor/camera'
+  pod 'CapacitorPushNotifications', :path => '../../node_modules/@capacitor/push-notifications'
+  pod 'CapacitorShare', :path => '../../node_modules/@capacitor/share'
+end
+
+target 'App' do
+  capacitor_pods
+  # Add your Pods here
+  pod 'Firebase/Analytics'
+  pod 'Firebase/Messaging'
+  pod 'Firebase/Crashlytics'
+  
+  # AdMob Mediation Adapters for iOS
+  # Meta Audience Network (Facebook) - High eCPM for social apps
+  pod 'GoogleMobileAdsMediationFacebook'
+  
+  # Unity Ads - Good for gaming-style apps
+  pod 'GoogleMobileAdsMediationUnity'
+  
+  # AppLovin - High fill rates globally
+  pod 'GoogleMobileAdsMediationAppLovin'
+  
+  # Pangle (TikTok/ByteDance) - Good for emerging markets
+  pod 'GoogleMobileAdsMediationPangle'
+end
+
+post_install do |installer|
+  assertDeploymentTarget(installer)
+end

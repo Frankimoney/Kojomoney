@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Slide Puzzle</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            color: white;
+            padding: 20px;
+        }
+
+        #game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            width: 100%;
+            max-width: 320px;
+        }
+
+        #stats {
+            font-size: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 25px;
+            border-radius: 20px;
+        }
+
+        #stats span {
+            color: #fbbf24;
+            font-weight: bold;
+        }
+
+        #grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            width: 100%;
+            aspect-ratio: 1;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 15px;
+        }
+
+        .tile {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.15s;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .tile:hover {
+            transform: scale(1.02);
+        }
+
+        .tile.empty {
+            background: transparent;
+            box-shadow: none;
+            cursor: default;
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            background: rgba(0, 0, 0, 0.9);
+            text-align: center;
+            padding: 20px;
+        }
+
+        .overlay h1,
+        .overlay h2 {
+            font-size: 1.5rem;
+        }
+
+        .play-btn {
+            padding: 12px 40px;
+            font-size: 1.1rem;
+            border: none;
+            border-radius: 25px;
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            color: #1a1a2e;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="game-container">
+        <div id="stats">Moves: <span id="moves">0</span></div>
+        <div id="grid"></div>
+    </div>
+
+    <div id="start-screen" class="overlay">
+        <h1>🧩 Slide Puzzle</h1>
+        <p>Arrange numbers 1-8 in order!</p>
+        <button class="play-btn" id="start-btn">Start Game</button>
+    </div>
+
+    <div id="game-over" class="overlay hidden">
+        <h2>🎉 Solved!</h2>
+        <p>Completed in <span id="final-moves">0</span> moves!</p>
+        <button class="play-btn" id="restart-btn">Play Again</button>
+    </div>
+
+    <script>
+        const grid = document.getElementById('grid');
+        const GRID_SIZE = 3;
+        const WIN_STATE = [1, 2, 3, 4, 5, 6, 7, 8, 0];
+
+        let tiles = [];
+        let emptyIndex = 8;
+        let moves = 0;
+        let gameStartTime;
+
+        function shuffle(arr) {
+            // Fisher-Yates shuffle with solvability check
+            let result = [...arr];
+            let inversions;
+            do {
+                for (let i = result.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [result[i], result[j]] = [result[j], result[i]];
+                }
+                inversions = countInversions(result);
+            } while (inversions % 2 !== 0); // Must be even for 3x3 to be solvable
+            return result;
+        }
+
+        function countInversions(arr) {
+            let inv = 0;
+            for (let i = 0; i < arr.length - 1; i++) {
+                for (let j = i + 1; j < arr.length; j++) {
+                    if (arr[i] && arr[j] && arr[i] > arr[j]) inv++;
+                }
+            }
+            return inv;
+        }
+
+        function init() {
+            tiles = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 0]);
+            emptyIndex = tiles.indexOf(0);
+            moves = 0;
+            gameStartTime = Date.now();
+            updateUI();
+            render();
+        }
+
+        function updateUI() {
+            document.getElementById('moves').textContent = moves;
+        }
+
+        function render() {
+            grid.innerHTML = '';
+            tiles.forEach((num, i) => {
+                const tile = document.createElement('div');
+                tile.className = `tile ${num === 0 ? 'empty' : ''}`;
+                tile.textContent = num === 0 ? '' : num;
+                tile.addEventListener('click', () => moveTile(i));
+                grid.appendChild(tile);
+            });
+        }
+
+        function canMove(index) {
+            const row = Math.floor(index / GRID_SIZE);
+            const col = index % GRID_SIZE;
+            const emptyRow = Math.floor(emptyIndex / GRID_SIZE);
+            const emptyCol = emptyIndex % GRID_SIZE;
+
+            return (Math.abs(row - emptyRow) + Math.abs(col - emptyCol)) === 1;
+        }
+
+        function moveTile(index) {
+            if (index === emptyIndex || !canMove(index)) return;
+
+            tiles[emptyIndex] = tiles[index];
+            tiles[index] = 0;
+            emptyIndex = index;
+            moves++;
+            updateUI();
+            render();
+
+            if (checkWin()) {
+                setTimeout(endGame, 300);
+            }
+        }
+
+        function checkWin() {
+            return tiles.every((t, i) => t === WIN_STATE[i]);
+        }
+
+        function endGame() {
+            document.getElementById('final-moves').textContent = moves;
+            document.getElementById('game-over').classList.remove('hidden');
+
+            const duration = Math.floor((Date.now() - gameStartTime) / 1000);
+            window.parent.postMessage({
+                type: 'gameComplete',
+                gameId: 'puzzle',
+                score: Math.max(100 - moves, 10),
+                duration: duration
+            }, '*');
+        }
+
+        function startGame() {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('game-over').classList.add('hidden');
+            init();
+        }
+
+        document.getElementById('start-btn').addEventListener('click', startGame);
+        document.getElementById('restart-btn').addEventListener('click', startGame);
+    </script>
+</body>
+
+</html>

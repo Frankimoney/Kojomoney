@@ -1,0 +1,13 @@
+
+services:
+  - type: web
+    name: kojomoney
+    env: docker
+    plan: free
+    dockerFilePath: Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: BUILD_MODE
+        value: server

@@ -1,0 +1,13 @@
+node_modules
+.next
+out
+build
+dist
+android/
+ios/
+functions/
+public/
+coverage/
+.env*
+!.env.example
+*.d.ts

@@ -1,0 +1,282 @@
+/**
+ * Ads API - Handle ad view tracking and rewards
+ * 
+ * POST /api/ads - Start an ad viewing session
+ * PATCH /api/ads - Complete an ad view and award points
+ */
+
+import type { NextApiRequest, NextApiResponse } from 'next'
+import { db } from '@/lib/firebase-admin'
+import { allowCors } from '@/lib/cors'
+import { getHappyHourBonus } from '@/lib/happyHour'
+import { getStreakMultiplier } from '@/lib/points-config'
+import { checkMilestoneAsync } from '@/services/milestoneService'
+
+import { getEconomyConfig } from '@/lib/server-config'
+
+export const dynamic = 'force-dynamic'
+
+// Constants for ads
+const BASE_AD_REWARD_POINTS = 10
+const TOURNAMENT_POINTS_PER_AD = 10
+const MAX_ADS_PER_DAY = 10 // Fallback, prefer config.dailyLimits.maxAds
+
+function getTodayKey(): string {
+    return new Date().toISOString().split('T')[0]
+}
+
+function getCurrentWeekKey(): string {
+    const now = new Date()
+    const startOfYear = new Date(now.getFullYear(), 0, 1)
+    const weekNumber = Math.ceil(((now.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7)
+    return `${now.getFullYear()}-W${weekNumber.toString().padStart(2, '0')}`
+}
+
+async function handler(req: NextApiRequest, res: NextApiResponse) {
+    if (!db) {
+        return res.status(500).json({ error: 'Database not available' })
+    }
+
+    const config = await getEconomyConfig()
+
+    if (req.method === 'POST') {
+        return handlePost(req, res, config)
+    } else if (req.method === 'PATCH') {
+        return handlePatch(req, res, config)
+    } else {
+        return res.status(405).json({ error: 'Method not allowed' })
+    }
+}
+
+export default allowCors(handler)
+
+// POST: Start an ad viewing session
+async function handlePost(req: NextApiRequest, res: NextApiResponse, config: any) {
+    try {
+        const { userId } = req.body
+
+        if (!userId) {
+            return res.status(400).json({ error: 'userId is required' })
+        }
+
+        const todayKey = getTodayKey()
+        const now = Date.now()
+
+        // Check daily limit
+        const userDoc = await db!.collection('users').doc(userId).get()
+        if (!userDoc.exists) {
+            return res.status(404).json({ error: 'User not found' })
+        }
+
+        const userData = userDoc.data()!
+        let adsWatched = userData.adsWatched || 0
+
+        // Reset if new day
+        if (userData.lastActiveDate !== todayKey) {
+            adsWatched = 0
+        }
+
+        if (adsWatched >= config.dailyLimits.maxAds) {
+            return res.status(429).json({
+                error: 'Daily ad limit reached',
+                adsWatched,
+                maxAds: config.dailyLimits.maxAds,
+                resetTime: 'midnight'
+            })
+        }
+
+        // Create ad view record
+        const adViewRef = await db!.collection('ad_views').add({
+            userId,
+            status: 'started',
+            startedAt: now,
+            date: todayKey,
+        })
+
+        return res.status(200).json({
+            adViewId: adViewRef.id,
+            adsWatchedToday: adsWatched,
+            remainingAds: config.dailyLimits.maxAds - adsWatched,
+            rewardPoints: config.earningRates.watchAd,
+        })
+    } catch (error) {
+        console.error('Error starting ad view:', error)
+        return res.status(500).json({ error: 'Failed to start ad view' })
+    }
+}
+
+// PATCH: Complete an ad view and award points
+async function handlePatch(req: NextApiRequest, res: NextApiResponse, config: any) {
+    try {
+        const { adViewId, userId } = req.body
+
+        if (!adViewId || !userId) {
+            return res.status(400).json({ error: 'adViewId and userId are required' })
+        }
+
+        const now = Date.now()
+        const todayKey = getTodayKey()
+        const weekKey = getCurrentWeekKey()
+
+        // Verify ad view exists and is not already completed
+        const adViewRef = db!.collection('ad_views').doc(adViewId)
+        const adViewDoc = await adViewRef.get()
+
+        if (!adViewDoc.exists) {
+            return res.status(404).json({ error: 'Ad view not found' })
+        }
+
+        const adViewData = adViewDoc.data()!
+        if (adViewData.userId !== userId) {
+            return res.status(403).json({ error: 'Unauthorized' })
+        }
+
+        if (adViewData.status === 'completed') {
+            return res.status(400).json({ error: 'Ad already completed' })
+        }
+
+        // Update ad view record
+        await adViewRef.update({
+            status: 'completed',
+            completedAt: now,
+        })
+
+        // Update user points and stats
+        const userRef = db!.collection('users').doc(userId)
+        const userDoc = await userRef.get()
+
+        if (!userDoc.exists) {
+            return res.status(404).json({ error: 'User not found' })
+        }
+
+        const userData = userDoc.data()!
+        const currentPoints = userData.totalPoints || userData.points || 0
+
+        // Check daily stats
+        let adsWatched = userData.adsWatched || 0
+        if (userData.lastActiveDate !== todayKey) {
+            adsWatched = 0
+        }
+
+        // Get streak for tier-based multiplier
+        const dailyStreak = userData.dailyStreak || 0
+        const streakInfo = getStreakMultiplier(dailyStreak)
+
+        // Apply both Happy Hour AND Streak multipliers
+        // Apply both Happy Hour AND Streak multipliers
+        const happyHourInfo = getHappyHourBonus(config.earningRates.watchAd)
+        const combinedMultiplier = happyHourInfo.multiplier * streakInfo.multiplier
+        const pointsToAward = Math.floor(config.earningRates.watchAd * combinedMultiplier)
+
+        // Calculate new streak
+        const yesterdayDate = new Date()
+        yesterdayDate.setDate(yesterdayDate.getDate() - 1)
+        const yesterday = yesterdayDate.toISOString().split('T')[0]
+
+        let newStreak = userData.dailyStreak || 0
+        const lastActive = userData.lastActiveDate
+
+        // Only update streak if it hasn't been updated today
+        if (lastActive !== todayKey) {
+            if (lastActive === yesterday) {
+                newStreak += 1 // Consecutive day
+            } else {
+                newStreak = 1 // Broken streak or first day
+            }
+        } else if (newStreak === 0) {
+            // Edge case: User active today but streak is 0
+            newStreak = 1
+        }
+
+        // Get current todayProgress and update adsWatched
+        const currentProgress = userData.todayProgress || { adsWatched: 0, storiesRead: 0, triviaCompleted: false }
+
+        // Reset progress if new day
+        if (userData.lastActiveDate !== todayKey) {
+            currentProgress.adsWatched = 0
+            currentProgress.storiesRead = 0
+            currentProgress.triviaCompleted = false
+        }
+
+        // Update user with both root-level and todayProgress.adsWatched
+        await userRef.update({
+            totalPoints: currentPoints + pointsToAward,
+            points: currentPoints + pointsToAward,
+            adPoints: (userData.adPoints || 0) + pointsToAward,
+            adsWatched: adsWatched + 1, // Legacy field for backwards compatibility
+            todayProgress: {
+                ...currentProgress,
+                adsWatched: adsWatched + 1 // Update in todayProgress for progress bar
+            },
+            lastActiveDate: todayKey,
+            dailyStreak: newStreak, // Update streak
+            updatedAt: now,
+        })
+
+        // Build bonus description
+        const bonusLabels: string[] = []
+        if (happyHourInfo.bonusLabel) bonusLabels.push(happyHourInfo.bonusLabel)
+        if (streakInfo.multiplier > 1) bonusLabels.push(`${streakInfo.tier.label} ${streakInfo.multiplier}x`)
+        const bonusDescription = bonusLabels.length > 0 ? ` (${bonusLabels.join(' + ')})` : ''
+
+        // Create transaction record with bonus info
+        await db!.collection('transactions').add({
+            userId,
+            type: 'credit',
+            amount: pointsToAward,
+            baseAmount: BASE_AD_REWARD_POINTS,
+            happyHourMultiplier: happyHourInfo.multiplier,
+            streakMultiplier: streakInfo.multiplier,
+            source: 'ad_watch',
+            status: 'completed',
+            description: `Watched ad #${adsWatched + 1}${bonusDescription}`,
+            createdAt: now,
+        })
+
+        // Check for milestone celebration (fire and forget)
+        checkMilestoneAsync(userId, currentPoints, currentPoints + pointsToAward)
+
+        // Update Tournament Points
+        const entrySnapshot = await db!.collection('tournament_entries')
+            .where('weekKey', '==', weekKey)
+            .where('userId', '==', userId)
+            .limit(1)
+            .get()
+
+        if (!entrySnapshot.empty) {
+            const entryDoc = entrySnapshot.docs[0]
+            await entryDoc.ref.update({
+                points: (entryDoc.data().points || 0) + TOURNAMENT_POINTS_PER_AD,
+                lastUpdated: now,
+            })
+        } else {
+            // Auto-join tournament
+            await db!.collection('tournament_entries').add({
+                weekKey,
+                userId,
+                name: userData.name || userData.username || 'Anonymous',
+                avatar: userData.avatarUrl || '',
+                points: TOURNAMENT_POINTS_PER_AD,
+                joinedAt: now,
+                lastUpdated: now,
+            })
+        }
+
+        return res.status(200).json({
+            success: true,
+            pointsAwarded: pointsToAward,
+            basePoints: BASE_AD_REWARD_POINTS,
+            happyHourMultiplier: happyHourInfo.multiplier,
+            happyHourName: happyHourInfo.bonusLabel || null,
+            streakMultiplier: streakInfo.multiplier,
+            streakName: streakInfo.multiplier > 1 ? `${streakInfo.tier.label} ${streakInfo.multiplier}x` : null,
+            tournamentPointsAwarded: TOURNAMENT_POINTS_PER_AD,
+            newTotal: currentPoints + pointsToAward,
+            adsWatchedToday: adsWatched + 1,
+            remainingAds: MAX_ADS_PER_DAY - (adsWatched + 1),
+        })
+    } catch (error) {
+        console.error('Error completing ad view:', error)
+        return res.status(500).json({ error: 'Failed to complete ad view' })
+    }
+}
