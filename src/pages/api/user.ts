@@ -110,42 +110,52 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             transactionsSnapshot.forEach(doc => {
                 const tx = doc.data();
                 const amount = Number(tx.amount || 0);
+
                 if (tx.type === 'credit' && tx.status === 'completed') {
+                    // Earnings, refunds, etc.
                     calculatedPoints += amount;
-                    // Only count offerwall/survey/referral towards total earnings
-                    // Assuming 'source' reflects this
-                    if (['offerwall', 'survey', 'referral'].includes(tx.source)) {
+
+                    // Only count earnings for totalEarnings (exclude refunds)
+                    if (['offerwall', 'survey', 'referral', 'bonus', 'daily_reward', 'game', 'trivia'].includes(tx.source)) {
                         calculatedEarnings += amount;
                     }
-                } else if (tx.type === 'debit' && tx.status === 'completed') {
-                    calculatedPoints = Math.max(0, calculatedPoints - amount);
+                } else if (tx.type === 'debit') {
+                    // Handle Debits
+
+                    // 1. 'withdrawal' source is an Admin Approval Log (duplicate of request). Ignore it.
+                    if (tx.source === 'withdrawal') return;
+
+                    // 2. 'withdrawal_request' is the actual deduction. Count it (pending or completed).
+                    if (tx.source === 'withdrawal_request') {
+                        calculatedPoints -= amount;
+                        return;
+                    }
+
+                    // 3. Other debits must be completed to count (e.g. reversals)
+                    if (tx.status === 'completed') {
+                        calculatedPoints -= amount;
+                    }
                 }
             });
 
-            // Compare with stored values
-            // We use a small threshold or strict equality? Strict.
-            // But we must assume 'initial points' (e.g. signup bonus) might be in transactions or not?
-            // Usually signup bonus is a transaction.
+            // Ensure non-negative
+            calculatedPoints = Math.max(0, calculatedPoints);
 
+            // Compare with stored values
             const storedPoints = Math.max(userData.points || 0, userData.totalPoints || 0);
-            
-            // If calculated is HIGHER, we definitely missed something. Update.
-            // If calculated is LOWER, it might mean we manually gave points without a transaction? 
-            // Or a bug. Safest is to only upgrade if calculated is higher.
-            // BUT: If recent race condition caused loss, calculated will be > stored.
-            
+
+            // If calculated is HIGHER, we definitely missed something. Upgrade the balance.
             if (calculatedPoints > storedPoints) {
                 console.log(`[Healing] User ${userIdStr} mismatch! Stored: ${storedPoints}, Calculated: ${calculatedPoints}. Fixing...`);
-                
-                // Update DB with correct values
+
                 await db.collection('users').doc(userIdStr).update({
                     points: calculatedPoints,
                     totalPoints: calculatedPoints,
-                    totalEarnings: Math.max(userData.totalEarnings || 0, calculatedEarnings), // Don't reduce earnings
+                    // Safe to update earnings? Yes
+                    totalEarnings: Math.max(userData.totalEarnings || 0, calculatedEarnings),
                     updatedAt: Date.now()
                 });
 
-                // Update local obj for response
                 userData.points = calculatedPoints;
                 userData.totalPoints = calculatedPoints;
             }
