@@ -84,16 +84,29 @@ async function handleRequest(req: NextRequest) {
         const completionQuery = db.collection('offer_completions');
 
         if (payload.trackingId) {
-            const completionDoc = await completionQuery.doc(payload.trackingId).get();
+            let completionId = payload.trackingId;
+            let completionDoc = await completionQuery.doc(completionId).get();
+
+            // COLLISION CHECK: Recycled Transaction ID (Common in testing)
+            if (completionDoc.exists) {
+                const existingData = completionDoc.data();
+                if (existingData?.userId !== payload.userId) {
+                    console.warn(`[Callback] Transaction Collision Detected! Txn ${completionId} exists for User ${existingData?.userId}, but payload is for User ${payload.userId}. Treating as NEW record (test mode?).`);
+                    
+                    // Modify ID to make it unique so we don't credit the wrong user
+                    completionId = `${completionId}_${payload.userId}_${Date.now()}`;
+                    completionDoc = await completionQuery.doc(completionId).get(); // Should be empty now
+                }
+            }
 
             if (!completionDoc.exists) {
                 const AUTO_CREATE_PROVIDERS: OfferProvider[] = ['Kiwiwall', 'Timewall', 'AdGem', 'Wannads', 'Adgate', 'Monlix', 'OfferToro', 'CPX'];
-
+                // ... rest of creation logic using completionId instead of payload.trackingId
                 if (AUTO_CREATE_PROVIDERS.includes(provider)) {
                     console.log(`Creating new completion record for ${provider} offer ${payload.offerId}`);
 
                     const newCompletion = {
-                        id: payload.trackingId,
+                        id: completionId, // Use the potentially unique ID
                         offerId: payload.offerId || 'external_offer',
                         userId: payload.userId,
                         provider: provider,
@@ -103,12 +116,14 @@ async function handleRequest(req: NextRequest) {
                         startedAt: Date.now(),
                         metadata: {
                             createdFromCallback: true,
+                            collisionResolved: completionId !== payload.trackingId,
+                            originalTrackingId: payload.trackingId,
                             ...rawPayload
                         }
                     };
 
-                    await completionQuery.doc(payload.trackingId).set(newCompletion);
-                    await processCallbackLogic(payload.trackingId, newCompletion, payload);
+                    await completionQuery.doc(completionId).set(newCompletion);
+                    await processCallbackLogic(completionId, newCompletion, payload);
 
                     // Kiwiwall explicitly requires the response body to be just "1"
                     if (provider === 'Kiwiwall') {
@@ -116,12 +131,12 @@ async function handleRequest(req: NextRequest) {
                     }
                     return NextResponse.json({ success: true, message: '1' }, { status: 200 });
                 } else {
-                    console.error('Completion not found:', payload.trackingId);
+                    console.error('Completion not found:', completionId);
                     return NextResponse.json({ error: 'Completion not found' }, { status: 404 });
                 }
             }
 
-            // Exists
+            // Exists and matches user (or we just created it)
             await processCallbackLogic(completionDoc.id, completionDoc.data(), payload);
         } else if (payload.userId && payload.offerId) {
             // Search by user + offer
