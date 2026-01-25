@@ -97,11 +97,17 @@ async function handler(
 
             // Only include credit transactions (positive amounts)
             if (amount > 0) {
+                // Determine description
+                let description = data.description;
+                if (!description || description === 'Earned points') {
+                    description = generateDescription(data.type, data.source, data.metadata);
+                }
+
                 earnings.push({
                     id: doc.id,
                     type: data.type || 'unknown',
                     amount,
-                    description: data.description || getDefaultDescription(data.type),
+                    description,
                     createdAt: data.createdAt || Date.now(),
                     source: data.source || data.provider,
                 })
@@ -109,7 +115,7 @@ async function handler(
                 // Add to summary
                 summary.total += amount
 
-                // Determine category based on type OR source (since callbacks use type='credit', source='offerwall')
+                // Determine category based on type OR source
                 const category = (data.source || data.type || '').toLowerCase()
 
                 if (['ad_reward', 'ad_watch', 'ad'].some(k => category.includes(k))) {
@@ -152,32 +158,46 @@ async function handler(
     }
 }
 
-function getDefaultDescription(type: string): string {
+function generateDescription(type: string, source?: string, metadata?: any): string {
+    // 1. Check for explicit provider in metadata
+    const provider = metadata?.provider || metadata?.network;
+    const offerTitle = metadata?.offerTitle || metadata?.offer_name;
+    const cleanSource = (source || type || '').toLowerCase();
+
+    // 2. Offerwalls & Surveys
+    if (cleanSource.includes('offerwall') || cleanSource.includes('offer')) {
+        if (offerTitle) return `Offer: ${offerTitle}`;
+        if (provider) return `${provider} Offer Completed`;
+        return 'Offerwall Task Completed';
+    }
+
+    if (cleanSource.includes('survey')) {
+        if (provider) return `${provider} Survey Completed`;
+        return 'Survey Completed';
+    }
+
+    // 3. Fallback for other types
     switch (type) {
         case 'ad_reward':
         case 'ad_watch':
-            return 'Watched an ad'
+            return 'Watched an Ad'
         case 'news_reward':
         case 'news_read':
-            return 'Read a news article'
+            return 'Read News Article'
         case 'trivia_reward':
         case 'trivia_complete':
-            return 'Completed trivia'
+            return 'Daily Trivia Reward'
         case 'game_reward':
-            return 'Game reward'
+            return 'Game Win Reward'
         case 'mini_game_reward':
-            return 'Practice game reward'
-        case 'offerwall':
-        case 'offer_complete':
-            return 'Completed an offer'
-        case 'survey':
-        case 'survey_complete':
-            return 'Completed a survey'
+            return 'Mini-Game Practice'
         case 'referral':
         case 'referral_bonus':
-            return 'Referral bonus'
+            return 'Referral Bonus'
+        case 'withdrawal_refund':
+            return 'Refund: Withdrawal Rejected'
         default:
-            return 'Earned points'
+            return 'Points Earned'
     }
 }
 
