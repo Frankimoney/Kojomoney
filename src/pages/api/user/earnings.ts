@@ -56,25 +56,46 @@ async function handler(
     }
 
     try {
+        // Determine time range
+        let startTime = 0;
+        const period = req.query.period as string;
+
+        if (period === 'today') {
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+            startTime = now.getTime();
+        }
+
         let snapshot;
         const limitNum = parseInt(limit as string)
 
-        // Try the indexed query first
+        // Query Strategy
+        let query = db.collection('transactions').where('userId', '==', userId);
+
+        if (startTime > 0) {
+            // If period filter is active, filter by createdAt >= startTime
+            query = query.where('createdAt', '>=', startTime);
+        }
+
+        // Always order by createdAt desc
+        query = query.orderBy('createdAt', 'desc');
+
+        // Apply limit only if NO period or if period is very long (safety)
+        // For 'today', we want ALL transactions to sum correctly, but let's cap at 500 to be safe
+        const fetchLimit = period === 'today' ? 500 : limitNum;
+        query = query.limit(fetchLimit);
+
         try {
-            snapshot = await db
-                .collection('transactions')
-                .where('userId', '==', userId)
-                .orderBy('createdAt', 'desc')
-                .limit(limitNum)
-                .get()
+            snapshot = await query.get();
         } catch (indexError: any) {
-            // If index doesn't exist, fall back to unordered query
-            console.warn('Firestore index may be missing, falling back to simple query:', indexError.message)
-            snapshot = await db
-                .collection('transactions')
+            // Fallback for missing index
+            console.warn('Firestore index issue, falling back:', indexError.message)
+            // Simple fallback without complex ordering if index fails
+            snapshot = await db.collection('transactions')
                 .where('userId', '==', userId)
-                .limit(limitNum * 2) // Get more since we'll sort and slice
-                .get()
+                .limit(fetchLimit)
+                .get();
+            // We will filter/sort in memory below
         }
 
         const earnings: EarningEntry[] = []
@@ -94,6 +115,10 @@ async function handler(
         snapshot.forEach((doc) => {
             const data = doc.data()
             const amount = data.amount || 0
+            const createdAt = data.createdAt || 0;
+
+            // Memory filter for fallback or safety
+            if (startTime > 0 && createdAt < startTime) return;
 
             // Only include credit transactions (positive amounts)
             if (amount > 0) {
